@@ -446,7 +446,7 @@
                     </div>
                 </div>
                 
-                <div class="form-group role-selector">
+                <!-- <div class="form-group role-selector">
                     <label class="form-label">
                         <i class="fas fa-user-tag me-2"></i>Login As
                     </label>
@@ -464,7 +464,7 @@
                             Owner
                         </div>
                     </div>
-                </div>
+                </div> -->
                 
                 <button type="submit" class="btn-login" id="loginBtn">
                     <span id="loginText">Login to System</span>
@@ -605,6 +605,7 @@
         }
         
         // Show forgot password modal
+// Show forgot password modal
         function showForgotPassword() {
             const modalHTML = `
                 <div class="modal fade" id="forgotPasswordModal" tabindex="-1">
@@ -612,39 +613,31 @@
                         <div class="modal-content">
                             <div class="modal-header" style="background: linear-gradient(135deg, #4A90E2 0%, #357ae8 100%); color: white;">
                                 <h5 class="modal-title">
-                                    <i class="fas fa-key me-2"></i>Password Recovery
+                                    <i class="fas fa-paper-plane me-2"></i>Request Admin Reset
                                 </h5>
                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
-                                <div class="alert alert-warning">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                    Staff cannot reset passwords themselves. Contact owner/admin.
-                                </div>
                                 <form id="recoveryForm">
                                     <div class="row g-3">
                                         <div class="col-12">
                                             <label class="form-label">Username</label>
-                                            <input type="text" class="form-control" placeholder="Enter your username">
+                                            <input type="text" class="form-control" id="resetUsername" placeholder="Enter your username">
                                         </div>
                                         <div class="col-12">
-                                            <label class="form-label">Security Question</label>
-                                            <select class="form-select">
-                                                <option>What is your mother's maiden name?</option>
-                                                <option>What was your first pet's name?</option>
-                                                <option>What city were you born in?</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label">Answer</label>
-                                            <input type="text" class="form-control">
+                                            <label class="form-label">Message to Admin</label>
+                                            <textarea class="form-control" id="resetMessage" rows="3" placeholder="Explain why you need a reset..."></textarea>
+                                            <small class="text-muted mt-2 d-block">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                Note: You need to contact the admin directly to receive your temporary password.
+                                            </small>
                                         </div>
                                     </div>
                                 </form>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="button" class="btn btn-light-blue" onclick="requestPasswordReset()">Request Reset</button>
+                                <button type="button" class="btn btn-primary" onclick="requestPasswordReset()">Send Request</button>
                             </div>
                         </div>
                     </div>

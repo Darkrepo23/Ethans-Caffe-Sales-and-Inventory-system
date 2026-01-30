@@ -1,0 +1,45 @@
+Dashboard Staff:
+Total Orders
+Sales Today
+Low Stock Alerts 
+Available ingredients
+
+Ingredient Stock  Summary Table:
+Ingredient Name
+Category
+Current Quantity
+Status
+
+Best Selling Foods Table
+Menu Item
+Quantity Sold
+
+
+
+Record Sale Page:
+
+Food name Description Price category Img
+
+Cart: FoodName Price Quantity
+
+
+
+Reciept Page:
+
+Recents Receipt: order no. Date, like yesterday today january 19 (no year). and time
+Food name and quantity
+
+
+Ingredients Page By Category:
+Ingredients Name, Kilo, Quantity, Threshold, its eather stock delivery or waste/ spoilage
+
+Settings Page:
+
+Account Information: Staff Name, Username, Role, Account Status, Last Login.
+
+Password: have a option of changes password. (need to be changed)
+
+have a button request password reset
+
+
+Activity Log: Action, Order No., Receipt with order No., and badge if success ir failed
