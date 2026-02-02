@@ -590,17 +590,17 @@
     
     <!-- Custom JavaScript -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check login
-            const user = JSON.parse(localStorage.getItem('user'));
-            if (!user || !user.loggedIn || user.role !== 'owner') {
-                window.location.href = 'index.html';
-                return;
-            }
+        // document.addEventListener('DOMContentLoaded', function() {
+        //     // Check login
+        //     const user = JSON.parse(localStorage.getItem('user'));
+        //     if (!user || !user.loggedIn || user.role !== 'owner') {
+        //         window.location.href = 'index.html';
+        //         return;
+        //     }
             
-            // Update user name
-            document.getElementById('userName').textContent = user.name || 'Owner';
-        });
+        //     // Update user name
+        //     document.getElementById('userName').textContent = user.name || 'Owner';
+        // });
         
         // Toggle sidebar on mobile
         function toggleSidebar() {

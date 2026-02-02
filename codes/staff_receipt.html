@@ -590,6 +590,9 @@
             showToast('Order confirmed successfully!', 'success');
         });
 
+        localStorage.setItem("orderConfirmed", "false");
+
+
 
         // Start new sale
         function startNewSale() {
