@@ -10,10 +10,14 @@ to make the bottom table not so close to top
 
 in Temporary staff account. 
 
-why there's a temporary account status. why not the admin just log out as a
-staff. and why there's a three boxes, record sales, adjust stocks and print
-reciept? admin can do that inside the staff the printing the adjust stock
-and print reciept
+why there's a activate/deactive in  temporary account status. why not the admin just log out as a
+staff? and why there's a three boxes, record sales, adjust stocks and print
+reciept? admin can do that inside the staff interface the printing the adjust stock
+and print reciept. so my perspective is remove the three boxes cause it was like unecessary.
+
+The flow is the admin already have a account staff in database so when click the temporary staff account button its 
+automatically log in as the staff in staff interface, So he can perform what staff can do if there's out of staff.
+
 
 in recipe control the edit actions wont work
 
@@ -25,6 +29,8 @@ remember that admin have all the control.
 
 in staff:
 if the menu is unavailable it will not be show in menu sales.
+
+
 
 
 
