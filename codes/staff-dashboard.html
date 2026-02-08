@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Dashboard - Restaurant POS</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="staff.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-black fixed-top shadow">
+        <div class="container-fluid">
+            <!-- Logo -->
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <img src="assets/logo.png" alt="Logo" height="40" class="me-2">
+                <span class="fw-bold">Restaurant POS</span>
+                <span class="badge bg-maroon ms-2">Staff</span>
+            </a>
+            
+            <!-- Mobile Toggle -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <!-- Nav Items -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" data-page="dashboard">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="menu">
+                            <i class="fas fa-utensils me-1"></i>Menu Sales
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="ingredients">
+                            <i class="fas fa-boxes me-1"></i>Ingredients
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="receipts">
+                            <i class="fas fa-receipt me-1"></i>Receipts
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i>John Doe
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" data-page="account"><i class="fas fa-user-cog me-2"></i>Account</a></li>
+                            <li><a class="dropdown-item" href="#" data-page="activity-log"><i class="fas fa-history me-2"></i>Activity Log</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" id="logoutBtn"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <div class="container-fluid mt-5 pt-4">
+        <div class="row">
+            <!-- Sidebar (Collapsible on Mobile) -->
+            <div class="col-lg-2 col-md-3 d-md-block sidebar collapse" id="sidebarMenu">
+                <div class="position-sticky pt-3">
+                    <div class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action active" data-page="dashboard">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action" data-page="menu">
+                            <i class="fas fa-utensils me-2"></i>Menu Sales
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action" data-page="ingredients">
+                            <i class="fas fa-boxes me-2"></i>Ingredients
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action" data-page="receipts">
+                            <i class="fas fa-receipt me-2"></i>Receipts
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action" data-page="account">
+                            <i class="fas fa-user-cog me-2"></i>Account Settings
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action" data-page="activity-log">
+                            <i class="fas fa-history me-2"></i>Activity Log
+                        </a>
+                    </div>
+                    
+                    <!-- Quick Stats -->
+                    <div class="card mt-4">
+                        <div class="card-header bg-maroon text-white">
+                            <h6 class="mb-0"><i class="fas fa-info-circle me-1"></i>Quick Stats</h6>
+                        </div>
+                        <div class="card-body p-2">
+                            <small class="d-block"><strong>Today's Orders:</strong> <span id="quickOrders">0</span></small>
+                            <small class="d-block"><strong>Low Stock Items:</strong> <span id="quickLowStock">0</span></small>
+                            <small class="d-block"><strong>Last Login:</strong> <span id="lastLogin">Today</span></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content Area -->
+            <main class="col-lg-10 col-md-9 ms-sm-auto px-md-4 animate__animated animate__fadeIn">
+                <!-- Dashboard Content (Default) -->
+                <div id="dashboard-content" class="page-content">
+                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                        <h1 class="h2"><i class="fas fa-tachometer-alt me-2 text-maroon"></i>Dashboard</h1>
+                        <div class="btn-toolbar mb-2 mb-md-0">
+                            <div class="btn-group me-2">
+                                <button class="btn btn-sm btn-outline-maroon" id="refreshDashboard">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                            </div>
+                            <button class="btn btn-sm btn-outline-secondary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
+                                <i class="fas fa-bars"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Info Boxes -->
+                    <div class="row mb-4">
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card info-card border-left-primary shadow h-100 py-2 animate__animated animate__fadeInLeft">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                                Total Orders Today
+                                            </div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalOrders">0</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-clipboard-list fa-2x text-maroon"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card info-card border-left-success shadow h-100 py-2 animate__animated animate__fadeInLeft">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                                Sales Today
+                                            </div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalSales">0</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-dollar-sign fa-2x text-green"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card info-card border-left-warning shadow h-100 py-2 animate__animated animate__fadeInRight">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                                Low Stock Alerts
+                                            </div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="lowStock">0</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card info-card border-left-info shadow h-100 py-2 animate__animated animate__fadeInRight">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                                Available Ingredients
+                                            </div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="availableIngredients">0</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-box-open fa-2x text-blue"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tables Row -->
+                    <div class="row">
+                        <!-- Ingredient Stock Summary -->
+                        <div class="col-xl-6 col-lg-12 mb-4">
+                            <div class="card shadow h-100">
+                                <div class="card-header bg-black text-white">
+                                    <h6 class="m-0 font-weight-bold">
+                                        <i class="fas fa-clipboard-list me-1"></i>Ingredient Stock Summary
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="ingredientTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Ingredient</th>
+                                                    <th>Category</th>
+                                                    <th>Current Qty</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- Data will be populated by JavaScript -->
+                                                <tr>
+                                                    <td colspan="4" class="text-center">Loading data...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Best Selling Foods -->
+                        <div class="col-xl-6 col-lg-12 mb-4">
+                            <div class="card shadow h-100">
+                                <div class="card-header bg-black text-white">
+                                    <h6 class="m-0 font-weight-bold">
+                                        <i class="fas fa-chart-line me-1"></i>Best-Selling Foods (Today)
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="bestSellingTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Menu Item</th>
+                                                    <th>Quantity Sold</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- Data will be populated by JavaScript -->
+                                                <tr>
+                                                    <td colspan="2" class="text-center">Loading data...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="mt-3 text-muted small">
+                                        <i class="fas fa-info-circle me-1"></i>No revenue or money shown as per system design
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Menu Sales Content (Hidden by default) -->
+                <div id="menu-content" class="page-content d-none">
+                    <!-- Content for Menu Sales page -->
+                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                        <h1 class="h2"><i class="fas fa-utensils me-2 text-maroon"></i>Menu Sales</h1>
+                        <div class="btn-toolbar mb-2 mb-md-0">
+                            <div class="btn-group me-2">
+                                <button class="btn btn-sm btn-outline-maroon" id="startNewSale">
+                                    <i class="fas fa-plus-circle"></i> New Sale
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Menu Items Grid -->
+                    <div class="row" id="menuItemsGrid">
+                        <!-- Menu items will be populated by JavaScript -->
+                    </div>
+                    
+                    <!-- Current Sale -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card shadow">
+                                <div class="card-header bg-black text-white">
+                                    <h6 class="m-0 font-weight-bold">
+                                        <i class="fas fa-shopping-cart me-1"></i>Current Sale
+                                        <span id="saleStatus" class="badge bg-warning ms-2">No active sale</span>
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="saleItems">
+                                        <p class="text-muted text-center py-3">No items added to sale yet. Select items from the menu above.</p>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mt-3">
+                                        <div>
+                                            <strong>Total Items:</strong> <span id="totalItemsCount">0</span>
+                                        </div>
+                                        <div>
+                                            <button class="btn btn-maroon" id="recordSaleBtn" disabled>
+                                                <i class="fas fa-check-circle me-1"></i> Record Sale
+                                            </button>
+                                            <button class="btn btn-outline-secondary ms-2" id="clearSaleBtn">
+                                                <i class="fas fa-times-circle me-1"></i> Clear
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Ingredients Content (Hidden by default) -->
+                <div id="ingredients-content" class="page-content d-none">
+                    <!-- Content for Ingredients page -->
+                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                        <h1 class="h2"><i class="fas fa-boxes me-2 text-maroon"></i>Ingredients</h1>
+                        <div class="btn-toolbar mb-2 mb-md-0">
+                            <div class="text-muted small">
+                                <i class="fas fa-info-circle me-1"></i>View & Update Only
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Ingredient Categories -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card shadow">
+                                <div class="card-header bg-black text-white">
+                                    <h6 class="m-0 font-weight-bold">
+                                        <i class="fas fa-filter me-1"></i>Filter by Category
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="btn-group flex-wrap" role="group" id="categoryFilter">
+                                        <!-- Categories will be populated by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Ingredients List -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card shadow">
+                                <div class="card-header bg-black text-white d-flex justify-content-between align-items-center">
+                                    <h6 class="m-0 font-weight-bold">
+                                        <i class="fas fa-list me-1"></i>Ingredients List
+                                    </h6>
+                                    <div class="text-warning">
+                                        <i class="fas fa-exclamation-circle me-1"></i>
+                                        <span id="lowStockCount">0</span> items low in stock
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="ingredientsListTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Ingredient</th>
+                                                    <th>Category</th>
+                                                    <th>Current Quantity</th>
+                                                    <th>Unit</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- Data will be populated by JavaScript -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="alert alert-info mt-3">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Note:</strong> Staff can only increase (stock delivery) or decrease (wastage/spoilage) ingredient quantities. Cannot add, edit details, or delete ingredients.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Receipts Content (Hidden by default) -->
+                <div id="receipts-content" class="page-content d-none">
+                    <!-- Content for Receipts page -->
+                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                        <h1 class="h2"><i class="fas fa-receipt me-2 text-maroon"></i>Receipts</h1>
+                        <div class="btn-toolbar mb-2 mb-md-0">
+                            <div class="text-muted small">
+                                <i class="fas fa-info-circle me-1"></i>Proof of order only (not payment)
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Receipt Preview -->
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card shadow mb-4">
+                                <div class="card-header bg-black text-white">
+                                    <h6 class="m-0 font-weight-bold">
+                                        <i class="fas fa-print me-1"></i>Receipt Preview
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="receipt-container bg-light p-4 border" id="receiptPreview">
+                                        <!-- Receipt content will be populated by JavaScript -->
+                                        <div class="text-center py-5">
+                                            <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted">No receipt selected</p>
+                                            <p class="small">Select a receipt from the list to preview</p>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 d-flex justify-content-between">
+                                        <button class="btn btn-maroon" id="printReceiptBtn" disabled>
+                                            <i class="fas fa-print me-1"></i> Print Receipt
+                                        </button>
+                                        <button class="btn btn-green" id="newSaleFromReceiptBtn">
+                                            <i class="fas fa-plus-circle me-1"></i> Start New Sale
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Recent Receipts -->
+                        <div class="col-lg-4">
+                            <div class="card shadow">
+                                <div class="card-header bg-black text-white">
+                                    <h6 class="m-0 font-weight-bold">
+                                        <i class="fas fa-history me-1"></i>Recent Receipts
+                                    </h6>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="list-group list-group-flush" id="recentReceipts">
+                                        <!-- Recent receipts will be populated by JavaScript -->
+                                        <div class="list-group-item text-center py-4 text-muted">
+                                            <i class="fas fa-receipt fa-2x mb-2"></i>
+                                            <p>No receipts found</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Account Settings Content (Hidden by default) -->
+                <div id="account-content" class="page-content d-none">
+                    <!-- Content for Account page -->
+                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                        <h1 class="h2"><i class="fas fa-user-cog me-2 text-maroon"></i>Account Settings</h1>
+                        <div class="btn-toolbar mb-2 mb-md-0">
+                            <div class="text-muted small">
+                                <i class="fas fa-info-circle me-1"></i>Personal access control only
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="card shadow mb-4">
+                                <div class="card-header bg-black text-white">
+                                    <h6 class="m-0 font-weight-bold">
+                                        <i class="fas fa-user me-1"></i>Account Information
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <form id="accountInfoForm">
+                                        <div class="mb-3">
+                                            <label class="form-label">Staff Name</label>
+                                            <input type="text" class="form-control" value="John Doe" readonly>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Username</label>
+                                            <input type="text" class="form-control" value="johndoe" readonly>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Role</label>
+                                            <input type="text" class="form-control" value="Staff" readonly>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Account Status</label>
+                                            <input type="text" class="form-control" value="Active" readonly>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-6">
+                            <div class="card shadow mb-4">
+                                <div class="card-header bg-black text-white">
+                                    <h6 class="m-0 font-weight-bold">
+                                        <i class="fas fa-lock me-1"></i>Change Password
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <form id="changePasswordForm">
+                                        <div class="mb-3">
+                                            <label for="currentPassword" class="form-label">Current Password</label>
+                                            <input type="password" class="form-control" id="currentPassword" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="newPassword" class="form-label">New Password</label>
+                                            <input type="password" class="form-control" id="newPassword" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="confirmNewPassword" class="form-label">Confirm New Password</label>
+                                            <input type="password" class="form-control" id="confirmNewPassword" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-maroon">
+                                            <i class="fas fa-key me-1"></i> Change Password
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            
+                            <!-- Logout Card -->
+                            <div class="card shadow">
+                                <div class="card-body text-center">
+                                    <button class="btn btn-outline-danger" id="logoutBtnAccount">
+                                        <i class="fas fa-sign-out-alt me-1"></i> Logout
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Activity Log Content (Hidden by default) -->
+                <div id="activity-log-content" class="page-content d-none">
+                    <!-- Content for Activity Log page -->
+                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                        <h1 class="h2"><i class="fas fa-history me-2 text-maroon"></i>Activity Log</h1>
+                        <div class="btn-toolbar mb-2 mb-md-0">
+                            <div class="text-muted small">
+                                <i class="fas fa-info-circle me-1"></i>Read-only • Own activity only
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card shadow">
+                                <div class="card-header bg-black text-white d-flex justify-content-between align-items-center">
+                                    <h6 class="m-0 font-weight-bold">
+                                        <i class="fas fa-list-alt me-1"></i>My Activity Log
+                                    </h6>
+                                    <div class="text-muted small">
+                                        <i class="fas fa-user me-1"></i>Showing actions by: John Doe
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="activityLogTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date & Time</th>
+                                                    <th>Action Performed</th>
+                                                    <th>Reference</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- Activity log will be populated by JavaScript -->
+                                                <tr>
+                                                    <td colspan="4" class="text-center">Loading activity log...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="alert alert-info mt-3">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Note:</strong> This log shows ONLY actions done by you (the logged-in staff). You cannot see other staff activity, owner/admin actions, system configuration logs, or edit/delete logs.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Modals for Ingredients Update -->
+    <div class="modal fade" id="increaseQuantityModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-green text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus-circle me-2"></i>Increase Quantity
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="increaseQuantityForm">
+                        <input type="hidden" id="increaseIngredientId">
+                        <div class="mb-3">
+                            <label class="form-label">Ingredient</label>
+                            <input type="text" class="form-control" id="increaseIngredientName" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="increaseAmount" class="form-label">Amount to Add</label>
+                            <input type="number" class="form-control" id="increaseAmount" min="1" required>
+                            <div class="form-text">Enter the quantity received from delivery</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="increaseReason" class="form-label">Reason (Optional)</label>
+                            <input type="text" class="form-control" id="increaseReason" placeholder="e.g., Stock delivery">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-green" id="confirmIncrease">Update Quantity</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="decreaseQuantityModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="fas fa-minus-circle me-2"></i>Decrease Quantity
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="decreaseQuantityForm">
+                        <input type="hidden" id="decreaseIngredientId">
+                        <div class="mb-3">
+                            <label class="form-label">Ingredient</label>
+                            <input type="text" class="form-control" id="decreaseIngredientName" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="decreaseAmount" class="form-label">Amount to Subtract</label>
+                            <input type="number" class="form-control" id="decreaseAmount" min="1" required>
+                            <div class="form-text">Enter the quantity lost due to wastage or spoilage</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="decreaseReason" class="form-label">Reason</label>
+                            <select class="form-select" id="decreaseReason" required>
+                                <option value="">Select reason</option>
+                                <option value="wastage">Wastage</option>
+                                <option value="spoilage">Spoilage</option>
+                                <option value="damaged">Damaged</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="decreaseNotes" class="form-label">Notes (Optional)</label>
+                            <textarea class="form-control" id="decreaseNotes" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" id="confirmDecrease">Update Quantity</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap 5 JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery for AJAX -->
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="main.js"></script>
+    <script src="staff.js"></script>
+    
+    <script>
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set current page as active
+            updateActivePage('dashboard');
+            
+            // Load dashboard data
+            loadDashboardData();
+            
+            // Navigation handling
+            document.querySelectorAll('[data-page]').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const page = this.getAttribute('data-page');
+                    updateActivePage(page);
+                });
+            });
+            
+            // Logout button
+            document.getElementById('logoutBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                if (confirm('Are you sure you want to logout?')) {
+                    window.location.href = 'index.html';
+                }
+            });
+            
+            document.getElementById('logoutBtnAccount').addEventListener('click', function() {
+                if (confirm('Are you sure you want to logout?')) {
+                    window.location.href = 'index.html';
+                }
+            });
+            
+            // Refresh dashboard button
+            document.getElementById('refreshDashboard').addEventListener('click', function() {
+                loadDashboardData();
+                showNotification('Dashboard refreshed', 'success');
+            });
+        });
+        
+        function updateActivePage(page) {
+            // Hide all page contents
+            document.querySelectorAll('.page-content').forEach(content => {
+                content.classList.add('d-none');
+                content.classList.remove('animate__fadeIn');
+            });
+            
+            // Show selected page content
+            const pageContent = document.getElementById(`${page}-content`);
+            if (pageContent) {
+                pageContent.classList.remove('d-none');
+                pageContent.classList.add('animate__animated', 'animate__fadeIn');
+                
+                // Load page-specific data
+                switch(page) {
+                    case 'dashboard':
+                        loadDashboardData();
+                        break;
+                    case 'menu':
+                        loadMenuItems();
+                        break;
+                    case 'ingredients':
+                        loadIngredients();
+                        break;
+                    case 'receipts':
+                        loadRecentReceipts();
+                        break;
+                    case 'activity-log':
+                        loadActivityLog();
+                        break;
+                }
+            }
+            
+            // Update active nav link
+            document.querySelectorAll('.nav-link, .list-group-item').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            document.querySelectorAll(`[data-page="${page}"]`).forEach(link => {
+                link.classList.add('active');
+            });
+        }
+        
+        function loadDashboardData() {
+            // Simulate AJAX loading
+            setTimeout(() => {
+                // Update info boxes
+                document.getElementById('totalOrders').textContent = '24';
+                document.getElementById('totalSales').textContent = '18';
+                document.getElementById('lowStock').textContent = '3';
+                document.getElementById('availableIngredients').textContent = '42';
+                
+                // Update quick stats
+                document.getElementById('quickOrders').textContent = '24';
+                document.getElementById('quickLowStock').textContent = '3';
+                
+                // Populate ingredient table
+                const ingredientData = [
+                    { name: 'Beef', category: 'Meat', quantity: '15 kg', status: 'Normal' },
+                    { name: 'Chicken', category: 'Meat', quantity: '8 kg', status: 'Low' },
+                    { name: 'Rice', category: 'Grains', quantity: '25 kg', status: 'Normal' },
+                    { name: 'Tomatoes', category: 'Vegetables', quantity: '5 kg', status: 'Normal' },
+                    { name: 'Onions', category: 'Vegetables', quantity: '3 kg', status: 'Low' },
+                    { name: 'Garlic', category: 'Spices', quantity: '2 kg', status: 'Normal' }
+                ];
+                
+                const ingredientTable = document.getElementById('ingredientTable').getElementsByTagName('tbody')[0];
+                ingredientTable.innerHTML = '';
+                
+                ingredientData.forEach(item => {
+                    const row = ingredientTable.insertRow();
+                    row.innerHTML = `
+                        <td>${item.name}</td>
+                        <td><span class="badge bg-secondary">${item.category}</span></td>
+                        <td>${item.quantity}</td>
+                        <td><span class="badge ${item.status === 'Normal' ? 'bg-success' : 'bg-warning'}">${item.status}</span></td>
+                    `;
+                });
+                
+                // Populate best selling table
+                const bestSellingData = [
+                    { item: 'Beef Steak', quantity: 12 },
+                    { item: 'Chicken Curry', quantity: 10 },
+                    { item: 'Vegetable Salad', quantity: 8 },
+                    { item: 'Garlic Bread', quantity: 6 },
+                    { item: 'French Fries', quantity: 5 }
+                ];
+                
+                const bestSellingTable = document.getElementById('bestSellingTable').getElementsByTagName('tbody')[0];
+                bestSellingTable.innerHTML = '';
+                
+                bestSellingData.forEach(item => {
+                    const row = bestSellingTable.insertRow();
+                    row.innerHTML = `
+                        <td>${item.item}</td>
+                        <td><span class="badge bg-maroon">${item.quantity}</span></td>
+                    `;
+                });
+            }, 500);
+        }
+        
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
