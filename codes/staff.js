@@ -1,8 +1,10 @@
-// Staff Dashboard JavaScript
+// Staff Dashboard JavaScript - Updated with Search/Filter and Fixed Images
 
 // Global variables
 let currentSaleItems = [];
 let currentSaleId = null;
+let allMenuItems = [];
+let allIngredients = [];
 
 // DOM Ready
 document.addEventListener('DOMContentLoaded', function() {
@@ -66,56 +68,94 @@ function loadMenuItems() {
     
     // Simulate API call with delay
     setTimeout(() => {
-        const menuItems = [
-            { id: 1, name: 'Beef Steak', category: 'Main Course', image: 'assets/products/beef-steak.jpg', available: true },
-            { id: 2, name: 'Chicken Curry', category: 'Main Course', image: 'assets/products/chicken-curry.jpg', available: true },
-            { id: 3, name: 'Vegetable Salad', category: 'Appetizer', image: 'assets/products/salad.jpg', available: true },
-            { id: 4, name: 'Garlic Bread', category: 'Appetizer', image: 'assets/products/garlic-bread.jpg', available: true },
-            { id: 5, name: 'French Fries', category: 'Side Dish', image: 'assets/products/fries.jpg', available: true },
-            { id: 6, name: 'Grilled Salmon', category: 'Main Course', image: 'assets/products/salmon.jpg', available: false },
-            { id: 7, name: 'Pasta Carbonara', category: 'Main Course', image: 'assets/products/pasta.jpg', available: true },
-            { id: 8, name: 'Chocolate Cake', category: 'Dessert', image: 'assets/products/cake.jpg', available: true }
+        allMenuItems = [
+            { id: 1, name: 'Beef Steak', category: 'Main Course', image: 'https://images.unsplash.com/photo-1600891964092-4316c288032e?w=400&h=300&fit=crop', available: true, description: 'Grilled beef steak with vegetables' },
+            { id: 2, name: 'Chicken Curry', category: 'Main Course', image: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400&h=300&fit=crop', available: true, description: 'Spicy chicken curry with rice' },
+            { id: 3, name: 'Vegetable Salad', category: 'Appetizer', image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&h=300&fit=crop', available: true, description: 'Fresh mixed vegetable salad' },
+            { id: 4, name: 'Garlic Bread', category: 'Appetizer', image: 'https://images.unsplash.com/photo-1573140247632-f8fd74997d5c?w=400&h=300&fit=crop', available: true, description: 'Toasted bread with garlic butter' },
+            { id: 5, name: 'French Fries', category: 'Side Dish', image: 'https://images.unsplash.com/photo-1576107232684-1279f390859f?w=400&h=300&fit=crop', available: true, description: 'Crispy golden french fries' },
+            { id: 6, name: 'Grilled Salmon', category: 'Main Course', image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&h=300&fit=crop', available: false, description: 'Fresh grilled salmon with lemon butter sauce' },
+            { id: 7, name: 'Pasta Carbonara', category: 'Main Course', image: 'https://images.unsplash.com/photo-1598866594230-a7c12756260f?w=400&h=300&fit=crop', available: true, description: 'Creamy pasta with bacon and cheese' },
+            { id: 8, name: 'Chocolate Cake', category: 'Dessert', image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&h=300&fit=crop', available: true, description: 'Rich chocolate cake with frosting' }
         ];
         
-        menuGrid.innerHTML = '';
-        
-        menuItems.forEach(item => {
-            const col = document.createElement('div');
-            col.className = 'col-lg-3 col-md-4 col-sm-6 mb-4';
-            
-            col.innerHTML = `
-                <div class="menu-item-card ${!item.available ? 'opacity-50' : ''}">
-                    <div class="position-relative">
-                        <img src="${item.image}" alt="${item.name}" class="menu-item-img" onerror="this.src='assets/products/default.jpg'">
-                        <span class="menu-item-badge badge ${item.available ? 'bg-green' : 'bg-secondary'}">
-                            ${item.available ? 'Available' : 'Out of Stock'}
-                        </span>
-                    </div>
-                    <div class="p-3">
-                        <h5 class="card-title">${item.name}</h5>
-                        <p class="card-text text-muted small">${item.category}</p>
-                        ${item.available ? 
-                            `<button class="btn btn-sm btn-maroon w-100 add-to-sale" data-id="${item.id}" data-name="${item.name}">
-                                <i class="fas fa-cart-plus me-1"></i> Add to Sale
-                            </button>` :
-                            `<button class="btn btn-sm btn-secondary w-100" disabled>Unavailable</button>`
-                        }
-                    </div>
-                </div>
-            `;
-            
-            menuGrid.appendChild(col);
-        });
-        
-        // Add event listeners to add-to-sale buttons
-        document.querySelectorAll('.add-to-sale').forEach(button => {
-            button.addEventListener('click', function() {
-                const itemId = this.getAttribute('data-id');
-                const itemName = this.getAttribute('data-name');
-                addItemToSale(itemId, itemName);
-            });
-        });
+        displayMenuItems(allMenuItems);
     }, 800);
+}
+
+function displayMenuItems(items) {
+    const menuGrid = document.getElementById('menuItemsGrid');
+    if (!menuGrid) return;
+    
+    menuGrid.innerHTML = '';
+    
+    if (items.length === 0) {
+        menuGrid.innerHTML = '<div class="col-12 text-center py-5"><i class="fas fa-utensils fa-3x text-muted mb-3"></i><p class="text-muted">No menu items found</p></div>';
+        return;
+    }
+    
+    items.forEach(item => {
+        const col = document.createElement('div');
+        col.className = 'col-lg-3 col-md-4 col-sm-6 mb-4';
+        
+        // Use placeholder if image fails to load
+        const imgSrc = item.image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop';
+        
+        col.innerHTML = `
+            <div class="menu-item-card ${!item.available ? 'opacity-50' : ''}">
+                <div class="position-relative">
+                    <img src="${imgSrc}" alt="${item.name}" class="menu-item-img" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop'">
+                    <span class="menu-item-badge badge ${item.available ? 'bg-green' : 'bg-secondary'}">
+                        ${item.available ? 'Available' : 'Out of Stock'}
+                    </span>
+                </div>
+                <div class="p-3">
+                    <h5 class="card-title">${item.name}</h5>
+                    <p class="card-text text-muted small">${item.category}</p>
+                    <p class="card-text small">${item.description}</p>
+                    ${item.available ? 
+                        `<button class="btn btn-sm btn-maroon w-100 add-to-sale" data-id="${item.id}" data-name="${item.name}">
+                            <i class="fas fa-cart-plus me-1"></i> Add to Sale
+                        </button>` :
+                        `<button class="btn btn-sm btn-secondary w-100" disabled>Unavailable</button>`
+                    }
+                </div>
+            </div>
+        `;
+        
+        menuGrid.appendChild(col);
+    });
+    
+    // Add event listeners to add-to-sale buttons
+    document.querySelectorAll('.add-to-sale').forEach(button => {
+        button.addEventListener('click', function() {
+            const itemId = this.getAttribute('data-id');
+            const itemName = this.getAttribute('data-name');
+            addItemToSale(itemId, itemName);
+        });
+    });
+}
+
+function filterMenuItems() {
+    const searchTerm = document.getElementById('menuSearch').value.toLowerCase();
+    const categoryFilter = document.getElementById('menuCategoryFilter').value;
+    
+    let filteredItems = allMenuItems;
+    
+    // Apply search filter
+    if (searchTerm) {
+        filteredItems = filteredItems.filter(item => 
+            item.name.toLowerCase().includes(searchTerm) || 
+            item.description.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    // Apply category filter
+    if (categoryFilter) {
+        filteredItems = filteredItems.filter(item => item.category === categoryFilter);
+    }
+    
+    displayMenuItems(filteredItems);
 }
 
 function startNewSale() {
@@ -125,7 +165,7 @@ function startNewSale() {
     updateSaleDisplay();
     updateSaleStatus('Active');
     
-    showNotification('New sale started', 'success');
+    showModalNotification('New sale started', 'success', 'Sale Started');
 }
 
 function addItemToSale(itemId, itemName) {
@@ -143,7 +183,7 @@ function addItemToSale(itemId, itemName) {
     }
     
     updateSaleDisplay();
-    showNotification(`${itemName} added to sale`, 'success');
+    showModalNotification(`${itemName} added to sale`, 'success', 'Item Added');
 }
 
 function updateSaleDisplay() {
@@ -208,18 +248,18 @@ function removeSaleItem(index) {
     const itemName = currentSaleItems[index].name;
     currentSaleItems.splice(index, 1);
     updateSaleDisplay();
-    showNotification(`${itemName} removed from sale`, 'warning');
+    showModalNotification(`${itemName} removed from sale`, 'warning', 'Item Removed');
 }
 
 function clearCurrentSale() {
     if (currentSaleItems.length === 0) return;
     
-    if (confirm('Are you sure you want to clear the current sale? All items will be removed.')) {
+    showConfirm('Are you sure you want to clear the current sale? All items will be removed.', function() {
         currentSaleItems = [];
         updateSaleDisplay();
         updateSaleStatus('No active sale');
-        showNotification('Sale cleared', 'warning');
-    }
+        showModalNotification('Sale cleared', 'warning', 'Sale Cleared');
+    });
 }
 
 function updateSaleStatus(status) {
@@ -232,7 +272,7 @@ function updateSaleStatus(status) {
 
 function recordSale() {
     if (currentSaleItems.length === 0) {
-        showNotification('Cannot record an empty sale', 'warning');
+        showModalNotification('Cannot record an empty sale', 'warning', 'Sale Error');
         return;
     }
     
@@ -258,7 +298,7 @@ function recordSale() {
         recordSaleBtn.innerHTML = originalText;
         recordSaleBtn.disabled = false;
         
-        showNotification('Sale recorded successfully! Receipt generated.', 'success');
+        showModalNotification('Sale recorded successfully! Receipt generated.', 'success', 'Sale Complete');
         
         // Switch to receipts page
         updateActivePage('receipts');
@@ -298,12 +338,6 @@ function updateDashboardAfterSale() {
     const totalSales = document.getElementById('totalSales');
     const currentSales = parseInt(totalSales.textContent) || 0;
     totalSales.textContent = currentSales + 1;
-    
-    // Update quick stats
-    const quickOrders = document.getElementById('quickOrders');
-    if (quickOrders) {
-        quickOrders.textContent = currentOrders + 1;
-    }
 }
 
 // Ingredients Functions
@@ -332,7 +366,6 @@ function initializeIngredientsFunctionality() {
 
 function loadIngredients() {
     const ingredientsTable = document.getElementById('ingredientsListTable');
-    const categoryFilter = document.getElementById('categoryFilter');
     const lowStockCount = document.getElementById('lowStockCount');
     
     if (!ingredientsTable) return;
@@ -343,7 +376,7 @@ function loadIngredients() {
     
     // Simulate API call with delay
     setTimeout(() => {
-        const ingredients = [
+        allIngredients = [
             { id: 1, name: 'Beef', category: 'Meat', quantity: 15, unit: 'kg', threshold: 5, status: 'Normal' },
             { id: 2, name: 'Chicken', category: 'Meat', quantity: 8, unit: 'kg', threshold: 10, status: 'Low' },
             { id: 3, name: 'Rice', category: 'Grains', quantity: 25, unit: 'kg', threshold: 10, status: 'Normal' },
@@ -356,103 +389,85 @@ function loadIngredients() {
             { id: 10, name: 'Butter', category: 'Dairy', quantity: 6, unit: 'kg', threshold: 2, status: 'Normal' }
         ];
         
-        // Update low stock count
-        let lowStockItems = 0;
-        ingredients.forEach(ing => {
-            if (ing.status === 'Low') lowStockItems++;
-        });
-        
-        if (lowStockCount) {
-            lowStockCount.textContent = lowStockItems;
-        }
-        
-        // Populate category filter
-        if (categoryFilter) {
-            const categories = [...new Set(ingredients.map(ing => ing.category))];
-            categoryFilter.innerHTML = '';
-            
-            // Add "All" button
-            const allButton = document.createElement('button');
-            allButton.type = 'button';
-            allButton.className = 'btn btn-outline-maroon active';
-            allButton.textContent = 'All';
-            allButton.addEventListener('click', function() {
-                // Remove active class from all buttons
-                categoryFilter.querySelectorAll('button').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                this.classList.add('active');
-                filterIngredientsByCategory('All');
-            });
-            categoryFilter.appendChild(allButton);
-            
-            // Add category buttons
-            categories.forEach(category => {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'btn btn-outline-secondary';
-                button.textContent = category;
-                button.addEventListener('click', function() {
-                    // Remove active class from all buttons
-                    categoryFilter.querySelectorAll('button').forEach(btn => {
-                        btn.classList.remove('active');
-                    });
-                    this.classList.add('active');
-                    filterIngredientsByCategory(category);
-                });
-                categoryFilter.appendChild(button);
-            });
-        }
-        
-        // Populate table
-        tbody.innerHTML = '';
-        
-        ingredients.forEach(ingredient => {
-            const row = tbody.insertRow();
-            row.innerHTML = `
-                <td>${ingredient.name}</td>
-                <td><span class="badge bg-secondary">${ingredient.category}</span></td>
-                <td>${ingredient.quantity} ${ingredient.unit}</td>
-                <td>${ingredient.unit}</td>
-                <td>
-                    <span class="badge ${ingredient.status === 'Normal' ? 'bg-success' : 'bg-warning'}">
-                        ${ingredient.status}
-                    </span>
-                    ${ingredient.status === 'Low' ? 
-                        `<span class="badge bg-danger ms-1">Below ${ingredient.threshold}${ingredient.unit}</span>` : 
-                        ''}
-                </td>
-                <td>
-                    <button class="btn btn-sm btn-success me-1" onclick="openIncreaseModal(${ingredient.id}, '${ingredient.name}')">
-                        <i class="fas fa-plus"></i> Increase
-                    </button>
-                    <button class="btn btn-sm btn-warning" onclick="openDecreaseModal(${ingredient.id}, '${ingredient.name}')">
-                        <i class="fas fa-minus"></i> Decrease
-                    </button>
-                </td>
-            `;
-        });
+        displayIngredients(allIngredients);
     }, 800);
 }
 
-function filterIngredientsByCategory(category) {
-    const rows = document.querySelectorAll('#ingredientsListTable tbody tr');
+function displayIngredients(ingredients) {
+    const tbody = document.getElementById('ingredientsListTable').getElementsByTagName('tbody')[0];
+    const lowStockCount = document.getElementById('lowStockCount');
     
-    rows.forEach(row => {
-        const rowCategory = row.cells[1].textContent.trim();
-        
-        if (category === 'All' || rowCategory === category) {
-            row.style.display = '';
-            row.classList.add('animate__animated', 'animate__fadeIn');
-        } else {
-            row.style.display = 'none';
-        }
+    if (!tbody) return;
+    
+    // Count low stock items
+    let lowStockItems = 0;
+    ingredients.forEach(ing => {
+        if (ing.status === 'Low') lowStockItems++;
+    });
+    
+    if (lowStockCount) {
+        lowStockCount.textContent = lowStockItems;
+    }
+    
+    tbody.innerHTML = '';
+    
+    if (ingredients.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><i class="fas fa-box-open fa-2x text-muted mb-2"></i><p class="text-muted">No ingredients found</p></td></tr>';
+        return;
+    }
+    
+    ingredients.forEach(ingredient => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${ingredient.name}</td>
+            <td><span class="badge bg-secondary">${ingredient.category}</span></td>
+            <td>${ingredient.quantity} ${ingredient.unit}</td>
+            <td>${ingredient.unit}</td>
+            <td>
+                <span class="badge ${ingredient.status === 'Normal' ? 'bg-success' : 'bg-warning'}">
+                    ${ingredient.status}
+                </span>
+                ${ingredient.status === 'Low' ? 
+                    `<span class="badge bg-danger ms-1">Below ${ingredient.threshold}${ingredient.unit}</span>` : 
+                    ''}
+            </td>
+            <td>
+                <button class="btn btn-sm btn-success me-1" onclick="openIncreaseModal(${ingredient.id}, '${ingredient.name}', '${ingredient.unit}')">
+                    <i class="fas fa-plus"></i> Increase
+                </button>
+                <button class="btn btn-sm btn-warning" onclick="openDecreaseModal(${ingredient.id}, '${ingredient.name}', '${ingredient.unit}')">
+                    <i class="fas fa-minus"></i> Decrease
+                </button>
+            </td>
+        `;
     });
 }
 
-function openIncreaseModal(id, name) {
+function filterIngredients() {
+    const searchTerm = document.getElementById('ingredientSearch').value.toLowerCase();
+    const categoryFilter = document.getElementById('ingredientCategoryFilter').value;
+    
+    let filteredItems = allIngredients;
+    
+    // Apply search filter
+    if (searchTerm) {
+        filteredItems = filteredItems.filter(item => 
+            item.name.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    // Apply category filter
+    if (categoryFilter) {
+        filteredItems = filteredItems.filter(item => item.category === categoryFilter);
+    }
+    
+    displayIngredients(filteredItems);
+}
+
+function openIncreaseModal(id, name, unit) {
     document.getElementById('increaseIngredientId').value = id;
     document.getElementById('increaseIngredientName').value = name;
+    document.getElementById('increaseUnit').value = unit;
     document.getElementById('increaseAmount').value = '';
     document.getElementById('increaseReason').value = '';
     
@@ -460,9 +475,10 @@ function openIncreaseModal(id, name) {
     modal.show();
 }
 
-function openDecreaseModal(id, name) {
+function openDecreaseModal(id, name, unit) {
     document.getElementById('decreaseIngredientId').value = id;
     document.getElementById('decreaseIngredientName').value = name;
+    document.getElementById('decreaseUnit').value = unit;
     document.getElementById('decreaseAmount').value = '';
     document.getElementById('decreaseReason').value = '';
     document.getElementById('decreaseNotes').value = '';
@@ -472,7 +488,7 @@ function openDecreaseModal(id, name) {
 }
 
 function confirmQuantityChange(type) {
-    let modalId, amountId, reasonId, ingredientId, ingredientName;
+    let modalId, amountId, reasonId, ingredientId, ingredientName, unit;
     
     if (type === 'increase') {
         modalId = 'increaseQuantityModal';
@@ -480,24 +496,26 @@ function confirmQuantityChange(type) {
         reasonId = 'increaseReason';
         ingredientId = document.getElementById('increaseIngredientId').value;
         ingredientName = document.getElementById('increaseIngredientName').value;
+        unit = document.getElementById('increaseUnit').value;
     } else {
         modalId = 'decreaseQuantityModal';
         amountId = 'decreaseAmount';
         reasonId = 'decreaseReason';
         ingredientId = document.getElementById('decreaseIngredientId').value;
         ingredientName = document.getElementById('decreaseIngredientName').value;
+        unit = document.getElementById('decreaseUnit').value;
     }
     
     const amount = document.getElementById(amountId).value;
     const reason = document.getElementById(reasonId).value;
     
-    if (!amount || parseInt(amount) <= 0) {
-        showNotification('Please enter a valid amount', 'warning');
+    if (!amount || parseFloat(amount) <= 0) {
+        showModalNotification('Please enter a valid amount', 'warning', 'Validation Error');
         return;
     }
     
     if (type === 'decrease' && !reason) {
-        showNotification('Please select a reason for decrease', 'warning');
+        showModalNotification('Please select a reason for decrease', 'warning', 'Validation Error');
         return;
     }
     
@@ -509,10 +527,10 @@ function confirmQuantityChange(type) {
         
         // Show success message
         const action = type === 'increase' ? 'increased' : 'decreased';
-        showNotification(`${ingredientName} quantity ${action} by ${amount}`, 'success');
+        showModalNotification(`${ingredientName} quantity ${action} by ${amount} ${unit}`, 'success', 'Quantity Updated');
         
         // Log activity
-        logActivity(`Ingredient quantity ${action}`, `${ingredientName} (${amount})`, 'Success');
+        logActivity(`Ingredient quantity ${action}`, `${ingredientName} (${amount} ${unit})`, 'Success');
         
         // Refresh ingredients list
         loadIngredients();
@@ -523,29 +541,16 @@ function confirmQuantityChange(type) {
 }
 
 function updateDashboardLowStock() {
-    // This would normally make an API call to get updated low stock count
     const lowStockElement = document.getElementById('lowStock');
     if (lowStockElement) {
         const currentCount = parseInt(lowStockElement.textContent) || 0;
-        // Simulate a change (in real app, this would be based on actual data)
         const newCount = Math.max(0, currentCount - 1);
         lowStockElement.textContent = newCount;
-        
-        // Update quick stats too
-        const quickLowStock = document.getElementById('quickLowStock');
-        if (quickLowStock) {
-            quickLowStock.textContent = newCount;
-        }
     }
 }
 
 // Receipts Functions
 function initializeReceiptsFunctionality() {
-    // Load receipts when receipts page is shown
-    document.querySelector('[data-page="receipts"]').addEventListener('click', function() {
-        loadRecentReceipts();
-    });
-    
     // Print receipt button
     const printReceiptBtn = document.getElementById('printReceiptBtn');
     if (printReceiptBtn) {
@@ -716,7 +721,7 @@ function printReceipt() {
     const receiptId = document.getElementById('printReceiptBtn').getAttribute('data-receipt-id');
     logActivity('Printed receipt', receiptId, 'Success');
     
-    showNotification('Receipt sent to printer', 'success');
+    showModalNotification('Receipt sent to printer', 'success', 'Print Complete');
 }
 
 // Account Functions
@@ -733,27 +738,27 @@ function initializeAccountFunctionality() {
             
             // Validation
             if (!currentPassword || !newPassword || !confirmNewPassword) {
-                showNotification('Please fill in all password fields', 'warning');
+                showModalNotification('Please fill in all password fields', 'warning', 'Validation Error');
                 return;
             }
             
             if (newPassword !== confirmNewPassword) {
-                showNotification('New passwords do not match', 'warning');
+                showModalNotification('New passwords do not match', 'warning', 'Validation Error');
                 return;
             }
             
             if (newPassword.length < 6) {
-                showNotification('New password must be at least 6 characters', 'warning');
+                showModalNotification('New password must be at least 6 characters', 'warning', 'Validation Error');
                 return;
             }
             
-            // Simulate password change (in real app, this would be an API call)
+            // Simulate password change
             setTimeout(() => {
                 // Clear form
                 changePasswordForm.reset();
                 
                 // Show success message
-                showNotification('Password changed successfully', 'success');
+                showModalNotification('Password changed successfully', 'success', 'Password Updated');
                 
                 // Log activity
                 logActivity('Changed password', 'Account security update', 'Success');
@@ -799,14 +804,43 @@ function loadActivityLog() {
 
 // Utility Functions
 function logActivity(action, reference, status) {
-    // In a real app, this would send data to server
     console.log(`Activity Log: ${action} - ${reference} - ${status}`);
     
-    // Update activity log if it's currently visible
     if (document.getElementById('activity-log-content') && 
         !document.getElementById('activity-log-content').classList.contains('d-none')) {
         loadActivityLog();
     }
+}
+
+function showModalNotification(message, type = 'info', title = 'Notification') {
+    const modalHeader = document.getElementById('notificationModalHeader');
+    const modalTitle = document.getElementById('notificationModalTitle');
+    const modalBody = document.getElementById('notificationModalBody');
+    
+    let headerClass = 'bg-primary text-white';
+    switch(type) {
+        case 'success':
+            headerClass = 'bg-success text-white';
+            break;
+        case 'warning':
+            headerClass = 'bg-warning text-dark';
+            break;
+        case 'danger':
+            headerClass = 'bg-danger text-white';
+            break;
+        case 'info':
+            headerClass = 'bg-info text-white';
+            break;
+    }
+    
+    modalHeader.className = `modal-header ${headerClass}`;
+    modalTitle.textContent = title;
+    modalBody.textContent = message;
+    
+    document.getElementById('notificationModalConfirm').style.display = 'none';
+    
+    const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
+    modal.show();
 }
 
 // Export functions for use in inline event handlers

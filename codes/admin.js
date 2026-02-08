@@ -1,4 +1,4 @@
-// Admin Dashboard JavaScript
+// Admin Dashboard JavaScript - Updated with User Management
 
 // Global variables
 let tempAccountActive = false;
@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeMenuControl();
     initializeRecipeControl();
     initializeIngredientsMasterlist();
+    initializeUserManagement();
     initializeReports();
     initializeBackup();
     initializeRequests();
@@ -55,7 +56,7 @@ function initializeAdminDashboard() {
 
 function exportDashboardData() {
     // Simulate data export
-    showNotification('Exporting dashboard data...', 'info');
+    showModalNotification('Exporting dashboard data...', 'info', 'Exporting Data');
     
     setTimeout(() => {
         // Create a blob of the data
@@ -79,7 +80,7 @@ function exportDashboardData() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        showNotification('Dashboard data exported successfully', 'success');
+        showModalNotification('Dashboard data exported successfully', 'success', 'Export Complete');
     }, 1000);
 }
 
@@ -109,7 +110,7 @@ function loadLowStockData() {
             `;
         });
         
-        showNotification('Low stock data refreshed', 'success');
+        showModalNotification('Low stock data refreshed', 'success', 'Data Refreshed');
     }, 800);
 }
 
@@ -254,7 +255,7 @@ function saveMenuItem() {
     
     // Validation
     if (!name || !category) {
-        showNotification('Please fill in all required fields', 'warning');
+        showModalNotification('Please fill in all required fields', 'warning', 'Validation Error');
         return;
     }
     
@@ -279,7 +280,7 @@ function saveMenuItem() {
         modal.hide();
         
         // Show success message
-        showNotification(`Menu item "${name}" added successfully`, 'success');
+        showModalNotification(`Menu item "${name}" added successfully`, 'success', 'Menu Item Added');
         
         // Log activity
         logAdminActivity('Added menu item', name, 'Success');
@@ -290,29 +291,29 @@ function saveMenuItem() {
 }
 
 function editMenuItem(id) {
-    showNotification(`Edit menu item ${id} - Feature under development`, 'info');
+    showModalNotification(`Edit menu item ${id} - Feature under development`, 'info', 'Coming Soon');
 }
 
 function toggleMenuItemStatus(id, currentStatus) {
     const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
     
-    if (confirm(`Are you sure you want to ${newStatus === 'Inactive' ? 'deactivate' : 'activate'} this menu item?`)) {
+    showConfirm(`Are you sure you want to ${newStatus === 'Inactive' ? 'deactivate' : 'activate'} this menu item?`, function() {
         setTimeout(() => {
-            showNotification(`Menu item ${newStatus === 'Inactive' ? 'deactivated' : 'activated'}`, 'success');
+            showModalNotification(`Menu item ${newStatus === 'Inactive' ? 'deactivated' : 'activated'}`, 'success', 'Status Changed');
             logAdminActivity(`Changed menu item status to ${newStatus}`, `Item ID: ${id}`, 'Success');
             loadMenuControl();
         }, 800);
-    }
+    });
 }
 
 function deleteMenuItem(id) {
-    if (confirm('Are you sure you want to delete this menu item? This action cannot be undone.')) {
+    showConfirm('Are you sure you want to delete this menu item? This action cannot be undone.', function() {
         setTimeout(() => {
-            showNotification('Menu item deleted', 'success');
+            showModalNotification('Menu item deleted', 'success', 'Item Deleted');
             logAdminActivity('Deleted menu item', `Item ID: ${id}`, 'Success');
             loadMenuControl();
         }, 800);
-    }
+    });
 }
 
 // Recipe Control Functions
@@ -360,7 +361,7 @@ function loadRecipeControl() {
 }
 
 function showAssignRecipeModal() {
-    showNotification('Assign recipe feature under development', 'info');
+    showModalNotification('Assign recipe feature under development', 'info', 'Coming Soon');
 }
 
 // Ingredients Masterlist Functions
@@ -474,7 +475,7 @@ function saveIngredient() {
     
     // Validation
     if (!name || !category || !unit || !threshold) {
-        showNotification('Please fill in all required fields', 'warning');
+        showModalNotification('Please fill in all required fields', 'warning', 'Validation Error');
         return;
     }
     
@@ -485,7 +486,7 @@ function saveIngredient() {
         modal.hide();
         
         // Show success message
-        showNotification(`Ingredient "${name}" added successfully`, 'success');
+        showModalNotification(`Ingredient "${name}" added successfully`, 'success', 'Ingredient Added');
         
         // Log activity
         logAdminActivity('Added ingredient', name, 'Success');
@@ -496,21 +497,110 @@ function saveIngredient() {
 }
 
 function showSetThresholdsModal() {
-    showNotification('Set thresholds feature under development', 'info');
+    showModalNotification('Set thresholds feature under development', 'info', 'Coming Soon');
 }
 
 function editIngredient(id) {
-    showNotification(`Edit ingredient ${id} - Feature under development`, 'info');
+    showModalNotification(`Edit ingredient ${id} - Feature under development`, 'info', 'Coming Soon');
 }
 
 function deleteIngredient(id) {
-    if (confirm('Are you sure you want to delete this ingredient? This action cannot be undone and may affect existing recipes.')) {
+    showConfirm('Are you sure you want to delete this ingredient? This action cannot be undone and may affect existing recipes.', function() {
         setTimeout(() => {
-            showNotification('Ingredient deletion request submitted', 'success');
+            showModalNotification('Ingredient deletion request submitted', 'success', 'Request Submitted');
             logAdminActivity('Requested ingredient deletion', `Ingredient ID: ${id}`, 'Success');
             loadIngredientsMasterlist();
         }, 800);
-    }
+    });
+}
+
+// User Management Functions
+function initializeUserManagement() {
+    // Load user management when page is shown
+    document.querySelector('[data-page="user-management"]').addEventListener('click', function() {
+        loadUserManagement();
+    });
+}
+
+function loadUserManagement() {
+    // Load active users
+    loadActiveUsers();
+    
+    // Load deleted users
+    loadDeletedUsers();
+}
+
+function loadActiveUsers() {
+    const activeUsersTable = document.getElementById('activeUsersTable').getElementsByTagName('tbody')[0];
+    activeUsersTable.innerHTML = '<tr><td colspan="6" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading active users...</p></td></tr>';
+    
+    setTimeout(() => {
+        const users = [
+            { id: 1, name: 'John Doe', role: 'Staff', username: 'johndoe', status: 'Active', lastLogin: 'Today' },
+            { id: 2, name: 'Jane Smith', role: 'Cashier', username: 'janesmith', status: 'Active', lastLogin: 'Today' },
+            { id: 3, name: 'Robert Johnson', role: 'Staff', username: 'robertj', status: 'Active', lastLogin: 'Yesterday' },
+            { id: 4, name: 'Sarah Williams', role: 'Senior Staff', username: 'sarahw', status: 'Active', lastLogin: 'Today' }
+        ];
+        
+        activeUsersTable.innerHTML = '';
+        
+        users.forEach(user => {
+            const row = activeUsersTable.insertRow();
+            row.innerHTML = `
+                <td><strong>${user.name}</strong></td>
+                <td><span class="badge ${user.role === 'Staff' ? 'bg-success' : user.role === 'Cashier' ? 'bg-info' : 'bg-warning'}">${user.role}</span></td>
+                <td>${user.username}</td>
+                <td><span class="badge bg-success">${user.status}</span></td>
+                <td>${user.lastLogin}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary me-1" onclick="editUser(${user.id})">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </td>
+            `;
+        });
+    }, 800);
+}
+
+function loadDeletedUsers() {
+    const deletedUsersTable = document.getElementById('deletedUsersTable').getElementsByTagName('tbody')[0];
+    const deletedUsersCount = document.getElementById('deletedUsersCount');
+    
+    setTimeout(() => {
+        const deletedUsers = [
+            { id: 5, name: 'Mike Brown', role: 'Staff', username: 'mikeb', deletedDate: '2023-09-28', deletedBy: 'Admin' },
+            { id: 6, name: 'Emily Davis', role: 'Cashier', username: 'emilyd', deletedDate: '2023-09-25', deletedBy: 'Admin' }
+        ];
+        
+        deletedUsersTable.innerHTML = '';
+        
+        deletedUsers.forEach(user => {
+            const row = deletedUsersTable.insertRow();
+            row.innerHTML = `
+                <td><strong>${user.name}</strong></td>
+                <td><span class="badge bg-secondary">${user.role}</span></td>
+                <td>${user.username}</td>
+                <td>${user.deletedDate}</td>
+                <td>${user.deletedBy}</td>
+                <td>
+                    <button class="btn btn-sm btn-success me-1" onclick="restoreUser(${user.id})">
+                        <i class="fas fa-undo"></i> Restore
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="permanentlyDeleteUser(${user.id})">
+                        <i class="fas fa-trash"></i> Permanent Delete
+                    </button>
+                </td>
+            `;
+        });
+        
+        // Update count
+        if (deletedUsersCount) {
+            deletedUsersCount.textContent = deletedUsers.length;
+        }
+    }, 800);
 }
 
 // Reports Functions
@@ -546,7 +636,7 @@ function initializeReports() {
 }
 
 function generatePdfReport() {
-    showNotification('Generating PDF report...', 'info');
+    showModalNotification('Generating PDF report...', 'info', 'Generating Report');
     
     setTimeout(() => {
         // Simulate PDF generation
@@ -566,7 +656,7 @@ function generatePdfReport() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        showNotification('PDF report generated successfully', 'success');
+        showModalNotification('PDF report generated successfully', 'success', 'Report Generated');
         logAdminActivity('Generated PDF report', reportName, 'Success');
     }, 1500);
 }
@@ -598,7 +688,7 @@ function generateReportPreview() {
         }
         
         reportPreview.innerHTML = reportContent;
-        showNotification('Report preview generated', 'success');
+        showModalNotification('Report preview generated', 'success', 'Preview Ready');
     }, 1000);
 }
 
@@ -1044,7 +1134,7 @@ function printReportPreview() {
     // Re-initialize event listeners
     initializeReports();
     
-    showNotification('Report printed successfully', 'success');
+    showModalNotification('Report printed successfully', 'success', 'Print Complete');
 }
 
 // Backup Functions
@@ -1115,7 +1205,7 @@ function loadBackupData() {
 }
 
 function createFullBackup() {
-    showNotification('Creating full system backup...', 'info');
+    showModalNotification('Creating full system backup...', 'info', 'Creating Backup');
     
     setTimeout(() => {
         // Simulate backup creation
@@ -1140,7 +1230,7 @@ function createFullBackup() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        showNotification('Full system backup created successfully', 'success');
+        showModalNotification('Full system backup created successfully', 'success', 'Backup Complete');
         logAdminActivity('Created full system backup', 'Full backup', 'Success');
         
         // Refresh backup list
@@ -1155,7 +1245,7 @@ function createBackup(type) {
         'users': 'User Accounts'
     };
     
-    showNotification(`Creating ${typeNames[type]} backup...`, 'info');
+    showModalNotification(`Creating ${typeNames[type]} backup...`, 'info', 'Creating Backup');
     
     setTimeout(() => {
         // Simulate backup creation
@@ -1177,7 +1267,7 @@ function createBackup(type) {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        showNotification(`${typeNames[type]} backup created successfully`, 'success');
+        showModalNotification(`${typeNames[type]} backup created successfully`, 'success', 'Backup Complete');
         logAdminActivity(`Created ${type} backup`, typeNames[type], 'Success');
         
         // Refresh backup list
@@ -1190,7 +1280,7 @@ function restoreBackup() {
     const restoreType = document.getElementById('restoreType').value;
     
     if (!fileInput.files.length) {
-        showNotification('Please select a backup file to restore', 'warning');
+        showModalNotification('Please select a backup file to restore', 'warning', 'Validation Error');
         return;
     }
     
@@ -1201,12 +1291,12 @@ function restoreBackup() {
         'all': 'All System Data'
     };
     
-    if (confirm(`Are you sure you want to restore ${typeNames[restoreType]}? This will overwrite existing data.`)) {
-        showNotification(`Restoring ${typeNames[restoreType]} from backup...`, 'info');
+    showConfirm(`Are you sure you want to restore ${typeNames[restoreType]}? This will overwrite existing data.`, function() {
+        showModalNotification(`Restoring ${typeNames[restoreType]} from backup...`, 'info', 'Restoring Backup');
         
         setTimeout(() => {
             // Simulate restore
-            showNotification(`${typeNames[restoreType]} restored successfully`, 'success');
+            showModalNotification(`${typeNames[restoreType]} restored successfully`, 'success', 'Restore Complete');
             logAdminActivity(`Restored ${restoreType} from backup`, typeNames[restoreType], 'Success');
             
             // Clear file input
@@ -1217,8 +1307,11 @@ function restoreBackup() {
             if (restoreType === 'inventory' || restoreType === 'all') {
                 loadIngredientsMasterlist();
             }
+            if (restoreType === 'users' || restoreType === 'all') {
+                loadUserManagement();
+            }
         }, 2000);
-    }
+    });
 }
 
 // Requests Functions
@@ -1271,8 +1364,6 @@ function updateRequestBadges() {
     document.getElementById('roleRequestsCount').textContent = roleRequestsCount;
     document.getElementById('ingredientRequestsCount').textContent = ingredientRequestsCount;
     document.getElementById('pendingRequestsBadge').textContent = totalRequests;
-    document.getElementById('sidebarPendingRequests').textContent = totalRequests;
-    document.getElementById('quickPendingCount').textContent = totalRequests;
 }
 
 function loadAccountRequests() {
@@ -1281,8 +1372,8 @@ function loadAccountRequests() {
     
     setTimeout(() => {
         const requests = [
-            { date: '2023-10-01', fullName: 'Robert Johnson', username: 'robertj', role: 'Staff', actions: '<button class="btn btn-sm btn-success me-1" onclick="showApprovalModal(1, \'account\', \'Robert Johnson\', \'Staff\')">Approve</button><button class="btn btn-sm btn-danger" onclick="rejectRequest(1, \'account\')">Reject</button>' },
-            { date: '2023-09-30', fullName: 'Sarah Williams', username: 'sarahw', role: 'Cashier', actions: '<button class="btn btn-sm btn-success me-1" onclick="showApprovalModal(2, \'account\', \'Sarah Williams\', \'Cashier\')">Approve</button><button class="btn btn-sm btn-danger" onclick="rejectRequest(2, \'account\')">Reject</button>' }
+            { id: 1, date: '2023-10-01', fullName: 'Robert Johnson', username: 'robertj', role: 'Staff' },
+            { id: 2, date: '2023-09-30', fullName: 'Sarah Williams', username: 'sarahw', role: 'Cashier' }
         ];
         
         accountRequestsTable.innerHTML = '';
@@ -1294,7 +1385,14 @@ function loadAccountRequests() {
                 <td><strong>${request.fullName}</strong></td>
                 <td>${request.username}</td>
                 <td><span class="badge bg-secondary">${request.role}</span></td>
-                <td>${request.actions}</td>
+                <td>
+                    <button class="btn btn-sm btn-success me-1" onclick="showApprovalModal(${request.id}, 'account', '${request.fullName}', '${request.role}')">
+                        Approve
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="rejectRequest(${request.id}, 'account')">
+                        Reject
+                    </button>
+                </td>
             `;
         });
     }, 800);
@@ -1306,7 +1404,7 @@ function loadRoleChangeRequests() {
     
     setTimeout(() => {
         const requests = [
-            { staffName: 'John Doe', currentRole: 'Staff', requestedRole: 'Senior Staff', date: '2023-09-29', actions: '<button class="btn btn-sm btn-success me-1" onclick="showApprovalModal(3, \'role\', \'John Doe\', \'Senior Staff\')">Approve</button><button class="btn btn-sm btn-danger" onclick="rejectRequest(3, \'role\')">Reject</button>' }
+            { id: 3, staffName: 'John Doe', currentRole: 'Staff', requestedRole: 'Senior Staff', date: '2023-09-29' }
         ];
         
         roleRequestsTable.innerHTML = '';
@@ -1318,7 +1416,14 @@ function loadRoleChangeRequests() {
                 <td><span class="badge bg-info">${request.currentRole}</span></td>
                 <td><span class="badge bg-warning">${request.requestedRole}</span></td>
                 <td>${request.date}</td>
-                <td>${request.actions}</td>
+                <td>
+                    <button class="btn btn-sm btn-success me-1" onclick="showApprovalModal(${request.id}, 'role', '${request.staffName}', '${request.requestedRole}')">
+                        Approve
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="rejectRequest(${request.id}, 'role')">
+                        Reject
+                    </button>
+                </td>
             `;
         });
     }, 800);
@@ -1376,7 +1481,7 @@ function handleRequestApproval() {
         modal.hide();
         
         // Simulate approval
-        showNotification(`Request ${currentRequestId} approved successfully`, 'success');
+        showModalNotification(`Request ${currentRequestId} approved successfully`, 'success', 'Request Approved');
         logAdminActivity(`Approved ${currentRequestType} request`, `Request ID: ${currentRequestId}`, 'Success');
         
         // Refresh requests
@@ -1389,15 +1494,15 @@ function handleRequestApproval() {
 }
 
 function rejectRequest(requestId, type) {
-    if (confirm('Are you sure you want to reject this request?')) {
+    showConfirm('Are you sure you want to reject this request?', function() {
         setTimeout(() => {
-            showNotification(`Request ${requestId} rejected`, 'warning');
+            showModalNotification(`Request ${requestId} rejected`, 'warning', 'Request Rejected');
             logAdminActivity(`Rejected ${type} request`, `Request ID: ${requestId}`, 'Success');
             
             // Refresh requests
             loadRequests();
         }, 800);
-    }
+    });
 }
 
 // System Settings Functions
@@ -1442,11 +1547,11 @@ function loadSystemSettings() {
 }
 
 function saveSystemSettings() {
-    showNotification('Saving system settings...', 'info');
+    showModalNotification('Saving system settings...', 'info', 'Saving Settings');
     
     setTimeout(() => {
         // Simulate save
-        showNotification('System settings saved successfully', 'success');
+        showModalNotification('System settings saved successfully', 'success', 'Settings Saved');
         logAdminActivity('Updated system settings', 'General configuration', 'Success');
     }, 1000);
 }
@@ -1528,7 +1633,7 @@ function loadFullActivityLog() {
 }
 
 function exportActivityLog() {
-    showNotification('Exporting activity log...', 'info');
+    showModalNotification('Exporting activity log...', 'info', 'Exporting Log');
     
     setTimeout(() => {
         // Create CSV data
@@ -1553,23 +1658,23 @@ function exportActivityLog() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        showNotification('Activity log exported successfully', 'success');
+        showModalNotification('Activity log exported successfully', 'success', 'Export Complete');
         logAdminActivity('Exported activity log', 'Full log export', 'Success');
     }, 1000);
 }
 
 function clearOldActivityLogs() {
-    if (confirm('Are you sure you want to clear activity logs older than 30 days? This action cannot be undone.')) {
-        showNotification('Clearing old activity logs...', 'info');
+    showConfirm('Are you sure you want to clear activity logs older than 30 days? This action cannot be undone.', function() {
+        showModalNotification('Clearing old activity logs...', 'info', 'Clearing Logs');
         
         setTimeout(() => {
-            showNotification('Old activity logs cleared successfully', 'success');
+            showModalNotification('Old activity logs cleared successfully', 'success', 'Logs Cleared');
             logAdminActivity('Cleared old activity logs', 'Log maintenance', 'Success');
             
             // Refresh activity log
             loadFullActivityLog();
         }, 1500);
-    }
+    });
 }
 
 // Temporary Account Functions
@@ -1597,19 +1702,19 @@ function initializeTempAccount() {
     
     if (tempRecordSaleBtn) {
         tempRecordSaleBtn.addEventListener('click', function() {
-            showNotification('Opening sales interface in temporary mode...', 'info');
+            showModalNotification('Opening sales interface in temporary mode...', 'info', 'Temporary Mode');
         });
     }
     
     if (tempAdjustStockBtn) {
         tempAdjustStockBtn.addEventListener('click', function() {
-            showNotification('Opening inventory adjustment in temporary mode...', 'info');
+            showModalNotification('Opening inventory adjustment in temporary mode...', 'info', 'Temporary Mode');
         });
     }
     
     if (tempPrintReceiptBtn) {
         tempPrintReceiptBtn.addEventListener('click', function() {
-            showNotification('Opening receipt printer in temporary mode...', 'info');
+            showModalNotification('Opening receipt printer in temporary mode...', 'info', 'Temporary Mode');
         });
     }
     
@@ -1652,18 +1757,18 @@ function loadTempAccountStatus() {
 
 function toggleTempAccount() {
     if (tempAccountActive) {
-        if (confirm('Are you sure you want to deactivate the temporary staff account?')) {
+        showConfirm('Are you sure you want to deactivate the temporary staff account?', function() {
             tempAccountActive = false;
-            showNotification('Temporary staff account deactivated', 'warning');
+            showModalNotification('Temporary staff account deactivated', 'warning', 'Account Deactivated');
             logAdminActivity('Deactivated temporary staff account', 'Owner acting as staff ended', 'Success');
-        }
+            loadTempAccountStatus();
+        });
     } else {
         tempAccountActive = true;
-        showNotification('Temporary staff account activated. All actions will be flagged as "Owner acting as staff".', 'success');
+        showModalNotification('Temporary staff account activated. All actions will be flagged as "Owner acting as staff".', 'success', 'Account Activated');
         logAdminActivity('Activated temporary staff account', 'Owner acting as staff started', 'Success');
+        loadTempAccountStatus();
     }
-    
-    loadTempAccountStatus();
 }
 
 function loadTempAccountLog() {
@@ -1695,14 +1800,43 @@ function loadTempAccountLog() {
 
 // Utility Functions
 function logAdminActivity(action, reference, status) {
-    // In a real app, this would send data to server
     console.log(`Admin Activity Log: ${action} - ${reference} - ${status}`);
     
-    // Update activity log if it's currently visible
     if (document.getElementById('activity-log-content') && 
         !document.getElementById('activity-log-content').classList.contains('d-none')) {
         loadFullActivityLog();
     }
+}
+
+function showModalNotification(message, type = 'info', title = 'Notification') {
+    const modalHeader = document.getElementById('notificationModalHeader');
+    const modalTitle = document.getElementById('notificationModalTitle');
+    const modalBody = document.getElementById('notificationModalBody');
+    
+    let headerClass = 'bg-primary text-white';
+    switch(type) {
+        case 'success':
+            headerClass = 'bg-success text-white';
+            break;
+        case 'warning':
+            headerClass = 'bg-warning text-dark';
+            break;
+        case 'danger':
+            headerClass = 'bg-danger text-white';
+            break;
+        case 'info':
+            headerClass = 'bg-info text-white';
+            break;
+    }
+    
+    modalHeader.className = `modal-header ${headerClass}`;
+    modalTitle.textContent = title;
+    modalBody.textContent = message;
+    
+    document.getElementById('notificationModalConfirm').style.display = 'none';
+    
+    const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
+    modal.show();
 }
 
 // Export functions for use in inline event handlers

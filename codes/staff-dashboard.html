@@ -22,7 +22,7 @@
         <div class="container-fluid">
             <!-- Logo -->
             <a class="navbar-brand d-flex align-items-center" href="#">
-                <img src="assets/logo.png" alt="Logo" height="40" class="me-2">
+                <img src="resources/ethans logo.jpg" alt="Logo" height="60" class="me-2">
                 <span class="fw-bold">Restaurant POS</span>
                 <span class="badge bg-maroon ms-2">Staff</span>
             </a>
@@ -74,46 +74,8 @@
     <!-- Main Content -->
     <div class="container-fluid mt-5 pt-4">
         <div class="row">
-            <!-- Sidebar (Collapsible on Mobile) -->
-            <div class="col-lg-2 col-md-3 d-md-block sidebar collapse" id="sidebarMenu">
-                <div class="position-sticky pt-3">
-                    <div class="list-group list-group-flush">
-                        <a href="#" class="list-group-item list-group-item-action active" data-page="dashboard">
-                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="menu">
-                            <i class="fas fa-utensils me-2"></i>Menu Sales
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="ingredients">
-                            <i class="fas fa-boxes me-2"></i>Ingredients
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="receipts">
-                            <i class="fas fa-receipt me-2"></i>Receipts
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="account">
-                            <i class="fas fa-user-cog me-2"></i>Account Settings
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="activity-log">
-                            <i class="fas fa-history me-2"></i>Activity Log
-                        </a>
-                    </div>
-                    
-                    <!-- Quick Stats -->
-                    <div class="card mt-4">
-                        <div class="card-header bg-maroon text-white">
-                            <h6 class="mb-0"><i class="fas fa-info-circle me-1"></i>Quick Stats</h6>
-                        </div>
-                        <div class="card-body p-2">
-                            <small class="d-block"><strong>Today's Orders:</strong> <span id="quickOrders">0</span></small>
-                            <small class="d-block"><strong>Low Stock Items:</strong> <span id="quickLowStock">0</span></small>
-                            <small class="d-block"><strong>Last Login:</strong> <span id="lastLogin">Today</span></small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Main Content Area -->
-            <main class="col-lg-10 col-md-9 ms-sm-auto px-md-4 animate__animated animate__fadeIn">
+            <!-- Main Content Area - No Sidebar for Mobile -->
+            <main class="col-12 px-md-4 animate__animated animate__fadeIn">
                 <!-- Dashboard Content (Default) -->
                 <div id="dashboard-content" class="page-content">
                     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -124,9 +86,6 @@
                                     <i class="fas fa-sync-alt"></i> Refresh
                                 </button>
                             </div>
-                            <button class="btn btn-sm btn-outline-secondary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
-                                <i class="fas fa-bars"></i>
-                            </button>
                         </div>
                     </div>
                     
@@ -210,10 +169,13 @@
                         <!-- Ingredient Stock Summary -->
                         <div class="col-xl-6 col-lg-12 mb-4">
                             <div class="card shadow h-100">
-                                <div class="card-header bg-black text-white">
+                                <div class="card-header bg-black text-white d-flex justify-content-between align-items-center">
                                     <h6 class="m-0 font-weight-bold">
                                         <i class="fas fa-clipboard-list me-1"></i>Ingredient Stock Summary
                                     </h6>
+                                    <button class="btn btn-sm btn-outline-light" id="refreshStockSummary">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
                                 </div>
                                 <div class="card-body">
                                     <div class="table-responsive">
@@ -227,7 +189,6 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <!-- Data will be populated by JavaScript -->
                                                 <tr>
                                                     <td colspan="4" class="text-center">Loading data...</td>
                                                 </tr>
@@ -241,10 +202,13 @@
                         <!-- Best Selling Foods -->
                         <div class="col-xl-6 col-lg-12 mb-4">
                             <div class="card shadow h-100">
-                                <div class="card-header bg-black text-white">
+                                <div class="card-header bg-black text-white d-flex justify-content-between align-items-center">
                                     <h6 class="m-0 font-weight-bold">
                                         <i class="fas fa-chart-line me-1"></i>Best-Selling Foods (Today)
                                     </h6>
+                                    <button class="btn btn-sm btn-outline-light" id="refreshBestSelling">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
                                 </div>
                                 <div class="card-body">
                                     <div class="table-responsive">
@@ -256,7 +220,6 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <!-- Data will be populated by JavaScript -->
                                                 <tr>
                                                     <td colspan="2" class="text-center">Loading data...</td>
                                                 </tr>
@@ -274,7 +237,6 @@
                 
                 <!-- Menu Sales Content (Hidden by default) -->
                 <div id="menu-content" class="page-content d-none">
-                    <!-- Content for Menu Sales page -->
                     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                         <h1 class="h2"><i class="fas fa-utensils me-2 text-maroon"></i>Menu Sales</h1>
                         <div class="btn-toolbar mb-2 mb-md-0">
@@ -286,9 +248,33 @@
                         </div>
                     </div>
                     
+                    <!-- Search and Filter -->
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="menuSearch" placeholder="Search menu items...">
+                                <button class="btn btn-outline-maroon" id="clearSearch">Clear</button>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <select class="form-select" id="menuCategoryFilter">
+                                <option value="">All Categories</option>
+                                <option value="Main Course">Main Course</option>
+                                <option value="Appetizer">Appetizer</option>
+                                <option value="Side Dish">Side Dish</option>
+                                <option value="Dessert">Dessert</option>
+                                <option value="Beverage">Beverage</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                     <!-- Menu Items Grid -->
                     <div class="row" id="menuItemsGrid">
-                        <!-- Menu items will be populated by JavaScript -->
+                        <div class="col-12 text-center py-5">
+                            <div class="loading-spinner"></div>
+                            <p class="mt-2">Loading menu items...</p>
+                        </div>
                     </div>
                     
                     <!-- Current Sale -->
@@ -326,7 +312,6 @@
                 
                 <!-- Ingredients Content (Hidden by default) -->
                 <div id="ingredients-content" class="page-content d-none">
-                    <!-- Content for Ingredients page -->
                     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                         <h1 class="h2"><i class="fas fa-boxes me-2 text-maroon"></i>Ingredients</h1>
                         <div class="btn-toolbar mb-2 mb-md-0">
@@ -336,21 +321,25 @@
                         </div>
                     </div>
                     
-                    <!-- Ingredient Categories -->
+                    <!-- Search and Filter -->
                     <div class="row mb-4">
-                        <div class="col-12">
-                            <div class="card shadow">
-                                <div class="card-header bg-black text-white">
-                                    <h6 class="m-0 font-weight-bold">
-                                        <i class="fas fa-filter me-1"></i>Filter by Category
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="btn-group flex-wrap" role="group" id="categoryFilter">
-                                        <!-- Categories will be populated by JavaScript -->
-                                    </div>
-                                </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="ingredientSearch" placeholder="Search ingredients...">
+                                <button class="btn btn-outline-maroon" id="clearIngredientSearch">Clear</button>
                             </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <select class="form-select" id="ingredientCategoryFilter">
+                                <option value="">All Categories</option>
+                                <option value="Meat">Meat</option>
+                                <option value="Vegetables">Vegetables</option>
+                                <option value="Grains">Grains</option>
+                                <option value="Spices">Spices</option>
+                                <option value="Dairy">Dairy</option>
+                                <option value="Other">Other</option>
+                            </select>
                         </div>
                     </div>
                     
@@ -381,7 +370,9 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <!-- Data will be populated by JavaScript -->
+                                                <tr>
+                                                    <td colspan="6" class="text-center">Loading ingredients...</td>
+                                                </tr>
                                             </tbody>
                                         </table>
                                     </div>
@@ -397,7 +388,6 @@
                 
                 <!-- Receipts Content (Hidden by default) -->
                 <div id="receipts-content" class="page-content d-none">
-                    <!-- Content for Receipts page -->
                     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                         <h1 class="h2"><i class="fas fa-receipt me-2 text-maroon"></i>Receipts</h1>
                         <div class="btn-toolbar mb-2 mb-md-0">
@@ -418,7 +408,6 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="receipt-container bg-light p-4 border" id="receiptPreview">
-                                        <!-- Receipt content will be populated by JavaScript -->
                                         <div class="text-center py-5">
                                             <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
                                             <p class="text-muted">No receipt selected</p>
@@ -447,7 +436,6 @@
                                 </div>
                                 <div class="card-body p-0">
                                     <div class="list-group list-group-flush" id="recentReceipts">
-                                        <!-- Recent receipts will be populated by JavaScript -->
                                         <div class="list-group-item text-center py-4 text-muted">
                                             <i class="fas fa-receipt fa-2x mb-2"></i>
                                             <p>No receipts found</p>
@@ -461,7 +449,6 @@
                 
                 <!-- Account Settings Content (Hidden by default) -->
                 <div id="account-content" class="page-content d-none">
-                    <!-- Content for Account page -->
                     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                         <h1 class="h2"><i class="fas fa-user-cog me-2 text-maroon"></i>Account Settings</h1>
                         <div class="btn-toolbar mb-2 mb-md-0">
@@ -482,21 +469,32 @@
                                 <div class="card-body">
                                     <form id="accountInfoForm">
                                         <div class="mb-3">
-                                            <label class="form-label">Staff Name</label>
-                                            <input type="text" class="form-control" value="John Doe" readonly>
+                                            <label class="form-label">Full Name</label>
+                                            <input type="text" class="form-control" id="staffFullName" value="John Doe" required>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">Username</label>
-                                            <input type="text" class="form-control" value="johndoe" readonly>
+                                            <input type="text" class="form-control" id="staffUsername" value="johndoe" required>
                                         </div>
                                         <div class="mb-3">
-                                            <label class="form-label">Role</label>
-                                            <input type="text" class="form-control" value="Staff" readonly>
+                                            <label class="form-label">Current Role</label>
+                                            <input type="text" class="form-control" id="currentRole" value="Staff" readonly>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Request Role Change To</label>
+                                            <select class="form-select" id="requestRoleChange">
+                                                <option value="">No Change</option>
+                                                <option value="Senior Staff">Senior Staff</option>
+                                                <option value="Cashier">Cashier</option>
+                                            </select>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">Account Status</label>
-                                            <input type="text" class="form-control" value="Active" readonly>
+                                            <input type="text" class="form-control" id="accountStatus" value="Active" readonly>
                                         </div>
+                                        <button type="submit" class="btn btn-maroon" id="saveAccountInfoBtn">
+                                            <i class="fas fa-save me-1"></i> Save Changes
+                                        </button>
                                     </form>
                                 </div>
                             </div>
@@ -544,7 +542,6 @@
                 
                 <!-- Activity Log Content (Hidden by default) -->
                 <div id="activity-log-content" class="page-content d-none">
-                    <!-- Content for Activity Log page -->
                     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                         <h1 class="h2"><i class="fas fa-history me-2 text-maroon"></i>Activity Log</h1>
                         <div class="btn-toolbar mb-2 mb-md-0">
@@ -577,7 +574,6 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <!-- Activity log will be populated by JavaScript -->
                                                 <tr>
                                                     <td colspan="4" class="text-center">Loading activity log...</td>
                                                 </tr>
@@ -597,7 +593,7 @@
         </div>
     </div>
     
-    <!-- Modals for Ingredients Update -->
+    <!-- Modals -->
     <div class="modal fade" id="increaseQuantityModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -614,10 +610,15 @@
                             <label class="form-label">Ingredient</label>
                             <input type="text" class="form-control" id="increaseIngredientName" readonly>
                         </div>
-                        <div class="mb-3">
-                            <label for="increaseAmount" class="form-label">Amount to Add</label>
-                            <input type="number" class="form-control" id="increaseAmount" min="1" required>
-                            <div class="form-text">Enter the quantity received from delivery</div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="increaseAmount" class="form-label">Amount to Add</label>
+                                <input type="number" class="form-control" id="increaseAmount" min="1" step="0.01" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Unit</label>
+                                <input type="text" class="form-control" id="increaseUnit" readonly>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label for="increaseReason" class="form-label">Reason (Optional)</label>
@@ -649,10 +650,15 @@
                             <label class="form-label">Ingredient</label>
                             <input type="text" class="form-control" id="decreaseIngredientName" readonly>
                         </div>
-                        <div class="mb-3">
-                            <label for="decreaseAmount" class="form-label">Amount to Subtract</label>
-                            <input type="number" class="form-control" id="decreaseAmount" min="1" required>
-                            <div class="form-text">Enter the quantity lost due to wastage or spoilage</div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="decreaseAmount" class="form-label">Amount to Subtract</label>
+                                <input type="number" class="form-control" id="decreaseAmount" min="0.01" step="0.01" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Unit</label>
+                                <input type="text" class="form-control" id="decreaseUnit" readonly>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label for="decreaseReason" class="form-label">Reason</label>
@@ -673,6 +679,24 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-warning" id="confirmDecrease">Update Quantity</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification Modal -->
+    <div class="modal fade" id="notificationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header" id="notificationModalHeader">
+                    <h5 class="modal-title" id="notificationModalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="notificationModalBody">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="notificationModalConfirm" style="display: none;">Confirm</button>
                 </div>
             </div>
         </div>
@@ -705,24 +729,69 @@
                 });
             });
             
-            // Logout button
+            // Logout buttons
             document.getElementById('logoutBtn').addEventListener('click', function(e) {
                 e.preventDefault();
-                if (confirm('Are you sure you want to logout?')) {
+                showConfirm('Are you sure you want to logout?', function() {
                     window.location.href = 'index.html';
-                }
+                });
             });
             
             document.getElementById('logoutBtnAccount').addEventListener('click', function() {
-                if (confirm('Are you sure you want to logout?')) {
+                showConfirm('Are you sure you want to logout?', function() {
                     window.location.href = 'index.html';
-                }
+                });
             });
             
             // Refresh dashboard button
             document.getElementById('refreshDashboard').addEventListener('click', function() {
                 loadDashboardData();
-                showNotification('Dashboard refreshed', 'success');
+                showModalNotification('Dashboard refreshed', 'success');
+            });
+            
+            // Refresh stock summary
+            document.getElementById('refreshStockSummary').addEventListener('click', function() {
+                loadDashboardData();
+            });
+            
+            // Refresh best selling
+            document.getElementById('refreshBestSelling').addEventListener('click', function() {
+                loadDashboardData();
+            });
+            
+            // Search and filter for menu
+            document.getElementById('menuSearch').addEventListener('input', function() {
+                filterMenuItems();
+            });
+            
+            document.getElementById('menuCategoryFilter').addEventListener('change', function() {
+                filterMenuItems();
+            });
+            
+            document.getElementById('clearSearch').addEventListener('click', function() {
+                document.getElementById('menuSearch').value = '';
+                filterMenuItems();
+            });
+            
+            // Search and filter for ingredients
+            document.getElementById('ingredientSearch').addEventListener('input', function() {
+                filterIngredients();
+            });
+            
+            document.getElementById('ingredientCategoryFilter').addEventListener('change', function() {
+                filterIngredients();
+            });
+            
+            document.getElementById('clearIngredientSearch').addEventListener('click', function() {
+                document.getElementById('ingredientSearch').value = '';
+                document.getElementById('ingredientCategoryFilter').value = '';
+                filterIngredients();
+            });
+            
+            // Account info form
+            document.getElementById('saveAccountInfoBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                saveAccountInfo();
             });
         });
         
@@ -753,6 +822,9 @@
                     case 'receipts':
                         loadRecentReceipts();
                         break;
+                    case 'account':
+                        loadAccountInfo();
+                        break;
                     case 'activity-log':
                         loadActivityLog();
                         break;
@@ -760,7 +832,7 @@
             }
             
             // Update active nav link
-            document.querySelectorAll('.nav-link, .list-group-item').forEach(link => {
+            document.querySelectorAll('.nav-link').forEach(link => {
                 link.classList.remove('active');
             });
             
@@ -777,10 +849,6 @@
                 document.getElementById('totalSales').textContent = '18';
                 document.getElementById('lowStock').textContent = '3';
                 document.getElementById('availableIngredients').textContent = '42';
-                
-                // Update quick stats
-                document.getElementById('quickOrders').textContent = '24';
-                document.getElementById('quickLowStock').textContent = '3';
                 
                 // Populate ingredient table
                 const ingredientData = [
@@ -827,24 +895,92 @@
             }, 500);
         }
         
-        function showNotification(message, type = 'info') {
-            // Create notification element
-            const notification = document.createElement('div');
-            notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-            notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
-            notification.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            // Auto remove after 3 seconds
+        function loadAccountInfo() {
+            // Simulate loading account info
             setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.remove();
+                // In real app, this would come from server
+                const accountInfo = {
+                    fullName: 'John Doe',
+                    username: 'johndoe',
+                    role: 'Staff',
+                    status: 'Active'
+                };
+                
+                document.getElementById('staffFullName').value = accountInfo.fullName;
+                document.getElementById('staffUsername').value = accountInfo.username;
+                document.getElementById('currentRole').value = accountInfo.role;
+                document.getElementById('accountStatus').value = accountInfo.status;
+            }, 300);
+        }
+        
+        function saveAccountInfo() {
+            const fullName = document.getElementById('staffFullName').value;
+            const username = document.getElementById('staffUsername').value;
+            const roleChange = document.getElementById('requestRoleChange').value;
+            
+            if (!fullName || !username) {
+                showModalNotification('Please fill in all required fields', 'warning');
+                return;
+            }
+            
+            // Simulate saving
+            setTimeout(() => {
+                if (roleChange) {
+                    showModalNotification('Account information saved. Role change request submitted for approval.', 'success');
+                } else {
+                    showModalNotification('Account information saved successfully', 'success');
                 }
-            }, 3000);
+            }, 1000);
+        }
+        
+        function filterMenuItems() {
+            const searchTerm = document.getElementById('menuSearch').value.toLowerCase();
+            const categoryFilter = document.getElementById('menuCategoryFilter').value;
+            
+            // This would filter the actual menu items in a real app
+            console.log('Filtering menu items:', { searchTerm, categoryFilter });
+        }
+        
+        function filterIngredients() {
+            const searchTerm = document.getElementById('ingredientSearch').value.toLowerCase();
+            const categoryFilter = document.getElementById('ingredientCategoryFilter').value;
+            
+            // This would filter the actual ingredients in a real app
+            console.log('Filtering ingredients:', { searchTerm, categoryFilter });
+        }
+        
+        function showModalNotification(message, type = 'info', title = 'Notification') {
+            const modalHeader = document.getElementById('notificationModalHeader');
+            const modalTitle = document.getElementById('notificationModalTitle');
+            const modalBody = document.getElementById('notificationModalBody');
+            
+            // Set modal color based on type
+            let headerClass = 'bg-primary text-white';
+            switch(type) {
+                case 'success':
+                    headerClass = 'bg-success text-white';
+                    break;
+                case 'warning':
+                    headerClass = 'bg-warning text-dark';
+                    break;
+                case 'danger':
+                    headerClass = 'bg-danger text-white';
+                    break;
+                case 'info':
+                    headerClass = 'bg-info text-white';
+                    break;
+            }
+            
+            modalHeader.className = `modal-header ${headerClass}`;
+            modalTitle.textContent = title;
+            modalBody.textContent = message;
+            
+            // Hide confirm button for regular notifications
+            document.getElementById('notificationModalConfirm').style.display = 'none';
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
+            modal.show();
         }
     </script>
 </body>

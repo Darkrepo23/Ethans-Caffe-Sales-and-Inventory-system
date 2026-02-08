@@ -22,7 +22,7 @@
         <div class="container-fluid">
             <!-- Logo -->
             <a class="navbar-brand d-flex align-items-center" href="#">
-                <img src="assets/logo.png" alt="Logo" height="40" class="me-2">
+                <img src="resources/ethans logo.jpg" alt="Logo" height="60" class="me-2">
                 <span class="fw-bold">Restaurant POS</span>
                 <span class="badge bg-danger ms-2">Admin</span>
             </a>
@@ -52,6 +52,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#" data-page="ingredients-masterlist">
                             <i class="fas fa-boxes me-1"></i>Ingredients
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="user-management">
+                            <i class="fas fa-users me-1"></i>Users
                         </a>
                     </li>
                     <li class="nav-item dropdown">
@@ -89,71 +94,8 @@
     <!-- Main Content -->
     <div class="container-fluid mt-5 pt-4">
         <div class="row">
-            <!-- Sidebar -->
-            <div class="col-lg-2 col-md-3 d-md-block sidebar collapse" id="sidebarMenu">
-                <div class="position-sticky pt-3">
-                    <div class="list-group list-group-flush">
-                        <a href="#" class="list-group-item list-group-item-action active" data-page="dashboard">
-                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="menu-control">
-                            <i class="fas fa-utensils me-2"></i>Menu Control
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="recipe-control">
-                            <i class="fas fa-book me-2"></i>Recipe Control
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="ingredients-masterlist">
-                            <i class="fas fa-boxes me-2"></i>Ingredients Masterlist
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="reports">
-                            <i class="fas fa-chart-bar me-2"></i>Owner Reports
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="backup">
-                            <i class="fas fa-database me-2"></i>Backup & Restore
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="requests">
-                            <i class="fas fa-inbox me-2"></i>Requests
-                            <span class="badge bg-danger float-end" id="sidebarPendingRequests">0</span>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="system-settings">
-                            <i class="fas fa-cog me-2"></i>System Settings
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="activity-log">
-                            <i class="fas fa-history me-2"></i>Activity Log
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" data-page="temp-account">
-                            <i class="fas fa-user-clock me-2"></i>Temporary Staff
-                        </a>
-                    </div>
-                    
-                    <!-- Quick Stats -->
-                    <div class="card mt-4">
-                        <div class="card-header bg-danger text-white">
-                            <h6 class="mb-0"><i class="fas fa-info-circle me-1"></i>Quick Stats</h6>
-                        </div>
-                        <div class="card-body p-2">
-                            <small class="d-block"><strong>Total Staff:</strong> <span id="quickStaffCount">0</span></small>
-                            <small class="d-block"><strong>Pending Requests:</strong> <span id="quickPendingCount">0</span></small>
-                            <small class="d-block"><strong>Low Stock Items:</strong> <span id="quickLowStockCount">0</span></small>
-                        </div>
-                    </div>
-                    
-                    <!-- System Status -->
-                    <div class="card mt-3">
-                        <div class="card-header bg-success text-white">
-                            <h6 class="mb-0"><i class="fas fa-check-circle me-1"></i>System Status</h6>
-                        </div>
-                        <div class="card-body p-2">
-                            <small class="d-block text-success"><i class="fas fa-circle me-1"></i>All Systems Operational</small>
-                            <small class="d-block"><i class="fas fa-database me-1"></i>Storage: 65%</small>
-                            <small class="d-block"><i class="fas fa-users me-1"></i>Active Users: <span id="activeUsers">0</span></small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
             <!-- Main Content Area -->
-            <main class="col-lg-10 col-md-9 ms-sm-auto px-md-4 animate__animated animate__fadeIn">
+            <main class="col-12 px-md-4 animate__animated animate__fadeIn">
                 <!-- Dashboard Content -->
                 <div id="dashboard-content" class="page-content">
                     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -167,9 +109,6 @@
                                     <i class="fas fa-download"></i> Export
                                 </button>
                             </div>
-                            <button class="btn btn-sm btn-outline-secondary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
-                                <i class="fas fa-bars"></i>
-                            </button>
                         </div>
                     </div>
                     
@@ -181,12 +120,12 @@
                                     <div class="row no-gutters align-items-center">
                                         <div class="col mr-2">
                                             <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                                                Total Sales Records
+                                                Low Stock Report
                                             </div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalSalesRecords">0</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="ingredientsRestock">0</div>
                                         </div>
                                         <div class="col-auto">
-                                            <i class="fas fa-clipboard-list fa-2x text-danger"></i>
+                                            <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
                                         </div>
                                     </div>
                                 </div>
@@ -217,12 +156,12 @@
                                     <div class="row no-gutters align-items-center">
                                         <div class="col mr-2">
                                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                                Ingredients Needing Restock
+                                                Total Sales Records
                                             </div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="ingredientsRestock">0</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalSalesRecords">0</div>
                                         </div>
                                         <div class="col-auto">
-                                            <i class="fas fa-exclamation-triangle fa-2x text-success"></i>
+                                            <i class="fas fa-clipboard-list fa-2x text-success"></i>
                                         </div>
                                     </div>
                                 </div>
@@ -299,7 +238,6 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="activity-timeline" id="recentActivities">
-                                        <!-- Activities will be populated by JavaScript -->
                                         <div class="text-center py-4">
                                             <div class="loading-spinner"></div>
                                             <p class="mt-2">Loading activities...</p>
@@ -339,21 +277,21 @@
                                             </button>
                                         </div>
                                         <div class="col-md-2 col-sm-4 col-6 mb-3">
-                                            <button class="btn btn-outline-warning btn-lg w-100 h-100" id="generateReportBtn">
+                                            <button class="btn btn-outline-warning btn-lg w-100 h-100" data-page="user-management">
+                                                <i class="fas fa-users fa-2x mb-2"></i><br>
+                                                <small>Manage Users</small>
+                                            </button>
+                                        </div>
+                                        <div class="col-md-2 col-sm-4 col-6 mb-3">
+                                            <button class="btn btn-outline-info btn-lg w-100 h-100" id="generateReportBtn">
                                                 <i class="fas fa-file-pdf fa-2x mb-2"></i><br>
                                                 <small>Generate Report</small>
                                             </button>
                                         </div>
                                         <div class="col-md-2 col-sm-4 col-6 mb-3">
-                                            <button class="btn btn-outline-info btn-lg w-100 h-100" data-page="backup">
+                                            <button class="btn btn-outline-primary btn-lg w-100 h-100" data-page="backup">
                                                 <i class="fas fa-database fa-2x mb-2"></i><br>
                                                 <small>Backup Data</small>
-                                            </button>
-                                        </div>
-                                        <div class="col-md-2 col-sm-4 col-6 mb-3">
-                                            <button class="btn btn-outline-primary btn-lg w-100 h-100" data-page="temp-account">
-                                                <i class="fas fa-user-clock fa-2x mb-2"></i><br>
-                                                <small>Temporary Staff</small>
                                             </button>
                                         </div>
                                         <div class="col-md-2 col-sm-4 col-6 mb-3">
@@ -514,6 +452,102 @@
                                                 </tr>
                                             </tbody>
                                         </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- User Management Content -->
+                <div id="user-management-content" class="page-content d-none">
+                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                        <h1 class="h2"><i class="fas fa-users me-2 text-danger"></i>User Management</h1>
+                        <div class="btn-toolbar mb-2 mb-md-0">
+                            <button class="btn btn-danger me-2" id="addUserBtn">
+                                <i class="fas fa-user-plus me-1"></i> Add User
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- User Management Tabs -->
+                    <ul class="nav nav-tabs mb-4" id="userManagementTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="active-users-tab" data-bs-toggle="tab" data-bs-target="#active-users">
+                                Active Users
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="deleted-users-tab" data-bs-toggle="tab" data-bs-target="#deleted-users">
+                                Deleted Users <span class="badge bg-secondary" id="deletedUsersCount">0</span>
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content" id="userManagementTabContent">
+                        <!-- Active Users -->
+                        <div class="tab-pane fade show active" id="active-users" role="tabpanel">
+                            <div class="card shadow">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="m-0 font-weight-bold">
+                                        <i class="fas fa-user-check me-1"></i>Active Users List
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="activeUsersTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Role</th>
+                                                    <th>Username</th>
+                                                    <th>Status</th>
+                                                    <th>Last Login</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td colspan="6" class="text-center">Loading active users...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Deleted Users -->
+                        <div class="tab-pane fade" id="deleted-users" role="tabpanel">
+                            <div class="card shadow">
+                                <div class="card-header bg-secondary text-white">
+                                    <h6 class="m-0 font-weight-bold">
+                                        <i class="fas fa-user-slash me-1"></i>Deleted Users (Can Be Restored)
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="deletedUsersTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Role</th>
+                                                    <th>Username</th>
+                                                    <th>Deleted Date</th>
+                                                    <th>Deleted By</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td colspan="6" class="text-center">No deleted users found</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="alert alert-info mt-3">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Note:</strong> Deleted users can be restored until permanently deleted from this table.
                                     </div>
                                 </div>
                             </div>
@@ -1335,9 +1369,7 @@
         </div>
     </div>
     
-    <!-- Modals for Admin Features -->
-    
-    <!-- Add Menu Item Modal -->
+    <!-- Modals -->
     <div class="modal fade" id="addMenuItemModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -1391,7 +1423,6 @@
                                     </div>
                                     <div class="card-body">
                                         <div id="recipeIngredientsContainer">
-                                            <!-- Recipe ingredients will be added here -->
                                             <div class="text-center py-3">
                                                 <p class="text-muted">No ingredients assigned yet</p>
                                                 <button type="button" class="btn btn-sm btn-outline-danger" id="addIngredientToRecipe">
@@ -1413,7 +1444,6 @@
         </div>
     </div>
     
-    <!-- Add Ingredient Modal -->
     <div class="modal fade" id="addIngredientModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -1443,24 +1473,26 @@
                                 <option value="Other">Other</option>
                             </select>
                         </div>
-                        <div class="mb-3">
-                            <label for="ingredientUnit" class="form-label">Unit of Measurement</label>
-                            <select class="form-select" id="ingredientUnit" required>
-                                <option value="kg">Kilograms (kg)</option>
-                                <option value="g">Grams (g)</option>
-                                <option value="pcs">Pieces (pcs)</option>
-                                <option value="liters">Liters (L)</option>
-                                <option value="ml">Milliliters (ml)</option>
-                                <option value="pack">Pack</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="lowStockThreshold" class="form-label">Low-stock Threshold</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" id="lowStockThreshold" min="1" value="5" required>
-                                <span class="input-group-text" id="thresholdUnit">kg</span>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="ingredientUnit" class="form-label">Unit of Measurement</label>
+                                <select class="form-select" id="ingredientUnit" required>
+                                    <option value="kg">Kilograms (kg)</option>
+                                    <option value="g">Grams (g)</option>
+                                    <option value="pcs">Pieces (pcs)</option>
+                                    <option value="liters">Liters (L)</option>
+                                    <option value="ml">Milliliters (ml)</option>
+                                    <option value="pack">Pack</option>
+                                </select>
                             </div>
-                            <div class="form-text">Alert when quantity falls below this value</div>
+                            <div class="col-md-6 mb-3">
+                                <label for="lowStockThreshold" class="form-label">Low-stock Threshold</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="lowStockThreshold" min="1" value="5" required>
+                                    <span class="input-group-text" id="thresholdUnit">kg</span>
+                                </div>
+                                <div class="form-text">Alert when quantity falls below this value</div>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -1472,7 +1504,102 @@
         </div>
     </div>
     
-    <!-- Approval Modal -->
+    <div class="modal fade" id="editUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-edit me-2"></i>Edit User
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editUserForm">
+                        <input type="hidden" id="editUserId">
+                        <div class="mb-3">
+                            <label for="editFullName" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="editFullName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editUsername" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="editUsername" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editUserRole" class="form-label">Role</label>
+                            <select class="form-select" id="editUserRole" required>
+                                <option value="Staff">Staff</option>
+                                <option value="Cashier">Cashier</option>
+                                <option value="Senior Staff">Senior Staff</option>
+                                <option value="Manager">Manager</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editUserStatus" class="form-label">Account Status</label>
+                            <select class="form-select" id="editUserStatus" required>
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                                <option value="Suspended">Suspended</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editUserPassword" class="form-label">Reset Password</label>
+                            <input type="password" class="form-control" id="editUserPassword" placeholder="Leave empty to keep current password">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveUserChangesBtn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="addUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-plus me-2"></i>Add New User
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addUserForm">
+                        <div class="mb-3">
+                            <label for="newFullName" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="newFullName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newUsername" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="newUsername" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newUserPassword" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="newUserPassword" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmUserPassword" class="form-label">Confirm Password</label>
+                            <input type="password" class="form-control" id="confirmUserPassword" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newUserRole" class="form-label">Role</label>
+                            <select class="form-select" id="newUserRole" required>
+                                <option value="Staff">Staff</option>
+                                <option value="Cashier">Cashier</option>
+                                <option value="Senior Staff">Senior Staff</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="saveNewUserBtn">Add User</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div class="modal fade" id="approvalModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -1484,12 +1611,29 @@
                 </div>
                 <div class="modal-body">
                     <div id="approvalModalContent">
-                        <!-- Content will be populated by JavaScript -->
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-success" id="confirmApproveBtn">Approve</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification Modal -->
+    <div class="modal fade" id="notificationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header" id="notificationModalHeader">
+                    <h5 class="modal-title" id="notificationModalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="notificationModalBody">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="notificationModalConfirm" style="display: none;">Confirm</button>
                 </div>
             </div>
         </div>
@@ -1527,9 +1671,9 @@
             // Logout button
             document.getElementById('logoutBtn').addEventListener('click', function(e) {
                 e.preventDefault();
-                if (confirm('Are you sure you want to logout?')) {
+                showConfirm('Are you sure you want to logout?', function() {
                     window.location.href = 'index.html';
-                }
+                });
             });
             
             // Quick actions buttons
@@ -1543,7 +1687,12 @@
             // Refresh dashboard button
             document.getElementById('refreshAdminDashboard').addEventListener('click', function() {
                 loadAdminDashboardData();
-                showNotification('Dashboard refreshed', 'success');
+                showModalNotification('Dashboard refreshed', 'success');
+            });
+            
+            // Add user button
+            document.getElementById('addUserBtn').addEventListener('click', function() {
+                showAddUserModal();
             });
         });
         
@@ -1574,6 +1723,9 @@
                     case 'ingredients-masterlist':
                         loadIngredientsMasterlist();
                         break;
+                    case 'user-management':
+                        loadUserManagement();
+                        break;
                     case 'reports':
                         initializeReports();
                         break;
@@ -1596,7 +1748,7 @@
             }
             
             // Update active nav link
-            document.querySelectorAll('.nav-link, .list-group-item').forEach(link => {
+            document.querySelectorAll('.nav-link').forEach(link => {
                 link.classList.remove('active');
             });
             
@@ -1613,17 +1765,11 @@
         function loadAdminDashboardData() {
             // Simulate AJAX loading
             setTimeout(() => {
-                // Update info boxes
-                document.getElementById('totalSalesRecords').textContent = '156';
-                document.getElementById('totalStaffAccounts').textContent = '8';
+                // Update info boxes (swapped colors as requested)
                 document.getElementById('ingredientsRestock').textContent = '3';
+                document.getElementById('totalStaffAccounts').textContent = '8';
+                document.getElementById('totalSalesRecords').textContent = '156';
                 document.getElementById('systemAlerts').textContent = '2';
-                
-                // Update quick stats
-                document.getElementById('quickStaffCount').textContent = '8';
-                document.getElementById('quickPendingCount').textContent = '2';
-                document.getElementById('quickLowStockCount').textContent = '3';
-                document.getElementById('activeUsers').textContent = '3';
                 
                 // Populate low stock table
                 const lowStockData = [
@@ -1680,25 +1826,260 @@
             }, 500);
         }
         
-        function showNotification(message, type = 'info') {
-            // Create notification element
-            const notification = document.createElement('div');
-            notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-            notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
-            notification.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
+        function loadUserManagement() {
+            // Load active users
+            loadActiveUsers();
             
-            document.body.appendChild(notification);
-            
-            // Auto remove after 3 seconds
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.remove();
-                }
-            }, 3000);
+            // Load deleted users
+            loadDeletedUsers();
         }
+        
+        function loadActiveUsers() {
+            const activeUsersTable = document.getElementById('activeUsersTable').getElementsByTagName('tbody')[0];
+            activeUsersTable.innerHTML = '<tr><td colspan="6" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading active users...</p></td></tr>';
+            
+            setTimeout(() => {
+                const users = [
+                    { name: 'John Doe', role: 'Staff', username: 'johndoe', status: 'Active', lastLogin: 'Today', actions: '<button class="btn btn-sm btn-primary me-1" onclick="editUser(1)">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteUser(1)">Delete</button>' },
+                    { name: 'Jane Smith', role: 'Cashier', username: 'janesmith', status: 'Active', lastLogin: 'Today', actions: '<button class="btn btn-sm btn-primary me-1" onclick="editUser(2)">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteUser(2)">Delete</button>' },
+                    { name: 'Robert Johnson', role: 'Staff', username: 'robertj', status: 'Active', lastLogin: 'Yesterday', actions: '<button class="btn btn-sm btn-primary me-1" onclick="editUser(3)">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteUser(3)">Delete</button>' },
+                    { name: 'Sarah Williams', role: 'Senior Staff', username: 'sarahw', status: 'Active', lastLogin: 'Today', actions: '<button class="btn btn-sm btn-primary me-1" onclick="editUser(4)">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteUser(4)">Delete</button>' }
+                ];
+                
+                activeUsersTable.innerHTML = '';
+                
+                users.forEach(user => {
+                    const row = activeUsersTable.insertRow();
+                    row.innerHTML = `
+                        <td><strong>${user.name}</strong></td>
+                        <td><span class="badge ${user.role === 'Staff' ? 'bg-success' : user.role === 'Cashier' ? 'bg-info' : 'bg-warning'}">${user.role}</span></td>
+                        <td>${user.username}</td>
+                        <td><span class="badge bg-success">${user.status}</span></td>
+                        <td>${user.lastLogin}</td>
+                        <td>${user.actions}</td>
+                    `;
+                });
+            }, 800);
+        }
+        
+        function loadDeletedUsers() {
+            const deletedUsersTable = document.getElementById('deletedUsersTable').getElementsByTagName('tbody')[0];
+            const deletedUsersCount = document.getElementById('deletedUsersCount');
+            
+            setTimeout(() => {
+                const deletedUsers = [
+                    { name: 'Mike Brown', role: 'Staff', username: 'mikeb', deletedDate: '2023-09-28', deletedBy: 'Admin', actions: '<button class="btn btn-sm btn-success me-1" onclick="restoreUser(1)">Restore</button><button class="btn btn-sm btn-danger" onclick="permanentlyDeleteUser(1)">Permanently Delete</button>' },
+                    { name: 'Emily Davis', role: 'Cashier', username: 'emilyd', deletedDate: '2023-09-25', deletedBy: 'Admin', actions: '<button class="btn btn-sm btn-success me-1" onclick="restoreUser(2)">Restore</button><button class="btn btn-sm btn-danger" onclick="permanentlyDeleteUser(2)">Permanently Delete</button>' }
+                ];
+                
+                deletedUsersTable.innerHTML = '';
+                
+                deletedUsers.forEach(user => {
+                    const row = deletedUsersTable.insertRow();
+                    row.innerHTML = `
+                        <td><strong>${user.name}</strong></td>
+                        <td><span class="badge bg-secondary">${user.role}</span></td>
+                        <td>${user.username}</td>
+                        <td>${user.deletedDate}</td>
+                        <td>${user.deletedBy}</td>
+                        <td>${user.actions}</td>
+                    `;
+                });
+                
+                // Update count
+                if (deletedUsersCount) {
+                    deletedUsersCount.textContent = deletedUsers.length;
+                }
+            }, 800);
+        }
+        
+        function showAddUserModal() {
+            // Clear form
+            document.getElementById('addUserForm').reset();
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('addUserModal'));
+            modal.show();
+            
+            // Save new user button
+            document.getElementById('saveNewUserBtn').addEventListener('click', function() {
+                saveNewUser();
+            });
+        }
+        
+        function saveNewUser() {
+            const fullName = document.getElementById('newFullName').value;
+            const username = document.getElementById('newUsername').value;
+            const password = document.getElementById('newUserPassword').value;
+            const confirmPassword = document.getElementById('confirmUserPassword').value;
+            const role = document.getElementById('newUserRole').value;
+            
+            // Validation
+            if (!fullName || !username || !password || !confirmPassword) {
+                showModalNotification('Please fill in all required fields', 'warning');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                showModalNotification('Passwords do not match', 'warning');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showModalNotification('Password must be at least 6 characters', 'warning');
+                return;
+            }
+            
+            // Simulate save
+            setTimeout(() => {
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addUserModal'));
+                modal.hide();
+                
+                // Show success message
+                showModalNotification(`User "${fullName}" added successfully`, 'success');
+                
+                // Refresh user list
+                loadActiveUsers();
+            }, 1000);
+        }
+        
+        function editUser(userId) {
+            // Simulate loading user data
+            const userData = {
+                id: userId,
+                fullName: 'John Doe',
+                username: 'johndoe',
+                role: 'Staff',
+                status: 'Active'
+            };
+            
+            // Populate form
+            document.getElementById('editUserId').value = userData.id;
+            document.getElementById('editFullName').value = userData.fullName;
+            document.getElementById('editUsername').value = userData.username;
+            document.getElementById('editUserRole').value = userData.role;
+            document.getElementById('editUserStatus').value = userData.status;
+            document.getElementById('editUserPassword').value = '';
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+            modal.show();
+            
+            // Save changes button
+            document.getElementById('saveUserChangesBtn').addEventListener('click', function() {
+                saveUserChanges(userId);
+            });
+        }
+        
+        function saveUserChanges(userId) {
+            const fullName = document.getElementById('editFullName').value;
+            const username = document.getElementById('editUsername').value;
+            const role = document.getElementById('editUserRole').value;
+            const status = document.getElementById('editUserStatus').value;
+            const password = document.getElementById('editUserPassword').value;
+            
+            if (!fullName || !username) {
+                showModalNotification('Please fill in all required fields', 'warning');
+                return;
+            }
+            
+            // Simulate save
+            setTimeout(() => {
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editUserModal'));
+                modal.hide();
+                
+                // Show success message
+                let message = `User "${fullName}" updated successfully`;
+                if (password) {
+                    message += ' (password reset)';
+                }
+                
+                showModalNotification(message, 'success');
+                
+                // Refresh user list
+                loadActiveUsers();
+            }, 1000);
+        }
+        
+        function deleteUser(userId) {
+            showConfirm('Are you sure you want to delete this user? The user will be moved to the deleted users table where they can be restored.', function() {
+                // Simulate delete
+                setTimeout(() => {
+                    showModalNotification('User moved to deleted users table', 'success');
+                    
+                    // Refresh both tables
+                    loadActiveUsers();
+                    loadDeletedUsers();
+                }, 800);
+            });
+        }
+        
+        function restoreUser(userId) {
+            showConfirm('Are you sure you want to restore this user?', function() {
+                // Simulate restore
+                setTimeout(() => {
+                    showModalNotification('User restored successfully', 'success');
+                    
+                    // Refresh both tables
+                    loadActiveUsers();
+                    loadDeletedUsers();
+                }, 800);
+            });
+        }
+        
+        function permanentlyDeleteUser(userId) {
+            showConfirm('Are you sure you want to permanently delete this user? This action cannot be undone.', function() {
+                // Simulate permanent delete
+                setTimeout(() => {
+                    showModalNotification('User permanently deleted', 'success');
+                    
+                    // Refresh deleted users table
+                    loadDeletedUsers();
+                }, 800);
+            });
+        }
+        
+        function showModalNotification(message, type = 'info', title = 'Notification') {
+            const modalHeader = document.getElementById('notificationModalHeader');
+            const modalTitle = document.getElementById('notificationModalTitle');
+            const modalBody = document.getElementById('notificationModalBody');
+            
+            // Set modal color based on type
+            let headerClass = 'bg-primary text-white';
+            switch(type) {
+                case 'success':
+                    headerClass = 'bg-success text-white';
+                    break;
+                case 'warning':
+                    headerClass = 'bg-warning text-dark';
+                    break;
+                case 'danger':
+                    headerClass = 'bg-danger text-white';
+                    break;
+                case 'info':
+                    headerClass = 'bg-info text-white';
+                    break;
+            }
+            
+            modalHeader.className = `modal-header ${headerClass}`;
+            modalTitle.textContent = title;
+            modalBody.textContent = message;
+            
+            // Hide confirm button for regular notifications
+            document.getElementById('notificationModalConfirm').style.display = 'none';
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
+            modal.show();
+        }
+        
+        // Export functions for use in admin.js
+        window.editUser = editUser;
+        window.deleteUser = deleteUser;
+        window.restoreUser = restoreUser;
+        window.permanentlyDeleteUser = permanentlyDeleteUser;
     </script>
 </body>
 </html>
