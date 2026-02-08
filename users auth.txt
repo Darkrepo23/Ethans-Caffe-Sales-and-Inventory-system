@@ -1,0 +1,28 @@
+username:staff
+password:staff123
+
+admin
+admin123
+
+Lagay mo dito 
+
+- git clone 
+
+
+git add .
+if meron kang changes na ginawa
+
+
+git commit -m "Upload project"
+
+if ready mo na  iprepare para ipush yung folder project
+
+
+git push -u 
+
+kung ipupush mo na yung project
+
+git remote -v
+
+para malaman kung anong repository link yung ipupush mo or iuupdate mo
+
