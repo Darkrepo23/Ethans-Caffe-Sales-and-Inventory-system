@@ -1,0 +1,30 @@
+Issue:
+
+in admin:
+menu & recipe nav: if both click it turns blue. make it just hover
+
+how do users change role?.
+
+In Request nav, there's a table there add a gap in bottom of top table
+to make the bottom table not so close to top
+
+in Temporary staff account. 
+
+why there's a temporary account status. why not the admin just log out as a
+staff. and why there's a three boxes, record sales, adjust stocks and print
+reciept? admin can do that inside the staff the printing the adjust stock
+and print reciept
+
+in recipe control the edit actions wont work
+
+Fix all under the development input
+
+
+remember that admin have all the control.
+
+
+in staff:
+if the menu is unavailable it will not be show in menu sales.
+
+
+
