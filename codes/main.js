@@ -1,8 +1,32 @@
 // Common JavaScript Functions
 
-// Show notification function
+// Show notification function (uses SweetAlert2 when available)
 function showNotification(message, type = 'info') {
-    // Create notification element
+    // Prefer SweetAlert2 for a modern modal-style notification
+    if (window.Swal) {
+        const iconMap = {
+            success: 'success',
+            warning: 'warning',
+            danger: 'error',
+            info: 'info'
+        };
+        const titleMap = {
+            success: 'Success',
+            warning: 'Warning',
+            danger: 'Error',
+            info: 'Information'
+        };
+        Swal.fire({
+            icon: iconMap[type] || 'info',
+            title: titleMap[type] || 'Notification',
+            text: message,
+            timer: 2200,
+            showConfirmButton: false
+        });
+        return;
+    }
+
+    // Fallback to Bootstrap alert toast if SweetAlert2 is not loaded
     const notification = document.createElement('div');
     notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
     notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px; max-width: 400px;';
@@ -13,9 +37,9 @@ function showNotification(message, type = 'info') {
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     // Auto remove after 5 seconds
     setTimeout(() => {
         if (notification.parentNode) {
@@ -29,53 +53,31 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 
-// Confirm dialog function
+// Confirm dialog function (uses SweetAlert2 when available)
 function showConfirm(message, callback) {
-    const modalHtml = `
-        <div class="modal fade" id="confirmModal" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-warning text-white">
-                        <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Confirmation</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        ${message}
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-danger" id="confirmAction">Confirm</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Remove existing modal if any
-    const existingModal = document.getElementById('confirmModal');
-    if (existingModal) {
-        existingModal.remove();
+    // Prefer SweetAlert2 confirmation dialog
+    if (window.Swal) {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: message,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes',
+            cancelButtonText: 'No',
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d'
+        }).then((result) => {
+            if (result.isConfirmed && typeof callback === 'function') {
+                callback();
+            }
+        });
+        return;
     }
-    
-    // Add modal to body
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
-    modal.show();
-    
-    // Handle confirm button click
-    document.getElementById('confirmAction').addEventListener('click', function() {
-        modal.hide();
-        setTimeout(() => {
-            if (callback) callback();
-        }, 300);
-    });
-    
-    // Remove modal after hide
-    document.getElementById('confirmModal').addEventListener('hidden.bs.modal', function() {
-        this.remove();
-    });
+
+    // Fallback to native confirm if SweetAlert2 is not loaded
+    if (window.confirm(message) && typeof callback === 'function') {
+        callback();
+    }
 }
 
 // Format date function
@@ -84,8 +86,8 @@ function formatDate(date, format = 'mm/dd/yyyy') {
     const day = d.getDate().toString().padStart(2, '0');
     const month = (d.getMonth() + 1).toString().padStart(2, '0');
     const year = d.getFullYear();
-    
-    switch(format) {
+
+    switch (format) {
         case 'dd/mm/yyyy':
             return `${day}/${month}/${year}`;
         case 'yyyy-mm-dd':
@@ -101,7 +103,7 @@ function formatTime(date) {
     const hours = d.getHours().toString().padStart(2, '0');
     const minutes = d.getMinutes().toString().padStart(2, '0');
     const seconds = d.getSeconds().toString().padStart(2, '0');
-    
+
     return `${hours}:${minutes}:${seconds}`;
 }
 
@@ -117,7 +119,7 @@ function validatePassword(password) {
     const hasUpperCase = /[A-Z]/.test(password);
     const hasLowerCase = /[a-z]/.test(password);
     const hasNumbers = /\d/.test(password);
-    
+
     return password.length >= minLength && hasUpperCase && hasLowerCase && hasNumbers;
 }
 
@@ -137,7 +139,7 @@ function debounce(func, wait) {
 // Throttle function for scroll events
 function throttle(func, limit) {
     let inThrottle;
-    return function() {
+    return function () {
         const args = arguments;
         const context = this;
         if (!inThrottle) {
@@ -201,7 +203,7 @@ function exportData(data, filename, type = 'application/json') {
 // Import data function
 function importData(file, callback) {
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         try {
             const data = JSON.parse(e.target.result);
             if (callback) callback(data);
@@ -210,7 +212,7 @@ function importData(file, callback) {
             showNotification('Error importing file: Invalid format', 'danger');
         }
     };
-    reader.onerror = function() {
+    reader.onerror = function () {
         showNotification('Error reading file', 'danger');
     };
     reader.readAsText(file);
@@ -242,7 +244,7 @@ function sortByProperty(array, property, ascending = true) {
     return array.sort((a, b) => {
         const aValue = a[property];
         const bValue = b[property];
-        
+
         if (aValue < bValue) return ascending ? -1 : 1;
         if (aValue > bValue) return ascending ? 1 : -1;
         return 0;
@@ -255,7 +257,7 @@ function filterArray(array, filters) {
         return Object.keys(filters).every(key => {
             const filterValue = filters[key];
             const itemValue = item[key];
-            
+
             if (filterValue === null || filterValue === undefined) return true;
             if (typeof filterValue === 'string') {
                 return itemValue.toString().toLowerCase().includes(filterValue.toLowerCase());
@@ -288,7 +290,7 @@ function paginateArray(array, page = 1, pageSize = 10) {
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     const totalPages = Math.ceil(array.length / pageSize);
-    
+
     return {
         data: array.slice(startIndex, endIndex),
         page: page,
@@ -301,27 +303,27 @@ function paginateArray(array, page = 1, pageSize = 10) {
 }
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Add loading class to body
     document.body.classList.add('loading');
-    
+
     // Initialize tooltips
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-    
+
     // Initialize popovers
     const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
     popoverTriggerList.map(function (popoverTriggerEl) {
         return new bootstrap.Popover(popoverTriggerEl);
     });
-    
+
     // Remove loading class after page loads
     setTimeout(() => {
         document.body.classList.remove('loading');
     }, 500);
-    
+
     // Add animation classes to elements with data-animate attribute
     document.querySelectorAll('[data-animate]').forEach(element => {
         const animation = element.getAttribute('data-animate');
@@ -344,7 +346,7 @@ function setButtonLoading(button, isLoading) {
 function fadeInElement(element) {
     element.style.opacity = 0;
     element.style.transition = 'opacity 0.3s ease-in';
-    
+
     setTimeout(() => {
         element.style.opacity = 1;
     }, 10);
@@ -356,7 +358,7 @@ function scrollToElement(elementId, offset = 0) {
     if (element) {
         const elementPosition = element.getBoundingClientRect().top;
         const offsetPosition = elementPosition + window.pageYOffset - offset;
-        
+
         window.scrollTo({
             top: offsetPosition,
             behavior: 'smooth'

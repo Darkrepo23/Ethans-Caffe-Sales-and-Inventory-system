@@ -24,5 +24,4 @@ kung ipupush mo na yung project
 
 git remote -v
 
-para malaman kung anong repository link yung ipupush mo or iuupdate mo
-
+para malaman kung anong repository link yung ipupush mo

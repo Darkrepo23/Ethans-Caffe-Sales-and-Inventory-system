@@ -2,10 +2,8 @@
 
 /* Sidebar */
 .sidebar {
-    background-color: var(--white);
-    border-right: 1px solid #dee2e6;
     min-height: calc(100vh - 56px);
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease;
 }
 
@@ -38,7 +36,7 @@
 
 .info-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
 }
 
 .border-left-primary {
@@ -82,7 +80,7 @@
 
 .menu-item-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
     border-color: var(--maroon);
 }
 
@@ -200,7 +198,9 @@
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Status Badges */
@@ -229,15 +229,15 @@
         z-index: 1030;
         transition: left 0.3s ease;
     }
-    
+
     .sidebar.show {
         left: 0;
     }
-    
+
     .menu-item-card {
         margin-bottom: 20px;
     }
-    
+
     .receipt-container {
         max-width: 100%;
         font-size: 0.9rem;
@@ -251,7 +251,7 @@
         max-width: 100%;
         font-size: 12pt;
     }
-    
+
     .no-print {
         display: none !important;
     }

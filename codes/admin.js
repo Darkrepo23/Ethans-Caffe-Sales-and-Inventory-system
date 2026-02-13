@@ -6,13 +6,13 @@ let currentRequestType = null;
 let currentRequestId = null;
 
 // DOM Ready
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Initialize tooltips
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-    
+
     // Initialize all admin functionality
     initializeAdminDashboard();
     initializeMenuControl();
@@ -32,23 +32,25 @@ function initializeAdminDashboard() {
     // Export dashboard data button
     const exportDashboardBtn = document.getElementById('exportDashboardData');
     if (exportDashboardBtn) {
-        exportDashboardBtn.addEventListener('click', function() {
-            exportDashboardData();
+        exportDashboardBtn.addEventListener('click', function () {
+            showConfirm('Are you sure you want to Export Dashboard Data?', function () {
+                exportDashboardData();
+            });
         });
     }
-    
+
     // Generate report button
     const generateReportBtn = document.getElementById('generateReportBtn');
     if (generateReportBtn) {
-        generateReportBtn.addEventListener('click', function() {
+        generateReportBtn.addEventListener('click', function () {
             updateActivePage('reports');
         });
     }
-    
+
     // Refresh low stock button
     const refreshLowStockBtn = document.getElementById('refreshLowStock');
     if (refreshLowStockBtn) {
-        refreshLowStockBtn.addEventListener('click', function() {
+        refreshLowStockBtn.addEventListener('click', function () {
             loadLowStockData();
         });
     }
@@ -57,7 +59,7 @@ function initializeAdminDashboard() {
 function exportDashboardData() {
     // Simulate data export
     showModalNotification('Exporting dashboard data...', 'info', 'Exporting Data');
-    
+
     setTimeout(() => {
         // Create a blob of the data
         const data = {
@@ -67,10 +69,10 @@ function exportDashboardData() {
             lowStockItems: document.getElementById('ingredientsRestock').textContent,
             systemAlerts: document.getElementById('systemAlerts').textContent
         };
-        
+
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        
+
         // Create download link
         const a = document.createElement('a');
         a.href = url;
@@ -79,7 +81,7 @@ function exportDashboardData() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         showModalNotification('Dashboard data exported successfully', 'success', 'Export Complete');
     }, 1000);
 }
@@ -87,7 +89,7 @@ function exportDashboardData() {
 function loadLowStockData() {
     const lowStockTable = document.getElementById('lowStockTable').getElementsByTagName('tbody')[0];
     lowStockTable.innerHTML = '<tr><td colspan="5" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading low stock items...</p></td></tr>';
-    
+
     setTimeout(() => {
         // Simulate updated data
         const lowStockData = [
@@ -96,9 +98,9 @@ function loadLowStockData() {
             { name: 'Cheese', category: 'Dairy', quantity: '4 kg', threshold: '3 kg', status: 'Low' },
             { name: 'Garlic', category: 'Spices', quantity: '1 kg', threshold: '2 kg', status: 'Low' }
         ];
-        
+
         lowStockTable.innerHTML = '';
-        
+
         lowStockData.forEach(item => {
             const row = lowStockTable.insertRow();
             row.innerHTML = `
@@ -109,7 +111,7 @@ function loadLowStockData() {
                 <td><span class="badge bg-warning">${item.status}</span></td>
             `;
         });
-        
+
         showModalNotification('Low stock data refreshed', 'success', 'Data Refreshed');
     }, 800);
 }
@@ -119,21 +121,21 @@ function initializeMenuControl() {
     // Add menu item button
     const addMenuItemBtn = document.getElementById('addMenuItemBtn');
     if (addMenuItemBtn) {
-        addMenuItemBtn.addEventListener('click', function() {
+        addMenuItemBtn.addEventListener('click', function () {
             showAddMenuItemModal();
         });
     }
-    
+
     // Show inactive items toggle
     const showInactiveItems = document.getElementById('showInactiveItems');
     if (showInactiveItems) {
-        showInactiveItems.addEventListener('change', function() {
+        showInactiveItems.addEventListener('change', function () {
             loadMenuControl(this.checked);
         });
     }
-    
+
     // Load menu control when page is shown
-    document.querySelector('[data-page="menu-control"]').addEventListener('click', function() {
+    document.querySelector('[data-page="menu-control"]').addEventListener('click', function () {
         loadMenuControl();
     });
 }
@@ -141,7 +143,7 @@ function initializeMenuControl() {
 function loadMenuControl(showInactive = false) {
     const menuControlTable = document.getElementById('menuControlTable').getElementsByTagName('tbody')[0];
     menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading menu items...</p></td></tr>';
-    
+
     setTimeout(() => {
         const menuItems = [
             { id: 1, name: 'Beef Steak', category: 'Main Course', price: '$24.99', status: 'Active', recipes: 4 },
@@ -153,12 +155,12 @@ function loadMenuControl(showInactive = false) {
             { id: 7, name: 'Pasta Carbonara', category: 'Main Course', price: '$16.99', status: 'Active', recipes: 3 },
             { id: 8, name: 'Chocolate Cake', category: 'Dessert', price: '$8.99', status: 'Active', recipes: 3 }
         ];
-        
+
         menuControlTable.innerHTML = '';
-        
+
         menuItems.forEach(item => {
             if (!showInactive && item.status === 'Inactive') return;
-            
+
             const row = menuControlTable.insertRow();
             row.innerHTML = `
                 <td>${item.id}</td>
@@ -188,25 +190,25 @@ function loadMenuControl(showInactive = false) {
 function showAddMenuItemModal() {
     // Clear form
     document.getElementById('addMenuItemForm').reset();
-    
+
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('addMenuItemModal'));
     modal.show();
-    
+
     // Add ingredient to recipe button
-    document.getElementById('addIngredientToRecipe').addEventListener('click', function() {
+    document.getElementById('addIngredientToRecipe').addEventListener('click', function () {
         addIngredientToRecipeForm();
     });
-    
+
     // Save menu item button
-    document.getElementById('saveMenuItemBtn').addEventListener('click', function() {
+    document.getElementById('saveMenuItemBtn').addEventListener('click', function () {
         saveMenuItem();
     });
 }
 
 function addIngredientToRecipeForm() {
     const container = document.getElementById('recipeIngredientsContainer');
-    
+
     // Get available ingredients
     const ingredients = [
         { id: 1, name: 'Beef' },
@@ -215,7 +217,7 @@ function addIngredientToRecipeForm() {
         { id: 4, name: 'Tomatoes' },
         { id: 5, name: 'Onions' }
     ];
-    
+
     // Create ingredient row
     const row = document.createElement('div');
     row.className = 'row g-3 mb-3 align-items-center';
@@ -238,11 +240,11 @@ function addIngredientToRecipeForm() {
             </button>
         </div>
     `;
-    
+
     container.appendChild(row);
-    
+
     // Add remove event listener
-    row.querySelector('.remove-ingredient').addEventListener('click', function() {
+    row.querySelector('.remove-ingredient').addEventListener('click', function () {
         row.remove();
     });
 }
@@ -252,19 +254,19 @@ function saveMenuItem() {
     const category = document.getElementById('menuItemCategory').value;
     const price = document.getElementById('menuItemPrice').value;
     const status = document.getElementById('menuItemStatus').value;
-    
+
     // Validation
     if (!name || !category) {
         showModalNotification('Please fill in all required fields', 'warning', 'Validation Error');
         return;
     }
-    
+
     // Get recipe ingredients
     const ingredients = [];
     document.querySelectorAll('#recipeIngredientsContainer .row').forEach(row => {
         const ingredientId = row.querySelector('.ingredient-select').value;
         const quantity = row.querySelector('.ingredient-quantity').value;
-        
+
         if (ingredientId && quantity) {
             ingredients.push({
                 id: ingredientId,
@@ -272,19 +274,19 @@ function saveMenuItem() {
             });
         }
     });
-    
+
     // Simulate save
     setTimeout(() => {
         // Close modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('addMenuItemModal'));
         modal.hide();
-        
+
         // Show success message
         showModalNotification(`Menu item "${name}" added successfully`, 'success', 'Menu Item Added');
-        
+
         // Log activity
         logAdminActivity('Added menu item', name, 'Success');
-        
+
         // Refresh menu control
         loadMenuControl();
     }, 1000);
@@ -296,8 +298,8 @@ function editMenuItem(id) {
 
 function toggleMenuItemStatus(id, currentStatus) {
     const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
-    
-    showConfirm(`Are you sure you want to ${newStatus === 'Inactive' ? 'deactivate' : 'activate'} this menu item?`, function() {
+
+    showConfirm(`Are you sure you want to ${newStatus === 'Inactive' ? 'deactivate' : 'activate'} this menu item?`, function () {
         setTimeout(() => {
             showModalNotification(`Menu item ${newStatus === 'Inactive' ? 'deactivated' : 'activated'}`, 'success', 'Status Changed');
             logAdminActivity(`Changed menu item status to ${newStatus}`, `Item ID: ${id}`, 'Success');
@@ -307,7 +309,7 @@ function toggleMenuItemStatus(id, currentStatus) {
 }
 
 function deleteMenuItem(id) {
-    showConfirm('Are you sure you want to delete this menu item? This action cannot be undone.', function() {
+    showConfirm('Are you sure you want to delete this menu item? This action cannot be undone.', function () {
         setTimeout(() => {
             showModalNotification('Menu item deleted', 'success', 'Item Deleted');
             logAdminActivity('Deleted menu item', `Item ID: ${id}`, 'Success');
@@ -321,13 +323,13 @@ function initializeRecipeControl() {
     // Assign recipe button
     const assignRecipeBtn = document.getElementById('assignRecipeBtn');
     if (assignRecipeBtn) {
-        assignRecipeBtn.addEventListener('click', function() {
+        assignRecipeBtn.addEventListener('click', function () {
             showAssignRecipeModal();
         });
     }
-    
+
     // Load recipe control when page is shown
-    document.querySelector('[data-page="recipe-control"]').addEventListener('click', function() {
+    document.querySelector('[data-page="recipe-control"]').addEventListener('click', function () {
         loadRecipeControl();
     });
 }
@@ -335,7 +337,7 @@ function initializeRecipeControl() {
 function loadRecipeControl() {
     const recipeMappingTable = document.getElementById('recipeMappingTable').getElementsByTagName('tbody')[0];
     recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading recipe mappings...</p></td></tr>';
-    
+
     setTimeout(() => {
         const recipes = [
             { menuItem: 'Beef Steak', ingredients: 'Beef, Potatoes, Tomatoes, Onions', quantity: '0.65 kg', cost: '$8.50', actions: '<button class="btn btn-sm btn-outline-danger">Edit</button>' },
@@ -344,9 +346,9 @@ function loadRecipeControl() {
             { menuItem: 'Garlic Bread', ingredients: 'Flour, Butter, Garlic', quantity: '0.16 kg', cost: '$1.80', actions: '<button class="btn btn-sm btn-outline-danger">Edit</button>' },
             { menuItem: 'Pasta Carbonara', ingredients: 'Pasta, Cheese, Bacon', quantity: '0.33 kg', cost: '$4.50', actions: '<button class="btn btn-sm btn-outline-danger">Edit</button>' }
         ];
-        
+
         recipeMappingTable.innerHTML = '';
-        
+
         recipes.forEach(recipe => {
             const row = recipeMappingTable.insertRow();
             row.innerHTML = `
@@ -369,21 +371,21 @@ function initializeIngredientsMasterlist() {
     // Add ingredient button
     const addIngredientBtn = document.getElementById('addIngredientBtn');
     if (addIngredientBtn) {
-        addIngredientBtn.addEventListener('click', function() {
+        addIngredientBtn.addEventListener('click', function () {
             showAddIngredientModal();
         });
     }
-    
+
     // Set thresholds button
     const setThresholdsBtn = document.getElementById('setThresholdsBtn');
     if (setThresholdsBtn) {
-        setThresholdsBtn.addEventListener('click', function() {
+        setThresholdsBtn.addEventListener('click', function () {
             showSetThresholdsModal();
         });
     }
-    
+
     // Load ingredients masterlist when page is shown
-    document.querySelector('[data-page="ingredients-masterlist"]').addEventListener('click', function() {
+    document.querySelector('[data-page="ingredients-masterlist"]').addEventListener('click', function () {
         loadIngredientsMasterlist();
     });
 }
@@ -391,9 +393,9 @@ function initializeIngredientsMasterlist() {
 function loadIngredientsMasterlist() {
     const ingredientsMasterTable = document.getElementById('ingredientsMasterTable').getElementsByTagName('tbody')[0];
     const masterLowStockCount = document.getElementById('masterLowStockCount');
-    
+
     ingredientsMasterTable.innerHTML = '<tr><td colspan="9" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading ingredients masterlist...</p></td></tr>';
-    
+
     setTimeout(() => {
         const ingredients = [
             { id: 1, name: 'Beef', category: 'Meat', unit: 'kg', quantity: 15, threshold: 5, status: 'Normal', usedIn: 2 },
@@ -406,19 +408,19 @@ function loadIngredientsMasterlist() {
             { id: 9, name: 'Cheese', category: 'Dairy', unit: 'kg', quantity: 4, threshold: 3, status: 'Low', usedIn: 1 },
             { id: 10, name: 'Butter', category: 'Dairy', unit: 'kg', quantity: 6, threshold: 2, status: 'Normal', usedIn: 1 }
         ];
-        
+
         // Count low stock items
         let lowStockCount = 0;
         ingredients.forEach(ing => {
             if (ing.status === 'Low') lowStockCount++;
         });
-        
+
         if (masterLowStockCount) {
             masterLowStockCount.textContent = lowStockCount;
         }
-        
+
         ingredientsMasterTable.innerHTML = '';
-        
+
         ingredients.forEach(ingredient => {
             const row = ingredientsMasterTable.insertRow();
             row.innerHTML = `
@@ -448,21 +450,21 @@ function loadIngredientsMasterlist() {
 function showAddIngredientModal() {
     // Clear form
     document.getElementById('addIngredientForm').reset();
-    
+
     // Update threshold unit based on selected unit
     const unitSelect = document.getElementById('ingredientUnit');
     const thresholdUnit = document.getElementById('thresholdUnit');
-    
-    unitSelect.addEventListener('change', function() {
+
+    unitSelect.addEventListener('change', function () {
         thresholdUnit.textContent = this.value;
     });
-    
+
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('addIngredientModal'));
     modal.show();
-    
+
     // Save ingredient button
-    document.getElementById('saveIngredientBtn').addEventListener('click', function() {
+    document.getElementById('saveIngredientBtn').addEventListener('click', function () {
         saveIngredient();
     });
 }
@@ -472,25 +474,25 @@ function saveIngredient() {
     const category = document.getElementById('ingredientCategory').value;
     const unit = document.getElementById('ingredientUnit').value;
     const threshold = document.getElementById('lowStockThreshold').value;
-    
+
     // Validation
     if (!name || !category || !unit || !threshold) {
         showModalNotification('Please fill in all required fields', 'warning', 'Validation Error');
         return;
     }
-    
+
     // Simulate save
     setTimeout(() => {
         // Close modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('addIngredientModal'));
         modal.hide();
-        
+
         // Show success message
         showModalNotification(`Ingredient "${name}" added successfully`, 'success', 'Ingredient Added');
-        
+
         // Log activity
         logAdminActivity('Added ingredient', name, 'Success');
-        
+
         // Refresh ingredients masterlist
         loadIngredientsMasterlist();
     }, 1000);
@@ -505,7 +507,7 @@ function editIngredient(id) {
 }
 
 function deleteIngredient(id) {
-    showConfirm('Are you sure you want to delete this ingredient? This action cannot be undone and may affect existing recipes.', function() {
+    showConfirm('Are you sure you want to delete this ingredient? This action cannot be undone and may affect existing recipes.', function () {
         setTimeout(() => {
             showModalNotification('Ingredient deletion request submitted', 'success', 'Request Submitted');
             logAdminActivity('Requested ingredient deletion', `Ingredient ID: ${id}`, 'Success');
@@ -517,7 +519,7 @@ function deleteIngredient(id) {
 // User Management Functions
 function initializeUserManagement() {
     // Load user management when page is shown
-    document.querySelector('[data-page="user-management"]').addEventListener('click', function() {
+    document.querySelector('[data-page="user-management"]').addEventListener('click', function () {
         loadUserManagement();
     });
 }
@@ -525,7 +527,7 @@ function initializeUserManagement() {
 function loadUserManagement() {
     // Load active users
     loadActiveUsers();
-    
+
     // Load deleted users
     loadDeletedUsers();
 }
@@ -533,7 +535,7 @@ function loadUserManagement() {
 function loadActiveUsers() {
     const activeUsersTable = document.getElementById('activeUsersTable').getElementsByTagName('tbody')[0];
     activeUsersTable.innerHTML = '<tr><td colspan="6" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading active users...</p></td></tr>';
-    
+
     setTimeout(() => {
         const users = [
             { id: 1, name: 'John Doe', role: 'Staff', username: 'johndoe', status: 'Active', lastLogin: 'Today' },
@@ -541,9 +543,9 @@ function loadActiveUsers() {
             { id: 3, name: 'Robert Johnson', role: 'Staff', username: 'robertj', status: 'Active', lastLogin: 'Yesterday' },
             { id: 4, name: 'Sarah Williams', role: 'Senior Staff', username: 'sarahw', status: 'Active', lastLogin: 'Today' }
         ];
-        
+
         activeUsersTable.innerHTML = '';
-        
+
         users.forEach(user => {
             const row = activeUsersTable.insertRow();
             row.innerHTML = `
@@ -568,15 +570,15 @@ function loadActiveUsers() {
 function loadDeletedUsers() {
     const deletedUsersTable = document.getElementById('deletedUsersTable').getElementsByTagName('tbody')[0];
     const deletedUsersCount = document.getElementById('deletedUsersCount');
-    
+
     setTimeout(() => {
         const deletedUsers = [
             { id: 5, name: 'Mike Brown', role: 'Staff', username: 'mikeb', deletedDate: '2023-09-28', deletedBy: 'Admin' },
             { id: 6, name: 'Emily Davis', role: 'Cashier', username: 'emilyd', deletedDate: '2023-09-25', deletedBy: 'Admin' }
         ];
-        
+
         deletedUsersTable.innerHTML = '';
-        
+
         deletedUsers.forEach(user => {
             const row = deletedUsersTable.insertRow();
             row.innerHTML = `
@@ -595,7 +597,7 @@ function loadDeletedUsers() {
                 </td>
             `;
         });
-        
+
         // Update count
         if (deletedUsersCount) {
             deletedUsersCount.textContent = deletedUsers.length;
@@ -608,46 +610,48 @@ function initializeReports() {
     // Generate PDF report button
     const generatePdfReportBtn = document.getElementById('generatePdfReport');
     if (generatePdfReportBtn) {
-        generatePdfReportBtn.addEventListener('click', function() {
-            generatePdfReport();
+        generatePdfReportBtn.addEventListener('click', function () {
+            showConfirm('Are you sure you want to generate a PDF report?', function () {
+                generatePdfReport();
+            });
         });
     }
-    
+
     // Apply report filters button
     const applyReportFiltersBtn = document.getElementById('applyReportFilters');
     if (applyReportFiltersBtn) {
-        applyReportFiltersBtn.addEventListener('click', function() {
+        applyReportFiltersBtn.addEventListener('click', function () {
             generateReportPreview();
         });
     }
-    
+
     // Print report preview button
     const printReportPreviewBtn = document.getElementById('printReportPreview');
     if (printReportPreviewBtn) {
-        printReportPreviewBtn.addEventListener('click', function() {
+        printReportPreviewBtn.addEventListener('click', function () {
             printReportPreview();
         });
     }
-    
+
     // Load reports when page is shown
-    document.querySelector('[data-page="reports"]').addEventListener('click', function() {
+    document.querySelector('[data-page="reports"]').addEventListener('click', function () {
         initializeReports();
     });
 }
 
 function generatePdfReport() {
     showModalNotification('Generating PDF report...', 'info', 'Generating Report');
-    
+
     setTimeout(() => {
         // Simulate PDF generation
         const reportType = document.getElementById('reportType').value;
         const reportName = reportType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
-        
+
         // Create download link
         const data = `Sample ${reportName} - Generated on ${new Date().toLocaleDateString()}`;
         const blob = new Blob([data], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
-        
+
         const a = document.createElement('a');
         a.href = url;
         a.download = `${reportType}-report-${new Date().toISOString().slice(0, 10)}.pdf`;
@@ -655,7 +659,7 @@ function generatePdfReport() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         showModalNotification('PDF report generated successfully', 'success', 'Report Generated');
         logAdminActivity('Generated PDF report', reportName, 'Success');
     }, 1500);
@@ -665,14 +669,14 @@ function generateReportPreview() {
     const reportType = document.getElementById('reportType').value;
     const startDate = document.getElementById('reportStartDate').value;
     const endDate = document.getElementById('reportEndDate').value;
-    
+
     const reportPreview = document.getElementById('reportPreview');
     reportPreview.innerHTML = '<div class="text-center py-5"><div class="loading-spinner"></div><p class="mt-2">Generating report preview...</p></div>';
-    
+
     setTimeout(() => {
         let reportContent = '';
-        
-        switch(reportType) {
+
+        switch (reportType) {
             case 'daily-sales':
                 reportContent = generateDailySalesReport(startDate, endDate);
                 break;
@@ -686,7 +690,7 @@ function generateReportPreview() {
                 reportContent = generateStaffActivityReport(startDate, endDate);
                 break;
         }
-        
+
         reportPreview.innerHTML = reportContent;
         showModalNotification('Report preview generated', 'success', 'Preview Ready');
     }, 1000);
@@ -1115,7 +1119,7 @@ function generateStaffActivityReport(startDate, endDate) {
 function printReportPreview() {
     const printContent = document.getElementById('reportPreview').innerHTML;
     const originalContent = document.body.innerHTML;
-    
+
     document.body.innerHTML = `
         <div class="container mt-4">
             <div class="text-center mb-4">
@@ -1125,15 +1129,15 @@ function printReportPreview() {
             ${printContent}
         </div>
     `;
-    
+
     window.print();
-    
+
     // Restore original content
     document.body.innerHTML = originalContent;
-    
+
     // Re-initialize event listeners
     initializeReports();
-    
+
     showModalNotification('Report printed successfully', 'success', 'Print Complete');
 }
 
@@ -1142,37 +1146,41 @@ function initializeBackup() {
     // Create backup button
     const createBackupBtn = document.getElementById('createBackupBtn');
     if (createBackupBtn) {
-        createBackupBtn.addEventListener('click', function() {
-            createFullBackup();
+        createBackupBtn.addEventListener('click', function () {
+            showConfirm('Are you sure you want to create a full system backup?', function () {
+                createFullBackup();
+            });
         });
     }
-    
+
     // Backup type buttons
     document.querySelectorAll('[data-backup-type]').forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function () {
             const type = this.getAttribute('data-backup-type');
             createBackup(type);
         });
     });
-    
+
     // Restore backup button
     const restoreBackupBtn = document.getElementById('restoreBackupBtn');
     if (restoreBackupBtn) {
-        restoreBackupBtn.addEventListener('click', function() {
-            restoreBackup();
+        restoreBackupBtn.addEventListener('click', function () {
+            showConfirm('Are you sure you want to restore from this backup? Current data will be overwritten.', function () {
+                restoreBackup();
+            });
         });
     }
-    
+
     // Backup file input
     const backupFileInput = document.getElementById('backupFile');
     if (backupFileInput) {
-        backupFileInput.addEventListener('change', function() {
+        backupFileInput.addEventListener('change', function () {
             document.getElementById('restoreBackupBtn').disabled = !this.files.length;
         });
     }
-    
+
     // Load backup data when page is shown
-    document.querySelector('[data-page="backup"]').addEventListener('click', function() {
+    document.querySelector('[data-page="backup"]').addEventListener('click', function () {
         loadBackupData();
     });
 }
@@ -1180,7 +1188,7 @@ function initializeBackup() {
 function loadBackupData() {
     const backupsTable = document.getElementById('backupsTable').getElementsByTagName('tbody')[0];
     backupsTable.innerHTML = '<tr><td colspan="5" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading backup data...</p></td></tr>';
-    
+
     setTimeout(() => {
         const backups = [
             { name: 'full-backup-2023-10-01.json', type: 'Full System', date: '2023-10-01', size: '45 KB', actions: '<button class="btn btn-sm btn-outline-success">Download</button>' },
@@ -1188,9 +1196,9 @@ function loadBackupData() {
             { name: 'sales-backup-2023-09-29.json', type: 'Sales', date: '2023-09-29', size: '22 KB', actions: '<button class="btn btn-sm btn-outline-success">Download</button>' },
             { name: 'users-backup-2023-09-28.json', type: 'Users', date: '2023-09-28', size: '8 KB', actions: '<button class="btn btn-sm btn-outline-success">Download</button>' }
         ];
-        
+
         backupsTable.innerHTML = '';
-        
+
         backups.forEach(backup => {
             const row = backupsTable.insertRow();
             row.innerHTML = `
@@ -1206,7 +1214,7 @@ function loadBackupData() {
 
 function createFullBackup() {
     showModalNotification('Creating full system backup...', 'info', 'Creating Backup');
-    
+
     setTimeout(() => {
         // Simulate backup creation
         const backupData = {
@@ -1217,11 +1225,11 @@ function createFullBackup() {
             users: { count: 8, active: 3 },
             settings: { version: '1.0', modules: 6 }
         };
-        
+
         // Create download
         const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        
+
         const a = document.createElement('a');
         a.href = url;
         a.download = `restaurant-pos-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -1229,10 +1237,10 @@ function createFullBackup() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         showModalNotification('Full system backup created successfully', 'success', 'Backup Complete');
         logAdminActivity('Created full system backup', 'Full backup', 'Success');
-        
+
         // Refresh backup list
         loadBackupData();
     }, 1500);
@@ -1244,9 +1252,9 @@ function createBackup(type) {
         'sales': 'Sales Records',
         'users': 'User Accounts'
     };
-    
+
     showModalNotification(`Creating ${typeNames[type]} backup...`, 'info', 'Creating Backup');
-    
+
     setTimeout(() => {
         // Simulate backup creation
         const backupData = {
@@ -1254,11 +1262,11 @@ function createBackup(type) {
             type: type,
             data: `Sample ${typeNames[type]} backup data`
         };
-        
+
         // Create download
         const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        
+
         const a = document.createElement('a');
         a.href = url;
         a.download = `${type}-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -1266,10 +1274,10 @@ function createBackup(type) {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         showModalNotification(`${typeNames[type]} backup created successfully`, 'success', 'Backup Complete');
         logAdminActivity(`Created ${type} backup`, typeNames[type], 'Success');
-        
+
         // Refresh backup list
         loadBackupData();
     }, 1000);
@@ -1278,31 +1286,31 @@ function createBackup(type) {
 function restoreBackup() {
     const fileInput = document.getElementById('backupFile');
     const restoreType = document.getElementById('restoreType').value;
-    
+
     if (!fileInput.files.length) {
         showModalNotification('Please select a backup file to restore', 'warning', 'Validation Error');
         return;
     }
-    
+
     const typeNames = {
         'inventory': 'Inventory',
         'sales': 'Sales Records',
         'users': 'User Accounts',
         'all': 'All System Data'
     };
-    
-    showConfirm(`Are you sure you want to restore ${typeNames[restoreType]}? This will overwrite existing data.`, function() {
+
+    showConfirm(`Are you sure you want to restore ${typeNames[restoreType]}? This will overwrite existing data.`, function () {
         showModalNotification(`Restoring ${typeNames[restoreType]} from backup...`, 'info', 'Restoring Backup');
-        
+
         setTimeout(() => {
             // Simulate restore
             showModalNotification(`${typeNames[restoreType]} restored successfully`, 'success', 'Restore Complete');
             logAdminActivity(`Restored ${restoreType} from backup`, typeNames[restoreType], 'Success');
-            
+
             // Clear file input
             fileInput.value = '';
             document.getElementById('restoreBackupBtn').disabled = true;
-            
+
             // Refresh affected pages
             if (restoreType === 'inventory' || restoreType === 'all') {
                 loadIngredientsMasterlist();
@@ -1319,21 +1327,21 @@ function initializeRequests() {
     // Refresh requests button
     const refreshRequestsBtn = document.getElementById('refreshRequests');
     if (refreshRequestsBtn) {
-        refreshRequestsBtn.addEventListener('click', function() {
+        refreshRequestsBtn.addEventListener('click', function () {
             loadRequests();
         });
     }
-    
+
     // Confirm approve button
     const confirmApproveBtn = document.getElementById('confirmApproveBtn');
     if (confirmApproveBtn) {
-        confirmApproveBtn.addEventListener('click', function() {
+        confirmApproveBtn.addEventListener('click', function () {
             handleRequestApproval();
         });
     }
-    
+
     // Load requests when page is shown
-    document.querySelector('[data-page="requests"]').addEventListener('click', function() {
+    document.querySelector('[data-page="requests"]').addEventListener('click', function () {
         loadRequests();
     });
 }
@@ -1341,13 +1349,13 @@ function initializeRequests() {
 function loadRequests() {
     // Update badge counts
     updateRequestBadges();
-    
+
     // Load account requests
     loadAccountRequests();
-    
+
     // Load role change requests
     loadRoleChangeRequests();
-    
+
     // Load ingredient deletion requests
     loadIngredientDeletionRequests();
 }
@@ -1358,7 +1366,7 @@ function updateRequestBadges() {
     const roleRequestsCount = 1;
     const ingredientRequestsCount = 0;
     const totalRequests = accountRequestsCount + roleRequestsCount + ingredientRequestsCount;
-    
+
     // Update badges
     document.getElementById('accountRequestsCount').textContent = accountRequestsCount;
     document.getElementById('roleRequestsCount').textContent = roleRequestsCount;
@@ -1369,15 +1377,15 @@ function updateRequestBadges() {
 function loadAccountRequests() {
     const accountRequestsTable = document.getElementById('accountRequestsTable').getElementsByTagName('tbody')[0];
     accountRequestsTable.innerHTML = '<tr><td colspan="5" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading account requests...</p></td></tr>';
-    
+
     setTimeout(() => {
         const requests = [
             { id: 1, date: '2023-10-01', fullName: 'Robert Johnson', username: 'robertj', role: 'Staff' },
             { id: 2, date: '2023-09-30', fullName: 'Sarah Williams', username: 'sarahw', role: 'Cashier' }
         ];
-        
+
         accountRequestsTable.innerHTML = '';
-        
+
         requests.forEach(request => {
             const row = accountRequestsTable.insertRow();
             row.innerHTML = `
@@ -1401,14 +1409,14 @@ function loadAccountRequests() {
 function loadRoleChangeRequests() {
     const roleRequestsTable = document.getElementById('roleRequestsTable').getElementsByTagName('tbody')[0];
     roleRequestsTable.innerHTML = '<tr><td colspan="5" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading role change requests...</p></td></tr>';
-    
+
     setTimeout(() => {
         const requests = [
             { id: 3, staffName: 'John Doe', currentRole: 'Staff', requestedRole: 'Senior Staff', date: '2023-09-29' }
         ];
-        
+
         roleRequestsTable.innerHTML = '';
-        
+
         requests.forEach(request => {
             const row = roleRequestsTable.insertRow();
             row.innerHTML = `
@@ -1432,7 +1440,7 @@ function loadRoleChangeRequests() {
 function loadIngredientDeletionRequests() {
     const ingredientRequestsTable = document.getElementById('ingredientRequestsTable').getElementsByTagName('tbody')[0];
     ingredientRequestsTable.innerHTML = '<tr><td colspan="6" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading ingredient deletion requests...</p></td></tr>';
-    
+
     setTimeout(() => {
         // Simulate no requests
         ingredientRequestsTable.innerHTML = '<tr><td colspan="6" class="text-center">No ingredient deletion requests</td></tr>';
@@ -1442,10 +1450,10 @@ function loadIngredientDeletionRequests() {
 function showApprovalModal(requestId, type, name, details) {
     currentRequestType = type;
     currentRequestId = requestId;
-    
+
     const modalTitle = document.getElementById('approvalModalTitle');
     const modalContent = document.getElementById('approvalModalContent');
-    
+
     if (type === 'account') {
         modalTitle.innerHTML = '<i class="fas fa-check-circle me-2"></i>Approve Account Request';
         modalContent.innerHTML = `
@@ -1469,24 +1477,24 @@ function showApprovalModal(requestId, type, name, details) {
             <p>The staff member's permissions will be updated immediately after approval.</p>
         `;
     }
-    
+
     const modal = new bootstrap.Modal(document.getElementById('approvalModal'));
     modal.show();
 }
 
 function handleRequestApproval() {
     const modal = bootstrap.Modal.getInstance(document.getElementById('approvalModal'));
-    
+
     setTimeout(() => {
         modal.hide();
-        
+
         // Simulate approval
         showModalNotification(`Request ${currentRequestId} approved successfully`, 'success', 'Request Approved');
         logAdminActivity(`Approved ${currentRequestType} request`, `Request ID: ${currentRequestId}`, 'Success');
-        
+
         // Refresh requests
         loadRequests();
-        
+
         // Reset current request
         currentRequestType = null;
         currentRequestId = null;
@@ -1494,11 +1502,11 @@ function handleRequestApproval() {
 }
 
 function rejectRequest(requestId, type) {
-    showConfirm('Are you sure you want to reject this request?', function() {
+    showConfirm('Are you sure you want to reject this request?', function () {
         setTimeout(() => {
             showModalNotification(`Request ${requestId} rejected`, 'warning', 'Request Rejected');
             logAdminActivity(`Rejected ${type} request`, `Request ID: ${requestId}`, 'Success');
-            
+
             // Refresh requests
             loadRequests();
         }, 800);
@@ -1510,13 +1518,15 @@ function initializeSystemSettings() {
     // Save settings button
     const saveSettingsBtn = document.getElementById('saveSettingsBtn');
     if (saveSettingsBtn) {
-        saveSettingsBtn.addEventListener('click', function() {
-            saveSystemSettings();
+        saveSettingsBtn.addEventListener('click', function () {
+            showConfirm('Are you sure you want to save these system settings?', function () {
+                saveSystemSettings();
+            });
         });
     }
-    
+
     // Load settings when page is shown
-    document.querySelector('[data-page="system-settings"]').addEventListener('click', function() {
+    document.querySelector('[data-page="system-settings"]').addEventListener('click', function () {
         loadSystemSettings();
     });
 }
@@ -1529,7 +1539,7 @@ function loadSystemSettings() {
         document.getElementById('receiptFooter').value = 'Thank you for your order! Payment handled outside the system.';
         document.getElementById('autoLogoutMinutes').value = 30;
         document.getElementById('dateFormat').value = 'mm/dd/yyyy';
-        
+
         // Module settings
         document.getElementById('moduleSales').checked = true;
         document.getElementById('moduleInventory').checked = true;
@@ -1537,7 +1547,7 @@ function loadSystemSettings() {
         document.getElementById('moduleRequests').checked = true;
         document.getElementById('moduleBackup').checked = true;
         document.getElementById('moduleTempAccount').checked = true;
-        
+
         // Security settings
         document.getElementById('maxLoginAttempts').value = '5';
         document.getElementById('lockoutDuration').value = '30';
@@ -1548,7 +1558,7 @@ function loadSystemSettings() {
 
 function saveSystemSettings() {
     showModalNotification('Saving system settings...', 'info', 'Saving Settings');
-    
+
     setTimeout(() => {
         // Simulate save
         showModalNotification('System settings saved successfully', 'success', 'Settings Saved');
@@ -1561,29 +1571,31 @@ function initializeActivityLog() {
     // Export activity log button
     const exportActivityLogBtn = document.getElementById('exportActivityLog');
     if (exportActivityLogBtn) {
-        exportActivityLogBtn.addEventListener('click', function() {
-            exportActivityLog();
+        exportActivityLogBtn.addEventListener('click', function () {
+            showConfirm('Are you sure you want to export the activity log?', function () {
+                exportActivityLog();
+            });
         });
     }
-    
+
     // Clear old logs button
     const clearOldLogsBtn = document.getElementById('clearOldLogs');
     if (clearOldLogsBtn) {
-        clearOldLogsBtn.addEventListener('click', function() {
+        clearOldLogsBtn.addEventListener('click', function () {
             clearOldActivityLogs();
         });
     }
-    
+
     // Apply activity filter button
     const applyActivityFilterBtn = document.getElementById('applyActivityFilter');
     if (applyActivityFilterBtn) {
-        applyActivityFilterBtn.addEventListener('click', function() {
+        applyActivityFilterBtn.addEventListener('click', function () {
             loadFullActivityLog();
         });
     }
-    
+
     // Load activity log when page is shown
-    document.querySelector('[data-page="activity-log"]').addEventListener('click', function() {
+    document.querySelector('[data-page="activity-log"]').addEventListener('click', function () {
         loadFullActivityLog();
     });
 }
@@ -1591,13 +1603,13 @@ function initializeActivityLog() {
 function loadFullActivityLog() {
     const fullActivityLogTable = document.getElementById('fullActivityLogTable').getElementsByTagName('tbody')[0];
     fullActivityLogTable.innerHTML = '<tr><td colspan="7" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading activity log...</p></td></tr>';
-    
+
     // Get filter values
     const userFilter = document.getElementById('filterUser').value;
     const actionFilter = document.getElementById('filterAction').value;
     const dateFrom = document.getElementById('filterDateFrom').value;
     const dateTo = document.getElementById('filterDateTo').value;
-    
+
     setTimeout(() => {
         const activities = [
             { datetime: '2023-10-01 10:30:15', user: 'John Doe', role: 'Staff', action: 'Recorded sale', reference: 'SALE-1001', status: 'Success', ip: '192.168.1.10' },
@@ -1608,16 +1620,16 @@ function loadFullActivityLog() {
             { datetime: '2023-09-30 11:15:33', user: 'John Doe', role: 'Staff', action: 'Logged in', reference: 'System', status: 'Success', ip: '192.168.1.10' },
             { datetime: '2023-09-29 17:45:18', user: 'Owner (Temp)', role: 'Owner as Staff', action: 'Recorded sale', reference: 'SALE-099', status: 'Success', ip: '192.168.1.1' }
         ];
-        
+
         fullActivityLogTable.innerHTML = '';
-        
+
         activities.forEach(activity => {
             // Apply filters
             if (userFilter && activity.role.toLowerCase() !== userFilter.toLowerCase()) return;
             if (actionFilter && !activity.action.toLowerCase().includes(actionFilter.toLowerCase())) return;
             if (dateFrom && activity.datetime.split(' ')[0] < dateFrom) return;
             if (dateTo && activity.datetime.split(' ')[0] > dateTo) return;
-            
+
             const row = fullActivityLogTable.insertRow();
             row.innerHTML = `
                 <td>${activity.datetime}</td>
@@ -1634,7 +1646,7 @@ function loadFullActivityLog() {
 
 function exportActivityLog() {
     showModalNotification('Exporting activity log...', 'info', 'Exporting Log');
-    
+
     setTimeout(() => {
         // Create CSV data
         const headers = ['Date & Time', 'User', 'Role', 'Action', 'Reference', 'Status', 'IP Address'];
@@ -1643,13 +1655,13 @@ function exportActivityLog() {
             ['2023-10-01 09:45:22', 'System', 'System', 'Low stock alert', 'Chicken (8kg)', 'Warning', 'System'],
             ['2023-10-01 09:15:08', 'Admin', 'Admin', 'Approved account', 'Robert Johnson', 'Success', '192.168.1.1']
         ];
-        
+
         const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
-        
+
         // Create download
         const blob = new Blob([csvContent], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
-        
+
         const a = document.createElement('a');
         a.href = url;
         a.download = `activity-log-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -1657,20 +1669,20 @@ function exportActivityLog() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         showModalNotification('Activity log exported successfully', 'success', 'Export Complete');
         logAdminActivity('Exported activity log', 'Full log export', 'Success');
     }, 1000);
 }
 
 function clearOldActivityLogs() {
-    showConfirm('Are you sure you want to clear activity logs older than 30 days? This action cannot be undone.', function() {
+    showConfirm('Are you sure you want to clear activity logs older than 30 days? This action cannot be undone.', function () {
         showModalNotification('Clearing old activity logs...', 'info', 'Clearing Logs');
-        
+
         setTimeout(() => {
             showModalNotification('Old activity logs cleared successfully', 'success', 'Logs Cleared');
             logAdminActivity('Cleared old activity logs', 'Log maintenance', 'Success');
-            
+
             // Refresh activity log
             loadFullActivityLog();
         }, 1500);
@@ -1682,44 +1694,44 @@ function initializeTempAccount() {
     // Activate temp account button
     const activateTempAccountBtn = document.getElementById('activateTempAccountBtn');
     if (activateTempAccountBtn) {
-        activateTempAccountBtn.addEventListener('click', function() {
+        activateTempAccountBtn.addEventListener('click', function () {
             toggleTempAccount();
         });
     }
-    
+
     // Toggle temp account button
     const toggleTempAccountBtn = document.getElementById('toggleTempAccount');
     if (toggleTempAccountBtn) {
-        toggleTempAccountBtn.addEventListener('click', function() {
+        toggleTempAccountBtn.addEventListener('click', function () {
             toggleTempAccount();
         });
     }
-    
+
     // Temp account feature buttons
     const tempRecordSaleBtn = document.getElementById('tempRecordSale');
     const tempAdjustStockBtn = document.getElementById('tempAdjustStock');
     const tempPrintReceiptBtn = document.getElementById('tempPrintReceipt');
-    
+
     if (tempRecordSaleBtn) {
-        tempRecordSaleBtn.addEventListener('click', function() {
+        tempRecordSaleBtn.addEventListener('click', function () {
             showModalNotification('Opening sales interface in temporary mode...', 'info', 'Temporary Mode');
         });
     }
-    
+
     if (tempAdjustStockBtn) {
-        tempAdjustStockBtn.addEventListener('click', function() {
+        tempAdjustStockBtn.addEventListener('click', function () {
             showModalNotification('Opening inventory adjustment in temporary mode...', 'info', 'Temporary Mode');
         });
     }
-    
+
     if (tempPrintReceiptBtn) {
-        tempPrintReceiptBtn.addEventListener('click', function() {
+        tempPrintReceiptBtn.addEventListener('click', function () {
             showModalNotification('Opening receipt printer in temporary mode...', 'info', 'Temporary Mode');
         });
     }
-    
+
     // Load temp account when page is shown
-    document.querySelector('[data-page="temp-account"]').addEventListener('click', function() {
+    document.querySelector('[data-page="temp-account"]').addEventListener('click', function () {
         loadTempAccountStatus();
     });
 }
@@ -1728,13 +1740,13 @@ function loadTempAccountStatus() {
     const tempAccountStatus = document.getElementById('tempAccountStatus');
     const toggleTempAccountBtn = document.getElementById('toggleTempAccount');
     const tempFeatureButtons = document.querySelectorAll('#temp-account-content .btn[disabled]');
-    
+
     if (tempAccountActive) {
         tempAccountStatus.textContent = 'Active';
         tempAccountStatus.className = 'text-success';
         toggleTempAccountBtn.innerHTML = '<i class="fas fa-power-off me-2"></i> Deactivate';
         toggleTempAccountBtn.className = 'btn btn-lg btn-warning';
-        
+
         // Enable feature buttons
         tempFeatureButtons.forEach(btn => {
             btn.disabled = false;
@@ -1744,20 +1756,20 @@ function loadTempAccountStatus() {
         tempAccountStatus.className = 'text-warning';
         toggleTempAccountBtn.innerHTML = '<i class="fas fa-power-off me-2"></i> Activate';
         toggleTempAccountBtn.className = 'btn btn-lg btn-danger';
-        
+
         // Disable feature buttons
         tempFeatureButtons.forEach(btn => {
             btn.disabled = true;
         });
     }
-    
+
     // Load temp account log
     loadTempAccountLog();
 }
 
 function toggleTempAccount() {
     if (tempAccountActive) {
-        showConfirm('Are you sure you want to deactivate the temporary staff account?', function() {
+        showConfirm('Are you sure you want to deactivate the temporary staff account?', function () {
             tempAccountActive = false;
             showModalNotification('Temporary staff account deactivated', 'warning', 'Account Deactivated');
             logAdminActivity('Deactivated temporary staff account', 'Owner acting as staff ended', 'Success');
@@ -1774,7 +1786,7 @@ function toggleTempAccount() {
 function loadTempAccountLog() {
     const tempAccountLogTable = document.getElementById('tempAccountLogTable').getElementsByTagName('tbody')[0];
     tempAccountLogTable.innerHTML = '<tr><td colspan="5" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading temporary account activity...</p></td></tr>';
-    
+
     setTimeout(() => {
         const activities = [
             { datetime: '2023-09-29 17:45:18', action: 'Recorded sale', reference: 'SALE-099', status: 'Success', flag: 'Owner acting as staff' },
@@ -1782,9 +1794,9 @@ function loadTempAccountLog() {
             { datetime: '2023-09-27 11:15:45', action: 'Printed receipt', reference: 'REC-098', status: 'Success', flag: 'Owner acting as staff' },
             { datetime: '2023-09-20 16:30:22', action: 'Recorded sale', reference: 'SALE-095', status: 'Success', flag: 'Owner acting as staff' }
         ];
-        
+
         tempAccountLogTable.innerHTML = '';
-        
+
         activities.forEach(activity => {
             const row = tempAccountLogTable.insertRow();
             row.innerHTML = `
@@ -1801,20 +1813,38 @@ function loadTempAccountLog() {
 // Utility Functions
 function logAdminActivity(action, reference, status) {
     console.log(`Admin Activity Log: ${action} - ${reference} - ${status}`);
-    
-    if (document.getElementById('activity-log-content') && 
+
+    if (document.getElementById('activity-log-content') &&
         !document.getElementById('activity-log-content').classList.contains('d-none')) {
         loadFullActivityLog();
     }
 }
 
 function showModalNotification(message, type = 'info', title = 'Notification') {
+    // Prefer SweetAlert2 for consistent transaction popups
+    if (window.Swal) {
+        const iconMap = {
+            success: 'success',
+            warning: 'warning',
+            danger: 'error',
+            info: 'info'
+        };
+
+        Swal.fire({
+            icon: iconMap[type] || 'info',
+            title: title,
+            text: message
+        });
+        return;
+    }
+
+    // Fallback to existing Bootstrap modal implementation
     const modalHeader = document.getElementById('notificationModalHeader');
     const modalTitle = document.getElementById('notificationModalTitle');
     const modalBody = document.getElementById('notificationModalBody');
-    
+
     let headerClass = 'bg-primary text-white';
-    switch(type) {
+    switch (type) {
         case 'success':
             headerClass = 'bg-success text-white';
             break;
@@ -1828,13 +1858,13 @@ function showModalNotification(message, type = 'info', title = 'Notification') {
             headerClass = 'bg-info text-white';
             break;
     }
-    
+
     modalHeader.className = `modal-header ${headerClass}`;
     modalTitle.textContent = title;
     modalBody.textContent = message;
-    
+
     document.getElementById('notificationModalConfirm').style.display = 'none';
-    
+
     const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
     modal.show();
 }
