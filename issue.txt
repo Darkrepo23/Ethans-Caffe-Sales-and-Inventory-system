@@ -32,5 +32,31 @@ if the menu is unavailable it will not be show in menu sales.
 
 
 
+=========New Issue=========
+Need to have an output example:
+
+Admin Role:
+Recent activity system included full log
+-Menu items masterlist the action edit
+-Recipe control assign new recipe need to have an input
+-Ingredients page Set thresholds button
+-Add new Users need input modal
+-the request is empty need atleast an example output design
+-Owners ReportPage Overview graph need atleast sample output design
+-Backup & restore page need atleast output ui in create manual backup button
+backup history log atleast some example output design
+-Full activity log page, comprehensive logs table atleast show some output
+design example. and truncate the  details  because its long possible
+sentence so when user click the row its have a modal to show a full info
+
+
+
+Staff role:
+On the Receipts page, there should be some example output showing today’s transactions.
+
+Clicking a row in the today’s transactions table should display a receipt preview.
+
+When a user clicks “Record Sale” from the Menu Sales, it should first open the Receipts page to show the receipt for 
+confirmation before finalizing the sale.
 
 
