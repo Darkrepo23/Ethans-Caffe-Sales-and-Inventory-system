@@ -203,6 +203,32 @@
     }
 }
 
+/* Scroll Container */
+.scroll-container {
+    max-height: 480px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Custom Maroon Scrollbar */
+.scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scroll-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.scroll-container::-webkit-scrollbar-thumb {
+    background: #800000;
+    border-radius: 10px;
+}
+
+.scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #600000;
+}
+
 /* Status Badges */
 .badge-status-normal {
     background-color: var(--green);

@@ -97,10 +97,10 @@ function handleLogin() {
                     showConfirmButton: false,
                     heightAuto: false
                 }).then(() => {
-                    window.location.href = 'staff-dashboard.html';
+                    window.location.href = 'staff-menu.html';
                 });
             } else {
-                window.location.href = 'staff-dashboard.html';
+                window.location.href = 'staff-menu.html';
             }
             return;
         }
@@ -125,10 +125,10 @@ function handleLogin() {
                     heightAuto: false
                 }).then(() => {
                     // Cashier uses same interface as staff
-                    window.location.href = 'staff-dashboard.html';
+                    window.location.href = 'staff-menu.html';
                 });
             } else {
-                window.location.href = 'staff-dashboard.html';
+                window.location.href = 'staff-menu.html';
             }
             return;
         }
