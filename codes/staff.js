@@ -27,15 +27,15 @@ document.addEventListener('DOMContentLoaded', function () {
     if (document.getElementById('activityLogTable')) initializeActivityLogFunctionality();
 });
 
-// Aliases for compatibility with separate pages
-const loadMenuItems = () => initializeMenuFunctionality();
-const loadMenuItemsData = () => loadMenuItems();
-const loadIngredients = () => initializeIngredientsFunctionality();
-const loadIngredientsData = () => loadIngredients();
+// // Aliases for compatibility with separate pages
+// // const loadMenuItems = () => initializeMenuFunctionality();
+// const loadMenuItemsData = () => loadMenuItems();
+// // const loadIngredients = () => initializeIngredientsFunctionality();
+// const loadIngredientsData = () => loadIngredients();
 const loadReceipts = () => initializeReceiptsFunctionality();
-const loadRecentReceipts = () => initializeReceiptsFunctionality();
-const loadAccountInfo = () => initializeAccountFunctionality();
-const loadActivityLog = () => initializeActivityLogFunctionality();
+// const loadRecentReceipts = () => initializeReceiptsFunctionality();
+// const loadAccountInfo = () => initializeAccountFunctionality();
+// const loadActivityLog = () => initializeActivityLogFunctionality();
 
 // Common features for all staff pages
 function initializeCommonStaffFeatures() {
@@ -274,15 +274,32 @@ function initializeIngredientsFunctionality() {
 }
 
 function loadIngredients() {
-    const tableElem = document.getElementById('ingredientsListTable');
-    if (!tableElem) return;
+    console.log("✅ loadIngredients() called");
 
-    const tbody = tableElem.getElementsByTagName('tbody')[0];
-    if (!tbody) return;
+    const tableElem =
+        document.getElementById('ingredientsListTable') ||
+        document.getElementById('ingredientsTable');
+
+    console.log("🔎 Table element found:", tableElem);
+
+    if (!tableElem) {
+        console.warn("❌ Table element not found!");
+        return;
+    }
+
+    const tbody = tableElem.querySelector('tbody');
+    console.log("🔎 tbody:", tbody);
+
+    if (!tbody) {
+        console.warn("❌ tbody not found!");
+        return;
+    }
 
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Loading...</td></tr>';
 
     setTimeout(() => {
+        console.log("📦 Setting ingredient data");
+
         allIngredients = [
             { id: 1, name: 'Beef', category: 'Meat', quantity: 15, unit: 'kg', status: 'Normal', minLevel: 5 },
             { id: 2, name: 'Chicken', category: 'Meat', quantity: 8, unit: 'kg', status: 'Low', minLevel: 10 },
@@ -292,9 +309,12 @@ function loadIngredients() {
             { id: 6, name: 'Cooking Oil', category: 'Supplies', quantity: 2, unit: 'L', status: 'Low', minLevel: 5 },
             { id: 7, name: 'Red Wine', category: 'Beverages', quantity: 1, unit: 'bottle', status: 'Low', minLevel: 3 }
         ];
+
         displayIngredients(allIngredients);
+
     }, 500);
 }
+
 
 function displayIngredients(ingredients) {
     const tableElem = document.getElementById('ingredientsListTable') || document.getElementById('ingredientsTable');
