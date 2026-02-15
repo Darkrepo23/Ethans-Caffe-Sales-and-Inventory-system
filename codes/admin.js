@@ -24,12 +24,17 @@ document.addEventListener('DOMContentLoaded', function () {
     if (document.getElementById('recipeMappingTable')) initializeRecipeControl();
     if (document.getElementById('ingredientsMasterTable')) initializeIngredientsMasterlist();
     if (document.getElementById('activeUsersTable')) initializeUserManagement();
-    if (document.getElementById('reportPreview')) initializeReports();
+    if (document.getElementById('reports-content')) initializeReports();
     if (document.getElementById('backupsTable')) initializeBackup();
-    if (document.getElementById('accountRequestsTable')) initializeRequests();
+    if (document.getElementById('requestsTable')) initializeRequests();
     if (document.getElementById('systemSettingsForm')) initializeSystemSettings();
+    updateRequestSidebarBadge();
     if (document.getElementById('activityLogTable')) initializeActivityLog();
+    if (document.getElementById('fullActivityLogTable')) initializeFullActivityLog();
     if (document.getElementById('tempStaffTable')) initializeTempAccount();
+
+    // Load recent activities on the dashboard
+    if (document.getElementById('recentActivities')) loadRecentActivities();
 });
 
 // Common features for all admin pages
@@ -54,6 +59,9 @@ function initializeCommonAdminFeatures() {
             });
         });
     }
+
+    // Load sidebar badges
+    updateRequestSidebarBadge();
 }
 
 // Admin Dashboard Functions
@@ -78,11 +86,6 @@ function initializeAdminDashboard() {
 
     // Load initial data
     loadAdminDashboardData();
-}
-
-function loadAdminDashboardData() {
-    loadLowStockData();
-    // Add other dashboard data loads here if needed
 }
 
 function exportDashboardData() {
@@ -122,30 +125,26 @@ function loadLowStockData() {
     const lowStockTable = tableElement.getElementsByTagName('tbody')[0];
     if (!lowStockTable) return;
 
-    setTimeout(() => {
-        // Simulate updated data
-        const lowStockData = [
-            { name: 'Chicken', category: 'Meat', quantity: '8 kg', threshold: '10 kg', status: 'Low' },
-            { name: 'Onions', category: 'Vegetables', quantity: '3 kg', threshold: '5 kg', status: 'Low' },
-            { name: 'Cheese', category: 'Dairy', quantity: '4 kg', threshold: '3 kg', status: 'Low' },
-            { name: 'Garlic', category: 'Spices', quantity: '1 kg', threshold: '2 kg', status: 'Low' },
-            { name: 'Cooking Oil', category: 'Supplies', quantity: '2 L', threshold: '5 L', status: 'Low' },
-            { name: 'Red Wine', category: 'Beverages', quantity: '1 bottle', threshold: '3 bottles', status: 'Low' }
-        ];
+    const allIngredients = getAvailableIngredients();
+    const lowStockData = allIngredients.filter(ing => ing.quantity <= ing.threshold);
 
-        lowStockTable.innerHTML = '';
+    lowStockTable.innerHTML = '';
 
-        lowStockData.forEach(item => {
-            const row = lowStockTable.insertRow();
-            row.innerHTML = `
-                <td><strong>${item.name}</strong></td>
-                <td><span class="badge bg-secondary">${item.category}</span></td>
-                <td>${item.quantity}</td>
-                <td>${item.threshold}</td>
-                <td><span class="badge bg-warning">${item.status}</span></td>
-            `;
-        });
-    }, 0);
+    if (lowStockData.length === 0) {
+        lowStockTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">All ingredients are well-stocked.</td></tr>';
+        return;
+    }
+
+    lowStockData.forEach(item => {
+        const row = lowStockTable.insertRow();
+        row.innerHTML = `
+            <td><strong>${item.name}</strong></td>
+            <td><span class="badge bg-secondary">${item.category}</span></td>
+            <td>${item.quantity} ${item.unit}</td>
+            <td>${item.threshold} ${item.unit}</td>
+            <td><span class="badge bg-warning">Low</span></td>
+        `;
+    });
 }
 
 // Global variable for dashboard interval
@@ -153,18 +152,22 @@ let dashboardRefreshInterval;
 
 function loadAdminDashboardData() {
     loadLowStockData();
-    // Update dashboard card numbers (simulated)
-    const restockCount = document.getElementById('ingredientsRestock');
-    if (restockCount) restockCount.textContent = '4';
 
+    const allIngredients = getAvailableIngredients();
+    const restockItems = allIngredients.filter(ing => ing.quantity <= ing.threshold);
+
+    const restockCount = document.getElementById('ingredientsRestock');
+    if (restockCount) restockCount.textContent = restockItems.length;
+
+    const activeUsers = getUsers().filter(u => !u.isDeleted);
     const staffCount = document.getElementById('totalStaffAccounts');
-    if (staffCount) staffCount.textContent = '12';
+    if (staffCount) staffCount.textContent = activeUsers.length;
 
     const salesCount = document.getElementById('totalSalesRecords');
     if (salesCount) salesCount.textContent = '85';
 
     const alertsCount = document.getElementById('systemAlerts');
-    if (alertsCount) alertsCount.textContent = '2';
+    if (alertsCount) alertsCount.textContent = restockItems.length > 0 ? '1' : '0';
 
     // Set up auto-refresh if not already set (every 30 seconds)
     if (!dashboardRefreshInterval) {
@@ -175,11 +178,44 @@ function loadAdminDashboardData() {
 }
 
 // Menu Control Functions
+
+// Get menu items from localStorage or seed with defaults
+function getMenuItems() {
+    let items = [];
+    try {
+        const stored = localStorage.getItem('adminMenuItems');
+        if (stored) items = JSON.parse(stored);
+    } catch (e) { items = []; }
+
+    if (!items || items.length === 0) {
+        items = [
+            { id: 1, name: 'Beef Steak', category: 'Main Course', price: 24.99, status: 'Active', recipes: 4 },
+            { id: 2, name: 'Chicken Curry', category: 'Main Course', price: 18.99, status: 'Active', recipes: 3 },
+            { id: 3, name: 'Vegetable Salad', category: 'Appetizer', price: 9.99, status: 'Active', recipes: 3 },
+            { id: 4, name: 'Garlic Bread', category: 'Appetizer', price: 7.99, status: 'Active', recipes: 3 },
+            { id: 5, name: 'French Fries', category: 'Side Dish', price: 5.99, status: 'Active', recipes: 1 },
+            { id: 6, name: 'Grilled Salmon', category: 'Main Course', price: 22.99, status: 'Inactive', recipes: 2 },
+            { id: 7, name: 'Pasta Carbonara', category: 'Main Course', price: 16.99, status: 'Active', recipes: 3 },
+            { id: 8, name: 'Chocolate Cake', category: 'Dessert', price: 8.99, status: 'Active', recipes: 3 }
+        ];
+        localStorage.setItem('adminMenuItems', JSON.stringify(items));
+    }
+    return items;
+}
+
+function saveMenuItemsToStorage(items) {
+    localStorage.setItem('adminMenuItems', JSON.stringify(items));
+}
+
+// Variable to track if we are editing
+let editingMenuItemId = null;
+
 function initializeMenuControl() {
     // Add menu item button
     const addMenuItemBtn = document.getElementById('addMenuItemBtn');
     if (addMenuItemBtn) {
         addMenuItemBtn.addEventListener('click', function () {
+            editingMenuItemId = null;
             showAddMenuItemModal();
         });
     }
@@ -188,7 +224,23 @@ function initializeMenuControl() {
     const showInactiveItems = document.getElementById('showInactiveItems');
     if (showInactiveItems) {
         showInactiveItems.addEventListener('change', function () {
-            loadMenuControl(this.checked);
+            loadMenuControl();
+        });
+    }
+
+    // Search filter
+    const searchInput = document.getElementById('menuControlSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            loadMenuControl();
+        });
+    }
+
+    // Category filter
+    const categoryFilter = document.getElementById('menuControlCategory');
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', function () {
+            loadMenuControl();
         });
     }
 
@@ -196,65 +248,111 @@ function initializeMenuControl() {
     loadMenuControl();
 }
 
-function loadMenuControl(showInactive = false) {
+function loadMenuControl() {
     const tableElement = document.getElementById('menuControlTable');
     if (!tableElement) return;
 
     const menuControlTable = tableElement.getElementsByTagName('tbody')[0];
     if (!menuControlTable) return;
 
-    menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading menu items...</p></td></tr>';
+    const showInactive = document.getElementById('showInactiveItems')?.checked || false;
+    const searchQuery = (document.getElementById('menuControlSearch')?.value || '').toLowerCase().trim();
+    const categoryFilter = document.getElementById('menuControlCategory')?.value || '';
 
-    setTimeout(() => {
-        const menuItems = [
-            { id: 1, name: 'Beef Steak', category: 'Main Course', price: '$24.99', status: 'Active', recipes: 4 },
-            { id: 2, name: 'Chicken Curry', category: 'Main Course', price: '$18.99', status: 'Active', recipes: 3 },
-            { id: 3, name: 'Vegetable Salad', category: 'Appetizer', price: '$9.99', status: 'Active', recipes: 3 },
-            { id: 4, name: 'Garlic Bread', category: 'Appetizer', price: '$7.99', status: 'Active', recipes: 3 },
-            { id: 5, name: 'French Fries', category: 'Side Dish', price: '$5.99', status: 'Active', recipes: 1 },
-            { id: 6, name: 'Grilled Salmon', category: 'Main Course', price: '$22.99', status: 'Inactive', recipes: 2 },
-            { id: 7, name: 'Pasta Carbonara', category: 'Main Course', price: '$16.99', status: 'Active', recipes: 3 },
-            { id: 8, name: 'Chocolate Cake', category: 'Dessert', price: '$8.99', status: 'Active', recipes: 3 }
-        ];
+    let menuItems = getMenuItems();
 
-        menuControlTable.innerHTML = '';
+    // Filter by active/inactive
+    if (!showInactive) {
+        menuItems = menuItems.filter(item => item.status === 'Active');
+    }
 
+    // Filter by search
+    if (searchQuery) {
+        menuItems = menuItems.filter(item =>
+            item.name.toLowerCase().includes(searchQuery) ||
+            item.category.toLowerCase().includes(searchQuery)
+        );
+    }
+
+    // Filter by category
+    if (categoryFilter) {
+        menuItems = menuItems.filter(item => item.category === categoryFilter);
+    }
+
+    menuControlTable.innerHTML = '';
+
+    if (menuItems.length === 0) {
+        menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-utensils fa-2x mb-2 d-block"></i>No menu items found.</td></tr>';
+    } else {
         menuItems.forEach(item => {
-            if (!showInactive && item.status === 'Inactive') return;
-
             const row = menuControlTable.insertRow();
+            row.classList.add('animate__animated', 'animate__fadeIn');
             row.innerHTML = `
                 <td>${item.id}</td>
                 <td><strong>${item.name}</strong></td>
                 <td><span class="badge bg-secondary">${item.category}</span></td>
-                <td>${item.price}</td>
+                <td>$${parseFloat(item.price).toFixed(2)}</td>
                 <td><span class="badge ${item.status === 'Active' ? 'bg-success' : 'bg-secondary'}">${item.status}</span></td>
-                <td><span class="badge bg-info">${item.recipes} ingredients</span></td>
+                <td><span class="badge bg-info">${item.recipes || 0} ingredients</span></td>
                 <td>
                     <div class="table-actions">
-                        <button class="btn btn-sm btn-outline-danger" onclick="editMenuItem(${item.id})">
+                        <button class="btn btn-sm btn-outline-danger" onclick="editMenuItem(${item.id})" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-warning" onclick="toggleMenuItemStatus(${item.id}, '${item.status}')">
+                        <button class="btn btn-sm btn-outline-${item.status === 'Active' ? 'warning' : 'success'}" onclick="toggleMenuItemStatus(${item.id})" title="${item.status === 'Active' ? 'Deactivate' : 'Activate'}">
                             <i class="fas fa-power-off"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteMenuItem(${item.id})">
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteMenuItem(${item.id})" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </td>
             `;
         });
+    }
 
-        const totalElems = document.getElementById('totalMenuItems');
-        if (totalElems) totalElems.textContent = `${menuItems.length} Items`;
-    }, 800);
+    // Update total count (show all items count, not just filtered)
+    const allItems = getMenuItems();
+    const totalElems = document.getElementById('totalMenuItems');
+    if (totalElems) totalElems.textContent = `${allItems.length} Items`;
 }
 
 function showAddMenuItemModal() {
     // Clear form
     const form = document.getElementById('addMenuItemForm');
     if (form) form.reset();
+
+    // Reset recipe ingredients container
+    const recipeContainer = document.getElementById('recipeIngredientsContainer');
+    if (recipeContainer) {
+        recipeContainer.innerHTML = '<p class="text-muted text-center py-2">No ingredients assigned yet</p>';
+    }
+
+    // Update modal title based on add vs edit
+    const modalTitle = document.querySelector('#addMenuItemModal .modal-title');
+    if (modalTitle) {
+        if (editingMenuItemId) {
+            modalTitle.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Menu Item';
+        } else {
+            modalTitle.innerHTML = '<i class="fas fa-plus-circle me-2"></i>Add Menu Item';
+        }
+    }
+
+    // If editing, pre-fill the form
+    if (editingMenuItemId) {
+        const items = getMenuItems();
+        const item = items.find(i => i.id === editingMenuItemId);
+        if (item) {
+            const nameEl = document.getElementById('menuItemName');
+            const catEl = document.getElementById('menuItemCategory');
+            const priceEl = document.getElementById('menuItemPrice');
+            const statusEl = document.getElementById('menuItemStatus');
+            if (nameEl) nameEl.value = item.name;
+            if (catEl) catEl.value = item.category;
+            if (priceEl) priceEl.value = item.price;
+            if (statusEl) statusEl.value = item.status;
+        }
+    }
 
     // Show modal
     const modalElem = document.getElementById('addMenuItemModal');
@@ -266,7 +364,6 @@ function showAddMenuItemModal() {
     // Add ingredient to recipe button
     const addIngBtn = document.getElementById('addIngredientToRecipe');
     if (addIngBtn) {
-        // Clone to rotate listeners if needed or just add once
         const newBtn = addIngBtn.cloneNode(true);
         addIngBtn.parentNode.replaceChild(newBtn, addIngBtn);
         newBtn.addEventListener('click', function () {
@@ -294,14 +391,22 @@ function addIngredientToRecipeForm() {
         container.innerHTML = '';
     }
 
-    // Get available ingredients
-    const ingredients = [
-        { id: 1, name: 'Beef' },
-        { id: 2, name: 'Chicken' },
-        { id: 3, name: 'Rice' },
-        { id: 4, name: 'Tomatoes' },
-        { id: 5, name: 'Onions' }
-    ];
+    // Get available ingredients from localStorage or default list
+    let ingredients = [];
+    try {
+        const stored = localStorage.getItem('ingredients');
+        if (stored) {
+            ingredients = JSON.parse(stored).map(i => ({ id: i.id, name: i.name }));
+        }
+    } catch (e) { }
+    if (ingredients.length === 0) {
+        ingredients = [
+            { id: 1, name: 'Beef' }, { id: 2, name: 'Chicken' }, { id: 3, name: 'Rice' },
+            { id: 4, name: 'Tomatoes' }, { id: 5, name: 'Onions' }, { id: 6, name: 'Garlic' },
+            { id: 7, name: 'Salt' }, { id: 8, name: 'Flour' }, { id: 9, name: 'Cheese' },
+            { id: 10, name: 'Butter' }, { id: 11, name: 'Potatoes' }, { id: 12, name: 'Lettuce' }
+        ];
+    }
 
     // Create ingredient row
     const row = document.createElement('div');
@@ -340,10 +445,14 @@ function addIngredientToRecipeForm() {
 function saveMenuItem() {
     const nameElem = document.getElementById('menuItemName');
     const categoryElem = document.getElementById('menuItemCategory');
+    const priceElem = document.getElementById('menuItemPrice');
+    const statusElem = document.getElementById('menuItemStatus');
     if (!nameElem || !categoryElem) return;
 
-    const name = nameElem.value;
+    const name = nameElem.value.trim();
     const category = categoryElem.value;
+    const price = parseFloat(priceElem?.value) || 0;
+    const status = statusElem?.value || 'Active';
 
     // Validation
     if (!name || !category) {
@@ -351,57 +460,223 @@ function saveMenuItem() {
         return;
     }
 
-    // Simulate save
-    setTimeout(() => {
+    // Count recipe ingredients assigned
+    const ingredientRows = document.querySelectorAll('#recipeIngredientsContainer .ingredient-select');
+    let recipesCount = 0;
+    ingredientRows.forEach(sel => { if (sel.value) recipesCount++; });
+
+    let items = getMenuItems();
+
+    if (editingMenuItemId) {
+        // --- EDIT existing item ---
+        const idx = items.findIndex(i => i.id === editingMenuItemId);
+        if (idx !== -1) {
+            items[idx].name = name;
+            items[idx].category = category;
+            items[idx].price = price;
+            items[idx].status = status;
+            if (recipesCount > 0) items[idx].recipes = recipesCount;
+        }
+        saveMenuItemsToStorage(items);
+
         // Close modal
         const modalElem = document.getElementById('addMenuItemModal');
         const modal = bootstrap.Modal.getInstance(modalElem);
         if (modal) modal.hide();
 
-        // Show success message
+        showModalNotification(`Menu item "${name}" updated successfully`, 'success', 'Menu Item Updated');
+        logAdminActivity('Updated menu item', name, 'Success');
+        editingMenuItemId = null;
+    } else {
+        // --- ADD new item ---
+        const maxId = items.length > 0 ? Math.max(...items.map(i => i.id)) : 0;
+        const newItem = {
+            id: maxId + 1,
+            name: name,
+            category: category,
+            price: price,
+            status: status,
+            recipes: recipesCount
+        };
+        items.push(newItem);
+        saveMenuItemsToStorage(items);
+
+        // Close modal
+        const modalElem = document.getElementById('addMenuItemModal');
+        const modal = bootstrap.Modal.getInstance(modalElem);
+        if (modal) modal.hide();
+
         showModalNotification(`Menu item "${name}" added successfully`, 'success', 'Menu Item Added');
-
-        // Log activity
         logAdminActivity('Added menu item', name, 'Success');
+    }
 
-        // Refresh menu control
-        loadMenuControl();
-    }, 1000);
+    // Refresh menu control immediately
+    loadMenuControl();
 }
 
 function editMenuItem(id) {
-    showModalNotification(`Edit menu item ${id} - Feature under development`, 'info', 'Coming Soon');
+    editingMenuItemId = id;
+    showAddMenuItemModal();
 }
 
-function toggleMenuItemStatus(id, currentStatus) {
-    const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
+function toggleMenuItemStatus(id) {
+    const items = getMenuItems();
+    const item = items.find(i => i.id === id);
+    if (!item) return;
 
-    showConfirm(`Are you sure you want to ${newStatus === 'Inactive' ? 'deactivate' : 'activate'} this menu item?`, function () {
-        setTimeout(() => {
-            showModalNotification(`Menu item ${newStatus === 'Inactive' ? 'deactivated' : 'activated'}`, 'success', 'Status Changed');
-            logAdminActivity(`Changed menu item status to ${newStatus}`, `Item ID: ${id}`, 'Success');
-            loadMenuControl();
-        }, 800);
+    const newStatus = item.status === 'Active' ? 'Inactive' : 'Active';
+    const actionWord = newStatus === 'Inactive' ? 'deactivate' : 'activate';
+
+    showConfirm(`Are you sure you want to ${actionWord} "${item.name}"?`, function () {
+        item.status = newStatus;
+        saveMenuItemsToStorage(items);
+
+        showModalNotification(`"${item.name}" has been ${newStatus === 'Inactive' ? 'deactivated' : 'activated'}`, 'success', 'Status Changed');
+        logAdminActivity(`${newStatus === 'Inactive' ? 'Deactivated' : 'Activated'} menu item`, item.name, 'Success');
+        loadMenuControl();
     });
 }
 
 function deleteMenuItem(id) {
-    showConfirm('Are you sure you want to delete this menu item? This action cannot be undone.', function () {
-        setTimeout(() => {
-            showModalNotification('Menu item deleted', 'success', 'Item Deleted');
-            logAdminActivity('Deleted menu item', `Item ID: ${id}`, 'Success');
-            loadMenuControl();
-        }, 800);
+    const items = getMenuItems();
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+
+    showConfirm(`Are you sure you want to delete "${item.name}"? This action cannot be undone.`, function () {
+        const updatedItems = items.filter(i => i.id !== id);
+        saveMenuItemsToStorage(updatedItems);
+
+        showModalNotification(`"${item.name}" has been deleted`, 'success', 'Item Deleted');
+        logAdminActivity('Deleted menu item', item.name, 'Success');
+        loadMenuControl();
     });
 }
 
-// Recipe Control Functions
+// ===== Recipe Control Functions =====
+
+// Available ingredients master list (shared with the rest of the system)
+function getAvailableIngredients() {
+    let ingredients = [];
+    try {
+        const stored = localStorage.getItem('ingredients');
+        if (stored) ingredients = JSON.parse(stored);
+    } catch (e) { }
+    if (!ingredients || ingredients.length === 0) {
+        ingredients = [
+            { id: 1, name: 'Beef', category: 'Meat', unit: 'kg', quantity: 15, threshold: 5, costPerUnit: 12.00, status: 'Normal', usedIn: 2 },
+            { id: 2, name: 'Chicken', category: 'Meat', unit: 'kg', quantity: 8, threshold: 10, costPerUnit: 8.00, status: 'Low', usedIn: 1 },
+            { id: 3, name: 'Rice', category: 'Grains', unit: 'kg', quantity: 25, threshold: 10, costPerUnit: 2.50, status: 'Normal', usedIn: 1 },
+            { id: 4, name: 'Tomatoes', category: 'Vegetables', unit: 'kg', quantity: 5, threshold: 3, costPerUnit: 3.00, status: 'Normal', usedIn: 2 },
+            { id: 5, name: 'Onions', category: 'Vegetables', unit: 'kg', quantity: 3, threshold: 5, costPerUnit: 2.00, status: 'Low', usedIn: 3 },
+            { id: 6, name: 'Garlic', category: 'Spices', unit: 'kg', quantity: 1, threshold: 2, costPerUnit: 5.00, status: 'Low', usedIn: 2 },
+            { id: 7, name: 'Cooking Oil', category: 'Supplies', unit: 'L', quantity: 2, threshold: 5, costPerUnit: 3.50, status: 'Low', usedIn: 5 },
+            { id: 8, name: 'Flour', category: 'Grains', unit: 'kg', quantity: 12, threshold: 5, costPerUnit: 1.50, status: 'Normal', usedIn: 1 },
+            { id: 9, name: 'Cheese', category: 'Dairy', unit: 'kg', quantity: 4, threshold: 5, costPerUnit: 10.00, status: 'Low', usedIn: 1 },
+            { id: 10, name: 'Butter', category: 'Dairy', unit: 'kg', quantity: 6, threshold: 2, costPerUnit: 7.00, status: 'Normal', usedIn: 1 },
+            { id: 11, name: 'Red Wine', category: 'Beverages', unit: 'bottles', quantity: 1, threshold: 3, costPerUnit: 15.00, status: 'Low', usedIn: 1 }
+        ];
+        localStorage.setItem('ingredients', JSON.stringify(ingredients));
+    }
+
+    // Patch: ensure every ingredient has costPerUnit (for existing localStorage data without it)
+    const defaultCosts = { 'Beef': 12, 'Chicken': 8, 'Rice': 2.5, 'Tomatoes': 3, 'Onions': 2, 'Garlic': 5, 'Cooking Oil': 3.5, 'Flour': 1.5, 'Cheese': 10, 'Butter': 7, 'Red Wine': 15 };
+    let patched = false;
+    ingredients.forEach(ing => {
+        if (ing.costPerUnit === undefined || ing.costPerUnit === null) {
+            ing.costPerUnit = defaultCosts[ing.name] || 5.00;
+            patched = true;
+        }
+    });
+    if (patched) {
+        localStorage.setItem('ingredients', JSON.stringify(ingredients));
+    }
+
+    return ingredients;
+}
+
+function saveIngredientsToStorage(ingredients) {
+    localStorage.setItem('ingredients', JSON.stringify(ingredients));
+}
+
+// Get recipes from localStorage or seed with defaults
+function getRecipes() {
+    let recipes = [];
+    try {
+        const stored = localStorage.getItem('adminRecipes');
+        if (stored) recipes = JSON.parse(stored);
+    } catch (e) { recipes = []; }
+
+    if (!recipes || recipes.length === 0) {
+        recipes = [
+            {
+                id: 1, menuItem: 'Beef Steak',
+                ingredients: [
+                    { name: 'Beef', qty: 0.30, unit: 'kg', cost: 3.60 },
+                    { name: 'Potatoes', qty: 0.15, unit: 'kg', cost: 0.38 },
+                    { name: 'Tomatoes', qty: 0.10, unit: 'kg', cost: 0.30 },
+                    { name: 'Onions', qty: 0.10, unit: 'kg', cost: 0.20 }
+                ]
+            },
+            {
+                id: 2, menuItem: 'Chicken Curry',
+                ingredients: [
+                    { name: 'Chicken', qty: 0.25, unit: 'kg', cost: 2.00 },
+                    { name: 'Rice', qty: 0.15, unit: 'kg', cost: 0.38 },
+                    { name: 'Garlic', qty: 0.02, unit: 'kg', cost: 0.10 },
+                    { name: 'Onions', qty: 0.10, unit: 'kg', cost: 0.20 }
+                ]
+            },
+            {
+                id: 3, menuItem: 'Vegetable Salad',
+                ingredients: [
+                    { name: 'Tomatoes', qty: 0.10, unit: 'kg', cost: 0.30 },
+                    { name: 'Lettuce', qty: 0.13, unit: 'kg', cost: 0.46 },
+                    { name: 'Cucumber', qty: 0.10, unit: 'kg', cost: 0.28 }
+                ]
+            },
+            {
+                id: 4, menuItem: 'Garlic Bread',
+                ingredients: [
+                    { name: 'Flour', qty: 0.08, unit: 'kg', cost: 0.12 },
+                    { name: 'Butter', qty: 0.05, unit: 'kg', cost: 0.35 },
+                    { name: 'Garlic', qty: 0.03, unit: 'kg', cost: 0.15 }
+                ]
+            },
+            {
+                id: 5, menuItem: 'Pasta Carbonara',
+                ingredients: [
+                    { name: 'Pasta', qty: 0.15, unit: 'kg', cost: 0.45 },
+                    { name: 'Cheese', qty: 0.08, unit: 'kg', cost: 0.80 },
+                    { name: 'Bacon', qty: 0.10, unit: 'kg', cost: 1.10 }
+                ]
+            }
+        ];
+        localStorage.setItem('adminRecipes', JSON.stringify(recipes));
+    }
+    return recipes;
+}
+
+function saveRecipesToStorage(recipes) {
+    localStorage.setItem('adminRecipes', JSON.stringify(recipes));
+}
+
+let editingRecipeId = null;
+
 function initializeRecipeControl() {
     // Assign recipe button
     const assignRecipeBtn = document.getElementById('assignRecipeBtn');
     if (assignRecipeBtn) {
         assignRecipeBtn.addEventListener('click', function () {
+            editingRecipeId = null;
             showAssignRecipeModal();
+        });
+    }
+
+    // Search filter
+    const searchInput = document.getElementById('recipeSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            loadRecipeControl();
         });
     }
 
@@ -416,35 +691,344 @@ function loadRecipeControl() {
     const recipeMappingTable = tableElement.getElementsByTagName('tbody')[0];
     if (!recipeMappingTable) return;
 
-    recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading recipe mappings...</p></td></tr>';
+    const searchQuery = (document.getElementById('recipeSearch')?.value || '').toLowerCase().trim();
 
-    setTimeout(() => {
-        const recipes = [
-            { menuItem: 'Beef Steak', ingredients: 'Beef, Potatoes, Tomatoes, Onions', quantity: '0.65 kg', cost: '$8.50', actions: '<button class="btn btn-sm btn-outline-danger">Edit</button>' },
-            { menuItem: 'Chicken Curry', ingredients: 'Chicken, Rice, Garlic, Onions', quantity: '0.52 kg', cost: '$6.20', actions: '<button class="btn btn-sm btn-outline-danger">Edit</button>' },
-            { menuItem: 'Vegetable Salad', ingredients: 'Tomatoes, Lettuce, Cucumber', quantity: '0.33 kg', cost: '$3.10', actions: '<button class="btn btn-sm btn-outline-danger">Edit</button>' },
-            { menuItem: 'Garlic Bread', ingredients: 'Flour, Butter, Garlic', quantity: '0.16 kg', cost: '$1.80', actions: '<button class="btn btn-sm btn-outline-danger">Edit</button>' },
-            { menuItem: 'Pasta Carbonara', ingredients: 'Pasta, Cheese, Bacon', quantity: '0.33 kg', cost: '$4.50', actions: '<button class="btn btn-sm btn-outline-danger">Edit</button>' }
-        ];
+    let recipes = getRecipes();
 
-        recipeMappingTable.innerHTML = '';
+    // Filter by search
+    if (searchQuery) {
+        recipes = recipes.filter(r =>
+            r.menuItem.toLowerCase().includes(searchQuery) ||
+            r.ingredients.some(i => i.name.toLowerCase().includes(searchQuery))
+        );
+    }
 
-        recipes.forEach(recipe => {
-            const row = recipeMappingTable.insertRow();
-            row.innerHTML = `
-                <td><strong>${recipe.menuItem}</strong></td>
-                <td>${recipe.ingredients}</td>
-                <td>${recipe.quantity}</td>
-                <td>${recipe.cost}</td>
-                <td>${recipe.actions}</td>
-            `;
-        });
-    }, 800);
+    recipeMappingTable.innerHTML = '';
+
+    if (recipes.length === 0) {
+        recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="fas fa-clipboard-list fa-2x mb-2 d-block"></i>No recipe mappings found.</td></tr>';
+        return;
+    }
+
+    recipes.forEach(recipe => {
+        const totalQty = recipe.ingredients.reduce((sum, i) => sum + (i.qty || 0), 0);
+        const totalCost = recipe.ingredients.reduce((sum, i) => sum + (i.cost || 0), 0);
+
+        // Create ingredient badge tags
+        const ingredientBadges = recipe.ingredients.map(i =>
+            `<span class="badge bg-light text-dark border me-1 mb-1" style="font-size: 0.78em;">
+                <i class="fas fa-leaf text-success me-1"></i>${i.name} <small class="text-muted">(${i.qty} ${i.unit})</small>
+            </span>`
+        ).join('');
+
+        const row = recipeMappingTable.insertRow();
+        row.classList.add('animate__animated', 'animate__fadeIn');
+        row.innerHTML = `
+            <td><strong>${recipe.menuItem}</strong></td>
+            <td style="max-width: 300px;">${ingredientBadges}</td>
+            <td><span class="badge bg-secondary">${totalQty.toFixed(2)} kg</span></td>
+            <td><span class="badge bg-success">$${totalCost.toFixed(2)}</span></td>
+            <td>
+                <div class="table-actions">
+                    <button class="btn btn-sm btn-outline-danger" onclick="editRecipe(${recipe.id})" title="Edit Recipe">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteRecipe(${recipe.id})" title="Delete Recipe">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+    });
 }
 
 function showAssignRecipeModal() {
-    showModalNotification('Assign recipe feature under development', 'info', 'Coming Soon');
+    // Reset form
+    const form = document.getElementById('assignRecipeForm');
+    if (form) form.reset();
+
+    // Update title
+    const title = document.getElementById('recipeModalTitle');
+    if (title) {
+        title.innerHTML = editingRecipeId
+            ? '<i class="fas fa-edit me-2"></i>Edit Recipe'
+            : '<i class="fas fa-book me-2"></i>Assign New Recipe';
+    }
+
+    // Populate menu item dropdown with items from localStorage
+    const menuSelect = document.getElementById('recipeMenuItem');
+    if (menuSelect) {
+        let menuItems = [];
+        try {
+            const stored = localStorage.getItem('adminMenuItems');
+            if (stored) menuItems = JSON.parse(stored);
+        } catch (e) { }
+        if (!menuItems || menuItems.length === 0) {
+            menuItems = [
+                { id: 1, name: 'Beef Steak' }, { id: 2, name: 'Chicken Curry' },
+                { id: 3, name: 'Vegetable Salad' }, { id: 4, name: 'Garlic Bread' },
+                { id: 5, name: 'French Fries' }, { id: 6, name: 'Grilled Salmon' },
+                { id: 7, name: 'Pasta Carbonara' }, { id: 8, name: 'Chocolate Cake' }
+            ];
+        }
+        menuSelect.innerHTML = '<option value="">Select a menu item...</option>';
+        menuItems.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.name;
+            opt.textContent = item.name;
+            menuSelect.appendChild(opt);
+        });
+    }
+
+    // Clear ingredients area
+    const ingredientsArea = document.getElementById('recipeIngredientsArea');
+    if (ingredientsArea) {
+        ingredientsArea.innerHTML = '<p class="text-muted text-center py-3" id="noIngredientsMsg"><i class="fas fa-info-circle me-1"></i>Click "Add Ingredient" to start building the recipe.</p>';
+    }
+
+    // Reset summary
+    updateRecipeSummary();
+
+    // If editing, pre-fill
+    if (editingRecipeId) {
+        const recipes = getRecipes();
+        const recipe = recipes.find(r => r.id === editingRecipeId);
+        if (recipe) {
+            if (menuSelect) menuSelect.value = recipe.menuItem;
+            // Clear the no-ingredients message
+            if (ingredientsArea) ingredientsArea.innerHTML = '';
+            // Add each ingredient row
+            recipe.ingredients.forEach(ing => {
+                addRecipeIngredientRow(ing.name, ing.qty);
+            });
+            updateRecipeSummary();
+        }
+    }
+
+    // Show modal
+    const modalElem = document.getElementById('assignRecipeModal');
+    if (!modalElem) return;
+    const modal = new bootstrap.Modal(modalElem);
+    modal.show();
+
+    // Wire up "Add Ingredient" button (clone to prevent duplicate listeners)
+    const addIngBtn = document.getElementById('addRecipeIngredientBtn');
+    if (addIngBtn) {
+        const newBtn = addIngBtn.cloneNode(true);
+        addIngBtn.parentNode.replaceChild(newBtn, addIngBtn);
+        newBtn.addEventListener('click', function () {
+            addRecipeIngredientRow();
+        });
+    }
+
+    // Wire up "Save" button
+    const saveBtn = document.getElementById('saveRecipeBtn');
+    if (saveBtn) {
+        const newBtn = saveBtn.cloneNode(true);
+        saveBtn.parentNode.replaceChild(newBtn, saveBtn);
+        newBtn.addEventListener('click', function () {
+            saveRecipe();
+        });
+    }
 }
+
+function addRecipeIngredientRow(preselectedName, preselectedQty) {
+    const area = document.getElementById('recipeIngredientsArea');
+    if (!area) return;
+
+    // Remove "no ingredients" placeholder
+    const noMsg = document.getElementById('noIngredientsMsg');
+    if (noMsg) noMsg.remove();
+
+    const ingredients = getAvailableIngredients();
+
+    const row = document.createElement('div');
+    row.className = 'row g-2 mb-2 align-items-center recipe-ing-row animate__animated animate__fadeIn';
+    row.innerHTML = `
+        <div class="col-md-5">
+            <select class="form-select form-select-sm recipe-ing-select">
+                <option value="">Select Ingredient</option>
+                ${ingredients.map(i => `<option value="${i.name}" ${preselectedName === i.name ? 'selected' : ''}>${i.name} (${i.unit})</option>`).join('')}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <div class="input-group input-group-sm">
+                <input type="number" class="form-control recipe-ing-qty" placeholder="Qty" min="0.01" step="0.01" value="${preselectedQty || ''}">
+                <span class="input-group-text">kg</span>
+            </div>
+        </div>
+        <div class="col-md-3 d-flex gap-1">
+            <span class="badge bg-light text-dark border flex-grow-1 d-flex align-items-center justify-content-center recipe-ing-cost-badge">$0.00</span>
+            <button type="button" class="btn btn-sm btn-outline-danger recipe-ing-remove" title="Remove">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+
+    area.appendChild(row);
+
+    // Remove button
+    row.querySelector('.recipe-ing-remove').addEventListener('click', function () {
+        row.remove();
+        if (area.querySelectorAll('.recipe-ing-row').length === 0) {
+            area.innerHTML = '<p class="text-muted text-center py-3" id="noIngredientsMsg"><i class="fas fa-info-circle me-1"></i>Click "Add Ingredient" to start building the recipe.</p>';
+        }
+        updateRecipeSummary();
+    });
+
+    // Update cost on ingredient or qty change
+    const select = row.querySelector('.recipe-ing-select');
+    const qtyInput = row.querySelector('.recipe-ing-qty');
+    const costBadge = row.querySelector('.recipe-ing-cost-badge');
+
+    function updateRowCost() {
+        const ingName = select.value;
+        const qty = parseFloat(qtyInput.value) || 0;
+        const ing = ingredients.find(i => i.name === ingName);
+        const cost = ing ? qty * (ing.costPerUnit || 0) : 0;
+        costBadge.textContent = `$${cost.toFixed(2)}`;
+        costBadge.className = `badge ${cost > 0 ? 'bg-success text-white' : 'bg-light text-dark border'} flex-grow-1 d-flex align-items-center justify-content-center recipe-ing-cost-badge`;
+        updateRecipeSummary();
+    }
+
+    select.addEventListener('change', updateRowCost);
+    qtyInput.addEventListener('input', updateRowCost);
+
+    // If prefilled, compute cost
+    if (preselectedName && preselectedQty) {
+        updateRowCost();
+    }
+}
+
+function updateRecipeSummary() {
+    const rows = document.querySelectorAll('#recipeIngredientsArea .recipe-ing-row');
+    const ingredients = getAvailableIngredients();
+    let count = 0, totalQty = 0, totalCost = 0;
+
+    rows.forEach(row => {
+        const name = row.querySelector('.recipe-ing-select')?.value;
+        const qty = parseFloat(row.querySelector('.recipe-ing-qty')?.value) || 0;
+        if (name && qty > 0) {
+            count++;
+            totalQty += qty;
+            const ing = ingredients.find(i => i.name === name);
+            if (ing) totalCost += qty * (ing.costPerUnit || 0);
+        }
+    });
+
+    const countEl = document.getElementById('recipeIngredientCount');
+    const qtyEl = document.getElementById('recipeTotalQty');
+    const costEl = document.getElementById('recipeEstCost');
+    if (countEl) countEl.textContent = count;
+    if (qtyEl) qtyEl.textContent = `${totalQty.toFixed(2)} kg`;
+    if (costEl) costEl.textContent = `$${totalCost.toFixed(2)}`;
+}
+
+function saveRecipe() {
+    const menuItemName = document.getElementById('recipeMenuItem')?.value;
+    if (!menuItemName) {
+        showModalNotification('Please select a menu item.', 'warning', 'Validation Error');
+        return;
+    }
+
+    const rows = document.querySelectorAll('#recipeIngredientsArea .recipe-ing-row');
+    const availableIngredients = getAvailableIngredients();
+    const ingredientsList = [];
+
+    rows.forEach(row => {
+        const name = row.querySelector('.recipe-ing-select')?.value;
+        const qty = parseFloat(row.querySelector('.recipe-ing-qty')?.value) || 0;
+        if (name && qty > 0) {
+            const ing = availableIngredients.find(i => i.name === name);
+            ingredientsList.push({
+                name: name,
+                qty: qty,
+                unit: ing?.unit || 'kg',
+                cost: ing ? parseFloat((qty * (ing.costPerUnit || 0)).toFixed(2)) : 0
+            });
+        }
+    });
+
+    if (ingredientsList.length === 0) {
+        showModalNotification('Please add at least one ingredient with a quantity.', 'warning', 'Validation Error');
+        return;
+    }
+
+    // Check for duplicate ingredients
+    const names = ingredientsList.map(i => i.name);
+    if (new Set(names).size !== names.length) {
+        showModalNotification('Duplicate ingredients found. Please use each ingredient only once.', 'warning', 'Validation Error');
+        return;
+    }
+
+    let recipes = getRecipes();
+
+    if (editingRecipeId) {
+        // Update existing
+        const idx = recipes.findIndex(r => r.id === editingRecipeId);
+        if (idx !== -1) {
+            recipes[idx].menuItem = menuItemName;
+            recipes[idx].ingredients = ingredientsList;
+        }
+        saveRecipesToStorage(recipes);
+
+        const modalElem = document.getElementById('assignRecipeModal');
+        const modal = bootstrap.Modal.getInstance(modalElem);
+        if (modal) modal.hide();
+
+        showModalNotification(`Recipe for "${menuItemName}" updated successfully!`, 'success', 'Recipe Updated');
+        logAdminActivity('Updated recipe', menuItemName, 'Success');
+        editingRecipeId = null;
+    } else {
+        // Check if recipe already exists for this menu item
+        const existing = recipes.find(r => r.menuItem === menuItemName);
+        if (existing) {
+            showModalNotification(`A recipe for "${menuItemName}" already exists. Edit the existing recipe instead.`, 'warning', 'Duplicate Recipe');
+            return;
+        }
+
+        const maxId = recipes.length > 0 ? Math.max(...recipes.map(r => r.id)) : 0;
+        const newRecipe = {
+            id: maxId + 1,
+            menuItem: menuItemName,
+            ingredients: ingredientsList
+        };
+        recipes.push(newRecipe);
+        saveRecipesToStorage(recipes);
+
+        const modalElem = document.getElementById('assignRecipeModal');
+        const modal = bootstrap.Modal.getInstance(modalElem);
+        if (modal) modal.hide();
+
+        showModalNotification(`Recipe for "${menuItemName}" assigned successfully!`, 'success', 'Recipe Assigned');
+        logAdminActivity('Assigned new recipe', menuItemName, 'Success');
+    }
+
+    loadRecipeControl();
+}
+
+function editRecipe(id) {
+    editingRecipeId = id;
+    showAssignRecipeModal();
+}
+
+function deleteRecipe(id) {
+    const recipes = getRecipes();
+    const recipe = recipes.find(r => r.id === id);
+    if (!recipe) return;
+
+    showConfirm(`Are you sure you want to delete the recipe for "${recipe.menuItem}"? This action cannot be undone.`, function () {
+        const updatedRecipes = recipes.filter(r => r.id !== id);
+        saveRecipesToStorage(updatedRecipes);
+
+        showModalNotification(`Recipe for "${recipe.menuItem}" has been deleted.`, 'success', 'Recipe Deleted');
+        logAdminActivity('Deleted recipe', recipe.menuItem, 'Success');
+        loadRecipeControl();
+    });
+}
+
+// Ingredients Masterlist Functions
+let editingIngredientId = null;
 
 // Ingredients Masterlist Functions
 function initializeIngredientsMasterlist() {
@@ -452,6 +1036,7 @@ function initializeIngredientsMasterlist() {
     const addIngredientBtn = document.getElementById('addIngredientBtn');
     if (addIngredientBtn) {
         addIngredientBtn.addEventListener('click', function () {
+            editingIngredientId = null;
             showAddIngredientModal();
         });
     }
@@ -461,6 +1046,21 @@ function initializeIngredientsMasterlist() {
     if (setThresholdsBtn) {
         setThresholdsBtn.addEventListener('click', function () {
             showSetThresholdsModal();
+        });
+    }
+
+    // Search and Filter Listeners
+    const searchInput = document.getElementById('masterIngredientSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            loadIngredientsMasterlist();
+        });
+    }
+
+    const categoryFilter = document.getElementById('masterCategoryFilter');
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', function () {
+            loadIngredientsMasterlist();
         });
     }
 
@@ -474,67 +1074,75 @@ function loadIngredientsMasterlist() {
 
     const ingredientsMasterTable = tableElement.getElementsByTagName('tbody')[0];
     const masterLowStockCount = document.getElementById('masterLowStockCount');
+    const masterTotalIngredients = document.getElementById('masterTotalIngredients');
 
-    ingredientsMasterTable.innerHTML = '<tr><td colspan="9" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading ingredients masterlist...</p></td></tr>';
+    const searchQuery = (document.getElementById('masterIngredientSearch')?.value || '').toLowerCase().trim();
+    const categoryFilter = document.getElementById('masterCategoryFilter')?.value || '';
 
-    setTimeout(() => {
-        const ingredients = [
-            { id: 1, name: 'Beef', category: 'Meat', unit: 'kg', quantity: 15, threshold: 5, status: 'Normal', usedIn: 2 },
-            { id: 2, name: 'Chicken', category: 'Meat', unit: 'kg', quantity: 8, threshold: 10, status: 'Low', usedIn: 1 },
-            { id: 3, name: 'Rice', category: 'Grains', unit: 'kg', quantity: 25, threshold: 10, status: 'Normal', usedIn: 1 },
-            { id: 4, name: 'Tomatoes', category: 'Vegetables', unit: 'kg', quantity: 5, threshold: 3, status: 'Normal', usedIn: 2 },
-            { id: 5, name: 'Onions', category: 'Vegetables', unit: 'kg', quantity: 3, threshold: 5, status: 'Low', usedIn: 3 },
-            { id: 6, name: 'Garlic', category: 'Spices', unit: 'kg', quantity: 1, threshold: 2, status: 'Low', usedIn: 2 },
-            { id: 7, name: 'Cooking Oil', category: 'Supplies', unit: 'L', quantity: 2, threshold: 5, status: 'Low', usedIn: 5 },
-            { id: 8, name: 'Flour', category: 'Grains', unit: 'kg', quantity: 12, threshold: 5, status: 'Normal', usedIn: 1 },
-            { id: 9, name: 'Cheese', category: 'Dairy', unit: 'kg', quantity: 4, threshold: 5, status: 'Low', usedIn: 1 },
-            { id: 10, name: 'Butter', category: 'Dairy', unit: 'kg', quantity: 6, threshold: 2, status: 'Normal', usedIn: 1 },
-            { id: 11, name: 'Red Wine', category: 'Beverages', unit: 'bottles', quantity: 1, threshold: 3, status: 'Low', usedIn: 1 }
-        ];
+    let ingredients = getAvailableIngredients();
 
-        // Count low stock items
-        let lowStockCount = 0;
-        ingredients.forEach(ing => {
-            if (ing.status === 'Low') lowStockCount++;
-        });
+    // Apply filtering
+    if (categoryFilter) {
+        ingredients = ingredients.filter(ing => ing.category === categoryFilter);
+    }
+    if (searchQuery) {
+        ingredients = ingredients.filter(ing =>
+            ing.name.toLowerCase().includes(searchQuery) ||
+            ing.id.toString().includes(searchQuery)
+        );
+    }
 
-        if (masterLowStockCount) {
-            masterLowStockCount.textContent = lowStockCount;
-        }
+    // Count low stock items (on all items, not just filtered)
+    const allIngredients = getAvailableIngredients();
+    let lowStockCount = 0;
+    allIngredients.forEach(ing => {
+        if (ing.quantity <= ing.threshold) lowStockCount++;
+    });
 
-        ingredientsMasterTable.innerHTML = '';
+    if (masterLowStockCount) masterLowStockCount.textContent = lowStockCount;
+    if (masterTotalIngredients) masterTotalIngredients.textContent = allIngredients.length;
 
-        ingredients.forEach(ingredient => {
-            const row = ingredientsMasterTable.insertRow();
-            row.innerHTML = `
-                <td>${ingredient.id}</td>
-                <td><strong>${ingredient.name}</strong></td>
-                <td><span class="badge bg-secondary">${ingredient.category}</span></td>
-                <td>${ingredient.unit}</td>
-                <td>${ingredient.quantity} ${ingredient.unit}</td>
-                <td>${ingredient.threshold} ${ingredient.unit}</td>
-                <td><span class="badge ${ingredient.status === 'Normal' ? 'bg-success' : 'bg-warning'}">${ingredient.status}</span></td>
-                <td><span class="badge bg-info">${ingredient.usedIn} menu items</span></td>
-                <td>
-                    <div class="table-actions">
-                        <button class="btn btn-sm btn-outline-danger" onclick="editIngredient(${ingredient.id})">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-warning" onclick="deleteIngredient(${ingredient.id})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            `;
-        });
-    }, 800);
+    ingredientsMasterTable.innerHTML = '';
+
+    if (ingredients.length === 0) {
+        ingredientsMasterTable.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No ingredients found.</td></tr>';
+        return;
+    }
+
+    const recipes = getRecipes();
+
+    ingredients.forEach(ingredient => {
+        const isLow = ingredient.quantity <= ingredient.threshold;
+        const usedInCount = recipes.filter(r =>
+            r.ingredients.some(ri => ri.name === ingredient.name)
+        ).length;
+
+        const row = ingredientsMasterTable.insertRow();
+        row.classList.add('animate__animated', 'animate__fadeIn');
+        row.innerHTML = `
+            <td>${ingredient.id}</td>
+            <td><strong>${ingredient.name}</strong></td>
+            <td><span class="badge bg-secondary">${ingredient.category}</span></td>
+            <td>${ingredient.unit}</td>
+            <td class="${isLow ? 'text-danger fw-bold' : ''}">${ingredient.quantity} ${ingredient.unit}</td>
+            <td>${ingredient.threshold} ${ingredient.unit}</td>
+            <td><span class="badge ${!isLow ? 'bg-success' : 'bg-warning'}">${!isLow ? 'Normal' : 'Low Stock'}</span></td>
+            <td><span class="badge bg-info">${usedInCount} menu items</span></td>
+            <td>
+                <div class="table-actions">
+                    <button class="btn btn-sm btn-outline-danger" onclick="editIngredient(${ingredient.id})" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteIngredient(${ingredient.id})" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+    });
 }
 
 function showAddIngredientModal() {
-    // Clear form
-    const form = document.getElementById('addIngredientForm');
-    if (form) form.reset();
-
     // Update threshold unit based on selected unit
     const unitSelect = document.getElementById('ingredientUnit');
     const thresholdUnit = document.getElementById('thresholdUnit');
@@ -543,6 +1151,31 @@ function showAddIngredientModal() {
         unitSelect.addEventListener('change', function () {
             thresholdUnit.textContent = this.value;
         });
+    }
+
+    // Update title
+    const modalTitle = document.querySelector('#addIngredientModal .modal-title');
+    if (modalTitle) {
+        modalTitle.innerHTML = editingIngredientId
+            ? '<i class="fas fa-edit me-2"></i>Edit Ingredient'
+            : '<i class="fas fa-plus-circle me-2"></i>Add Ingredient';
+    }
+
+    // Pre-fill if editing
+    if (editingIngredientId) {
+        const ingredients = getAvailableIngredients();
+        const ing = ingredients.find(i => i.id === editingIngredientId);
+        if (ing) {
+            document.getElementById('ingredientName').value = ing.name;
+            document.getElementById('ingredientCategory').value = ing.category;
+            document.getElementById('ingredientUnit').value = ing.unit;
+            document.getElementById('lowStockThreshold').value = ing.threshold;
+            if (thresholdUnit) thresholdUnit.textContent = ing.unit;
+        }
+    } else {
+        const form = document.getElementById('addIngredientForm');
+        if (form) form.reset();
+        if (thresholdUnit) thresholdUnit.textContent = 'kg';
     }
 
     // Show modal
@@ -563,72 +1196,177 @@ function showAddIngredientModal() {
 }
 
 function saveIngredient() {
-    const name = document.getElementById('ingredientName')?.value;
+    const name = document.getElementById('ingredientName')?.value.trim();
     const category = document.getElementById('ingredientCategory')?.value;
     const unit = document.getElementById('ingredientUnit')?.value;
-    const threshold = document.getElementById('lowStockThreshold')?.value;
+    const threshold = parseFloat(document.getElementById('lowStockThreshold')?.value) || 0;
 
     // Validation
-    if (!name || !category || !unit || !threshold) {
+    if (!name || !category || !unit) {
         showModalNotification('Please fill in all required fields', 'warning', 'Validation Error');
         return;
     }
 
-    // Simulate save
-    setTimeout(() => {
-        // Close modal
-        const modalElem = document.getElementById('addIngredientModal');
-        const modal = bootstrap.Modal.getInstance(modalElem);
-        if (modal) modal.hide();
+    let ingredients = getAvailableIngredients();
 
-        // Show success message
+    if (editingIngredientId) {
+        const idx = ingredients.findIndex(i => i.id === editingIngredientId);
+        if (idx !== -1) {
+            ingredients[idx].name = name;
+            ingredients[idx].category = category;
+            ingredients[idx].unit = unit;
+            ingredients[idx].threshold = threshold;
+        }
+        showModalNotification(`Ingredient "${name}" updated successfully`, 'success', 'Ingredient Updated');
+        logAdminActivity('Updated ingredient', name, 'Success');
+        editingIngredientId = null;
+    } else {
+        const maxId = ingredients.length > 0 ? Math.max(...ingredients.map(i => i.id)) : 0;
+        const newIngredient = {
+            id: maxId + 1,
+            name: name,
+            category: category,
+            unit: unit,
+            quantity: 0, // Default for new items
+            threshold: threshold,
+            usedIn: 0
+        };
+        ingredients.push(newIngredient);
         showModalNotification(`Ingredient "${name}" added successfully`, 'success', 'Ingredient Added');
-
-        // Log activity
         logAdminActivity('Added ingredient', name, 'Success');
+    }
 
-        // Refresh ingredients masterlist
-        loadIngredientsMasterlist();
-    }, 1000);
+    saveIngredientsToStorage(ingredients);
+
+    // Close modal
+    const modalElem = document.getElementById('addIngredientModal');
+    const modal = bootstrap.Modal.getInstance(modalElem);
+    if (modal) modal.hide();
+
+    // Refresh
+    loadIngredientsMasterlist();
 }
 
 function showSetThresholdsModal() {
-    showModalNotification('Set thresholds feature under development', 'info', 'Coming Soon');
-}
+    const ingredients = getAvailableIngredients();
 
-function editIngredient(id) {
-    showModalNotification(`Edit ingredient ${id} - Feature under development`, 'info', 'Coming Soon');
-}
-
-function deleteIngredient(id) {
-    showConfirm('Are you sure you want to delete this ingredient? This action cannot be undone and may affect existing recipes.', function () {
-        setTimeout(() => {
-            showModalNotification('Ingredient deletion request submitted', 'success', 'Request Submitted');
-            logAdminActivity('Requested ingredient deletion', `Ingredient ID: ${id}`, 'Success');
+    Swal.fire({
+        title: 'Global Stock Thresholds',
+        html: `
+            <div class="text-start">
+                <p class="small text-muted mb-3">Update warning thresholds for all categories.</p>
+                <div class="mb-3">
+                    <label class="form-label">Meat & Poultry (kg)</label>
+                    <input type="number" id="swal-meat" class="swal2-input mt-0" value="5">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Vegetables (kg)</label>
+                    <input type="number" id="swal-veg" class="swal2-input mt-0" value="3">
+                </div>
+                <p class="small text-danger">Note: This will reset all individual thresholds in these categories.</p>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Update All',
+        confirmButtonColor: '#dc3545',
+        preConfirm: () => {
+            return {
+                meat: document.getElementById('swal-meat').value,
+                veg: document.getElementById('swal-veg').value
+            }
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const updated = ingredients.map(ing => {
+                if (ing.category === 'Meat') ing.threshold = parseFloat(result.value.meat);
+                if (ing.category === 'Vegetables') ing.threshold = parseFloat(result.value.veg);
+                return ing;
+            });
+            saveIngredientsToStorage(updated);
+            showModalNotification('Thresholds updated successfully', 'success', 'Bulk Update');
             loadIngredientsMasterlist();
-        }, 800);
+        }
     });
 }
 
-// User Management Functions
+function editIngredient(id) {
+    editingIngredientId = id;
+    showAddIngredientModal();
+}
+
+function deleteIngredient(id) {
+    const ingredients = getAvailableIngredients();
+    const ing = ingredients.find(i => i.id === id);
+    if (!ing) return;
+
+    showConfirm(`Are you sure you want to delete "${ing.name}"? This will also remove it from any assigned recipes.`, function () {
+        const updated = ingredients.filter(i => i.id !== id);
+        saveIngredientsToStorage(updated);
+
+        showModalNotification(`"${ing.name}" has been deleted`, 'success', 'Ingredient Deleted');
+        logAdminActivity('Deleted ingredient', ing.name, 'Success');
+        loadIngredientsMasterlist();
+    });
+}
+
+// ===== User Management Functions =====
+
+function getUsers() {
+    let users = [];
+    try {
+        const stored = localStorage.getItem('users');
+        if (stored) users = JSON.parse(stored);
+    } catch (e) { users = []; }
+
+    if (!users || users.length === 0) {
+        users = [
+            { id: 1, name: 'John Doe', role: 'Staff', username: 'johndoe', status: 'Active', lastLogin: 'Today', isDeleted: false },
+            { id: 2, name: 'Jane Smith', role: 'Cashier', username: 'janesmith', status: 'Active', lastLogin: 'Today', isDeleted: false },
+            { id: 3, name: 'Robert Johnson', role: 'Staff', username: 'robertj', status: 'Active', lastLogin: 'Yesterday', isDeleted: false },
+            { id: 4, name: 'Sarah Williams', role: 'Senior Staff', username: 'sarahw', status: 'Active', lastLogin: 'Today', isDeleted: false },
+            { id: 5, name: 'Mike Brown', role: 'Staff', username: 'mikeb', deletedDate: '2023-09-28', deletedBy: 'Admin', isDeleted: true },
+            { id: 6, name: 'Emily Davis', role: 'Cashier', username: 'emilyd', deletedDate: '2023-09-25', deletedBy: 'Admin', isDeleted: true }
+        ];
+        localStorage.setItem('users', JSON.stringify(users));
+    }
+    return users;
+}
+
+function saveUsersToStorage(users) {
+    localStorage.setItem('users', JSON.stringify(users));
+}
+
 function initializeUserManagement() {
-    // Add User Management specific listeners here if needed
-    const addUserBtn = document.getElementById('add-user-btn'); // Example
+    // Add User Button
+    const addUserBtn = document.getElementById('addUserBtn'); // Re-using ID from HTML
     if (addUserBtn) {
         addUserBtn.addEventListener('click', function () {
-            // Logic to show add user modal
+            showAddUserModal();
         });
     }
 
-    // Load user management data
+    // Save New User Button (in modal)
+    const saveNewUserBtn = document.getElementById('saveNewUserBtn');
+    if (saveNewUserBtn) {
+        saveNewUserBtn.addEventListener('click', function () {
+            saveNewUser();
+        });
+    }
+
+    // Save Edit User Button (in modal)
+    const saveUserChangesBtn = document.getElementById('saveUserChangesBtn');
+    if (saveUserChangesBtn) {
+        saveUserChangesBtn.addEventListener('click', function () {
+            saveUserChanges();
+        });
+    }
+
+    // Load initial data
     loadUserManagement();
 }
 
 function loadUserManagement() {
-    // Load active users
     loadActiveUsers();
-
-    // Load deleted users
     loadDeletedUsers();
 }
 
@@ -636,257 +1374,625 @@ function loadActiveUsers() {
     const tableElem = document.getElementById('activeUsersTable');
     if (!tableElem) return;
 
-    const activeUsersTable = tableElem.getElementsByTagName('tbody')[0];
-    if (!activeUsersTable) return;
+    const tbody = tableElem.querySelector('tbody');
+    if (!tbody) return;
 
-    activeUsersTable.innerHTML = '<tr><td colspan="6" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading active users...</p></td></tr>';
+    const users = getUsers().filter(u => !u.isDeleted);
 
-    setTimeout(() => {
-        const users = [
-            { id: 1, name: 'John Doe', role: 'Staff', username: 'johndoe', status: 'Active', lastLogin: 'Today' },
-            { id: 2, name: 'Jane Smith', role: 'Cashier', username: 'janesmith', status: 'Active', lastLogin: 'Today' },
-            { id: 3, name: 'Robert Johnson', role: 'Staff', username: 'robertj', status: 'Active', lastLogin: 'Yesterday' },
-            { id: 4, name: 'Sarah Williams', role: 'Senior Staff', username: 'sarahw', status: 'Active', lastLogin: 'Today' }
-        ];
+    tbody.innerHTML = '';
+    if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No active users found.</td></tr>';
+        return;
+    }
 
-        activeUsersTable.innerHTML = '';
-
-        users.forEach(user => {
-            const row = activeUsersTable.insertRow();
-            row.innerHTML = `
-                <td><strong>${user.name}</strong></td>
-                <td><span class="badge ${user.role === 'Staff' ? 'bg-success' : user.role === 'Cashier' ? 'bg-info' : 'bg-warning'}">${user.role}</span></td>
-                <td>${user.username}</td>
-                <td><span class="badge bg-success">${user.status}</span></td>
-                <td>${user.lastLogin}</td>
-                <td>
-                    <button class="btn btn-sm btn-primary me-1" onclick="editUser(${user.id})">
-                        <i class="fas fa-edit"></i> Edit
+    users.forEach(user => {
+        const row = tbody.insertRow();
+        row.classList.add('animate__animated', 'animate__fadeIn');
+        row.innerHTML = `
+            <td><strong>${user.name}</strong></td>
+            <td><span class="badge ${user.role === 'Staff' ? 'bg-success' : user.role === 'Cashier' ? 'bg-info' : 'bg-warning'}">${user.role}</span></td>
+            <td>${user.username}</td>
+            <td><span class="badge ${user.status === 'Active' ? 'bg-success' : 'bg-secondary'}">${user.status}</span></td>
+            <td>${user.lastLogin || 'Never'}</td>
+            <td>
+                <div class="table-actions">
+                    <button class="btn btn-sm btn-outline-primary" onclick="editUser(${user.id})" title="Edit">
+                        <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})">
-                        <i class="fas fa-trash"></i> Delete
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${user.id})" title="Delete">
+                        <i class="fas fa-trash"></i>
                     </button>
-                </td>
-            `;
-        });
-    }, 800);
+                </div>
+            </td>
+        `;
+    });
 }
 
 function loadDeletedUsers() {
     const tableElem = document.getElementById('deletedUsersTable');
     if (!tableElem) return;
 
-    const deletedUsersTable = tableElem.getElementsByTagName('tbody')[0];
-    const deletedUsersCount = document.getElementById('deletedUsersCount');
-    if (!deletedUsersTable) return;
+    const tbody = tableElem.querySelector('tbody');
+    const badge = document.getElementById('deletedUsersCount');
+    if (!tbody) return;
 
-    setTimeout(() => {
-        const deletedUsers = [
-            { id: 5, name: 'Mike Brown', role: 'Staff', username: 'mikeb', deletedDate: '2023-09-28', deletedBy: 'Admin' },
-            { id: 6, name: 'Emily Davis', role: 'Cashier', username: 'emilyd', deletedDate: '2023-09-25', deletedBy: 'Admin' }
-        ];
+    const users = getUsers().filter(u => u.isDeleted);
 
-        deletedUsersTable.innerHTML = '';
+    if (badge) badge.textContent = users.length;
 
-        deletedUsers.forEach(user => {
-            const row = deletedUsersTable.insertRow();
-            row.innerHTML = `
-                <td><strong>${user.name}</strong></td>
-                <td><span class="badge bg-secondary">${user.role}</span></td>
-                <td>${user.username}</td>
-                <td>${user.deletedDate}</td>
-                <td>${user.deletedBy}</td>
-                <td>
-                    <button class="btn btn-sm btn-success me-1" onclick="restoreUser(${user.id})">
-                        <i class="fas fa-undo"></i> Restore
+    tbody.innerHTML = '';
+    if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No deleted accounts.</td></tr>';
+        return;
+    }
+
+    users.forEach(user => {
+        const row = tbody.insertRow();
+        row.classList.add('animate__animated', 'animate__fadeIn');
+        row.innerHTML = `
+            <td><strong>${user.name}</strong></td>
+            <td><span class="badge bg-secondary">${user.role}</span></td>
+            <td>${user.username}</td>
+            <td>${user.deletedDate || 'Unknown'}</td>
+            <td>${user.deletedBy || 'System'}</td>
+            <td>
+                <div class="table-actions">
+                    <button class="btn btn-sm btn-outline-success" onclick="restoreUser(${user.id})" title="Restore">
+                        <i class="fas fa-undo"></i>
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="permanentlyDeleteUser(${user.id})">
-                        <i class="fas fa-trash"></i> Permanent Delete
+                    <button class="btn btn-sm btn-danger" onclick="permanentlyDeleteUser(${user.id})" title="Permanent Delete">
+                        <i class="fas fa-times"></i>
                     </button>
-                </td>
-            `;
-        });
+                </div>
+            </td>
+        `;
+    });
+}
 
-        // Update count
-        if (deletedUsersCount) {
-            deletedUsersCount.textContent = deletedUsers.length;
-        }
-    }, 800);
+function showAddUserModal() {
+    const form = document.getElementById('addUserForm');
+    if (form) form.reset();
+
+    const modalElem = document.getElementById('addUserModal');
+    if (!modalElem) return;
+    const modal = new bootstrap.Modal(modalElem);
+    modal.show();
+}
+
+function saveNewUser() {
+    const name = document.getElementById('newFullName').value.trim();
+    const username = document.getElementById('newUsername').value.trim();
+    const pass = document.getElementById('newUserPassword').value;
+    const confirmPass = document.getElementById('confirmUserPassword').value;
+    const role = document.getElementById('newUserRole').value;
+
+    if (!name || !username || !pass) {
+        showModalNotification('Please fill in all fields', 'warning', 'Validation Error');
+        return;
+    }
+
+    if (pass !== confirmPass) {
+        showModalNotification('Passwords do not match', 'warning', 'Validation Error');
+        return;
+    }
+
+    let users = getUsers();
+    if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+        showModalNotification('Username already exists', 'warning', 'Duplicate Entry');
+        return;
+    }
+
+    const maxId = users.length > 0 ? Math.max(...users.map(u => u.id)) : 0;
+    const newUser = {
+        id: maxId + 1,
+        name: name,
+        username: username,
+        password: pass,
+        role: role,
+        status: 'Active',
+        lastLogin: 'Never',
+        isDeleted: false
+    };
+
+    users.push(newUser);
+    saveUsersToStorage(users);
+
+    const modalElem = document.getElementById('addUserModal');
+    const modal = bootstrap.Modal.getInstance(modalElem);
+    if (modal) modal.hide();
+
+    showModalNotification(`User "${name}" created successfully`, 'success', 'User Added');
+    logAdminActivity('Created new user account', username, 'Success');
+    loadUserManagement();
+}
+
+function editUser(id) {
+    const users = getUsers();
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+
+    document.getElementById('editUserId').value = user.id;
+    document.getElementById('editFullName').value = user.name;
+    document.getElementById('editUsername').value = user.username;
+    document.getElementById('editUserRole').value = user.role;
+    document.getElementById('editUserStatus').value = user.status;
+    document.getElementById('editUserPassword').value = ''; // Clear password field
+
+    const modalElem = document.getElementById('editUserModal');
+    if (!modalElem) return;
+    const modal = new bootstrap.Modal(modalElem);
+    modal.show();
+}
+
+function saveUserChanges() {
+    const id = parseInt(document.getElementById('editUserId').value);
+    const name = document.getElementById('editFullName').value.trim();
+    const role = document.getElementById('editUserRole').value;
+    const status = document.getElementById('editUserStatus').value;
+    const newPass = document.getElementById('editUserPassword').value;
+
+    if (!name) {
+        showModalNotification('Full name is required', 'warning', 'Validation Error');
+        return;
+    }
+
+    let users = getUsers();
+    const idx = users.findIndex(u => u.id === id);
+    if (idx === -1) return;
+
+    users[idx].name = name;
+    users[idx].role = role;
+    users[idx].status = status;
+    if (newPass) users[idx].password = newPass;
+
+    saveUsersToStorage(users);
+
+    const modalElem = document.getElementById('editUserModal');
+    const modal = bootstrap.Modal.getInstance(modalElem);
+    if (modal) modal.hide();
+
+    showModalNotification(`Account for "${name}" updated`, 'success', 'User Updated');
+    logAdminActivity('Updated user account', users[idx].username, 'Success');
+    loadUserManagement();
+}
+
+function deleteUser(id) {
+    const users = getUsers();
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+
+    showConfirm(`Are you sure you want to delete "${user.name}"? This account will be moved to Deleted Accounts.`, function () {
+        const idx = users.findIndex(u => u.id === id);
+        users[idx].isDeleted = true;
+        users[idx].deletedDate = new Date().toLocaleDateString();
+        users[idx].deletedBy = 'Administrator';
+
+        saveUsersToStorage(users);
+        showModalNotification(`Account "${user.username}" deleted`, 'success', 'User Removed');
+        logAdminActivity('Deleted user account', user.username, 'Success');
+        loadUserManagement();
+    });
+}
+
+function restoreUser(id) {
+    const users = getUsers();
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+
+    showConfirm(`Restore account for "${user.name}"?`, function () {
+        const idx = users.findIndex(u => u.id === id);
+        users[idx].isDeleted = false;
+
+        saveUsersToStorage(users);
+        showModalNotification(`Account "${user.username}" restored`, 'success', 'User Restored');
+        logAdminActivity('Restored user account', user.username, 'Success');
+        loadUserManagement();
+    });
+}
+
+function permanentlyDeleteUser(id) {
+    const users = getUsers();
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+
+    showConfirm(`PERMANENTLY DELETE "${user.name}"? This action cannot be reversed.`, function () {
+        const updated = users.filter(u => u.id !== id);
+        saveUsersToStorage(updated);
+
+        showModalNotification(`Account "${user.username}" permanently removed`, 'success', 'User Purged');
+        logAdminActivity('Permanently deleted user account', user.username, 'Success');
+        loadUserManagement();
+    });
 }
 
 // Reports Functions
+let reportsChart = null;
+
 function initializeReports() {
-    // Generate PDF report button
-    const generatePdfReportBtn = document.getElementById('generatePdfReport');
-    if (generatePdfReportBtn) {
-        generatePdfReportBtn.addEventListener('click', function () {
-            showConfirm('Are you sure you want to generate a PDF report?', function () {
-                generatePdfReport();
-            });
-        });
-    }
-
-    // Apply report filters button
-    const applyReportFiltersBtn = document.getElementById('applyReportFilters');
-    if (applyReportFiltersBtn) {
-        applyReportFiltersBtn.addEventListener('click', function () {
-            generateReportPreview();
-        });
-    }
-
-    // Generate button (on page)
+    // Generate button
     const generateReportBtn = document.getElementById('generateReportBtn');
     if (generateReportBtn) {
         generateReportBtn.addEventListener('click', function () {
-            loadReports();
+            generateReport();
         });
     }
 
-    // Print report preview button
-    const printReportPreviewBtn = document.getElementById('printReportPreview');
-    if (printReportPreviewBtn) {
-        printReportPreviewBtn.addEventListener('click', function () {
-            printReportPreview();
+    // Print button
+    const printReportBtn = document.getElementById('printReportBtn');
+    if (printReportBtn) {
+        printReportBtn.addEventListener('click', function () {
+            printReport();
         });
     }
 
-    loadReports();
+    // Excel button
+    const downloadExcelBtn = document.getElementById('downloadExcelBtn');
+    if (downloadExcelBtn) {
+        downloadExcelBtn.addEventListener('click', function () {
+            exportToExcel();
+        });
+    }
+
+    // Set default dates (today)
+    const dateFrom = document.getElementById('reportDateFrom');
+    const dateTo = document.getElementById('reportDateTo');
+    if (dateFrom && dateTo) {
+        const today = new Date().toISOString().split('T')[0];
+        // Set dateFrom to 7 days ago by default
+        const lastWeek = new Date();
+        lastWeek.setDate(lastWeek.getDate() - 7);
+        dateFrom.value = lastWeek.toISOString().split('T')[0];
+        dateTo.value = today;
+    }
+
+    // Seed sample sales if none exist
+    ensureSampleSalesExist();
+
+    // Initial load
+    generateReport();
+
+    // Real-time update every 30 seconds
+    setInterval(() => {
+        if (document.getElementById('reports-content')) {
+            generateReport(true); // silent update
+        }
+    }, 30000);
 }
 
-function loadReports() {
-    // Default report load behavior
-    generateReportPreview();
+function ensureSampleSalesExist() {
+    let sales = loadFromLocalStorage('sales');
+    if (!sales || sales.length === 0) {
+        const today = new Date();
+        const sampleSales = [];
+
+        // Generate some sales for the last 7 days
+        for (let i = 0; i < 7; i++) {
+            const date = new Date();
+            date.setDate(today.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+
+            // 2-4 sales per day
+            const salesPerDay = Math.floor(Math.random() * 3) + 2;
+            for (let j = 0; j < salesPerDay; j++) {
+                const total = Math.floor(Math.random() * 500) + 100;
+                sampleSales.push({
+                    id: 'SALE-' + (1000 + sampleSales.length),
+                    date: dateStr,
+                    time: '12:00:00',
+                    timestamp: date.getTime(),
+                    items: [
+                        { name: 'Beef Steak', quantity: 2, price: 24.99, subtotal: 49.98 },
+                        { name: 'Chicken Curry', quantity: 1, price: 18.99, subtotal: 18.99 }
+                    ],
+                    total: total,
+                    staff: 'Staff Member'
+                });
+            }
+        }
+        saveToLocalStorage('sales', sampleSales);
+    }
 }
 
-function generatePdfReport() {
-    showModalNotification('Generating PDF report...', 'info', 'Generating Report');
+function generateReport(silent = false) {
+    if (!silent) {
+        showModalNotification('Generating report data...', 'info', 'Loading');
+    }
 
     setTimeout(() => {
-        // Simulate PDF generation
-        const reportType = document.getElementById('reportType')?.value || 'daily-sales';
-        const reportName = reportType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const reportType = document.getElementById('reportType')?.value || 'Daily';
+        const dateFrom = document.getElementById('reportDateFrom')?.value;
+        const dateTo = document.getElementById('reportDateTo')?.value;
 
-        // Create download link
-        const data = `Sample ${reportName} - Generated on ${new Date().toLocaleDateString()}`;
-        const blob = new Blob([data], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
+        let sales = loadFromLocalStorage('sales') || [];
 
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${reportType}-report-${new Date().toISOString().slice(0, 10)}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        showModalNotification('PDF report generated successfully', 'success', 'Report Generated');
-        logAdminActivity('Generated PDF report', reportName, 'Success');
-    }, 1500);
-}
-
-function generateReportPreview() {
-    const typeElem = document.getElementById('reportType');
-    const startElem = document.getElementById('reportStartDate');
-    const endElem = document.getElementById('reportEndDate');
-
-    if (!typeElem) return;
-
-    const reportType = typeElem.value;
-    const startDate = startElem?.value;
-    const endDate = endElem?.value;
-
-    const reportPreview = document.getElementById('reportPreview');
-    if (!reportPreview) return;
-
-    reportPreview.innerHTML = '<div class="text-center py-5"><div class="loading-spinner"></div><p class="mt-2">Generating report preview...</p></div>';
-
-    setTimeout(() => {
-        let reportContent = '';
-
-        switch (reportType) {
-            case 'daily-sales':
-                reportContent = generateDailySalesReport(startDate, endDate);
-                break;
-            case 'ingredient-usage':
-                reportContent = generateIngredientUsageReport(startDate, endDate);
-                break;
-            case 'low-stock':
-                reportContent = generateLowStockReportPreview(startDate, endDate);
-                break;
-            case 'staff-activity':
-                reportContent = generateStaffActivityReport(startDate, endDate);
-                break;
+        // Filter sales by date
+        if (dateFrom && dateTo) {
+            sales = sales.filter(sale => {
+                const saleDate = sale.date; // yyyy-mm-dd
+                return saleDate >= dateFrom && saleDate <= dateTo;
+            });
         }
 
-        reportPreview.innerHTML = reportContent;
-        showModalNotification('Report preview generated', 'success', 'Preview Ready');
-    }, 1000);
+        // Update Summary Metrics
+        updateSummaryMetrics(sales);
+
+        // Update Graph
+        updateReportsChart(sales, reportType);
+
+        // Update Detailed Table
+        updateReportsDetailTable(sales);
+
+        if (!silent) {
+            showModalNotification('Report generated successfully', 'success', 'Complete');
+            logAdminActivity('Generated report', `${reportType} (${dateFrom} to ${dateTo})`, 'Success');
+        }
+    }, silent ? 0 : 800);
 }
 
-function generateDailySalesReport(startDate, endDate) {
-    return `
-        <div class="report-header text-center mb-4">
-            <h3>Daily Sales Summary Report</h3>
-            <p>${startDate || 'All dates'} to ${endDate || 'Present'}</p>
-            <hr>
-        </div>
-        
-        <div class="report-summary mb-4">
-            <div class="row text-center">
-                <div class="col-md-3 mb-3">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5>156</h5>
-                            <p class="text-muted mb-0">Total Sales</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- ... other cards ... -->
+function updateSummaryMetrics(sales) {
+    const totalNetSalesElem = document.getElementById('totalNetSales');
+    const totalTransactionsElem = document.getElementById('totalReportTransactions');
+    const topSellingItemElem = document.getElementById('topSellingItem');
+    const avgOrderValueElem = document.getElementById('avgOrderValue');
+
+    if (!totalNetSalesElem) return;
+
+    let totalSales = 0;
+    let itemCounts = {};
+
+    sales.forEach(sale => {
+        totalSales += sale.total;
+        sale.items.forEach(item => {
+            itemCounts[item.name] = (itemCounts[item.name] || 0) + item.quantity;
+        });
+    });
+
+    // Find top selling item
+    let topItem = '-';
+    let maxCount = 0;
+    for (let item in itemCounts) {
+        if (itemCounts[item] > maxCount) {
+            maxCount = itemCounts[item];
+            topItem = item;
+        }
+    }
+
+    totalNetSalesElem.textContent = formatCurrency(totalSales);
+    totalTransactionsElem.textContent = sales.length;
+    topSellingItemElem.textContent = topItem === '-' ? '-' : `${topItem} (${maxCount})`;
+    avgOrderValueElem.textContent = sales.length > 0 ? formatCurrency(totalSales / sales.length) : formatCurrency(0);
+}
+
+function updateReportsChart(sales, reportType) {
+    const ctx = document.getElementById('reportsChart');
+    if (!ctx) return;
+
+    // Destroy existing chart if it exists
+    if (reportsChart) {
+        reportsChart.destroy();
+    }
+
+    // Group sales by date for the labels
+    const salesByDate = {};
+    sales.forEach(sale => {
+        const date = sale.date;
+        salesByDate[date] = (salesByDate[date] || 0) + sale.total;
+    });
+
+    // Sort dates
+    const sortedDates = Object.keys(salesByDate).sort();
+    const data = sortedDates.map(date => salesByDate[date]);
+
+    // If no data, show sample data for the graph as requested
+    let chartLabels = sortedDates.length > 0 ? sortedDates : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    let chartData = data.length > 0 ? data : [120, 190, 300, 500, 200, 300, 450];
+    let label = sortedDates.length > 0 ? 'Sales Amount' : 'Sample Sales Data (No Actual Sales)';
+
+    reportsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                label: label,
+                data: chartData,
+                backgroundColor: 'rgba(128, 0, 0, 0.1)',
+                borderColor: 'rgba(128, 0, 0, 1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: 'rgba(128, 0, 0, 1)',
+                pointRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function (value) {
+                            return '$' + value;
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            }
+        }
+    });
+}
+
+function updateReportsDetailTable(sales) {
+    const tableBody = document.querySelector('#reportsDetailTable tbody');
+    if (!tableBody) return;
+
+    tableBody.innerHTML = '';
+
+    if (sales.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No transactions found for the selected period</td></tr>';
+        return;
+    }
+
+    // Sort sales by date decending (newest first)
+    const sortedSales = [...sales].sort((a, b) => b.timestamp - a.timestamp);
+
+    sortedSales.forEach(sale => {
+        const row = tableBody.insertRow();
+        const itemsList = sale.items.map(i => `${i.name} x${i.quantity}`).join(', ');
+
+        row.innerHTML = `
+            <td>${sale.date} ${sale.time}</td>
+            <td><code>${sale.id}</code></td>
+            <td>${sale.staff}</td>
+            <td><small>${itemsList}</small></td>
+            <td class="fw-bold">${formatCurrency(sale.total)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-danger" onclick="viewSaleDetails('${sale.id}')">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </td>
+        `;
+    });
+}
+
+function viewSaleDetails(saleId) {
+    const sales = loadFromLocalStorage('sales') || [];
+    const sale = sales.find(s => s.id === saleId);
+    if (!sale) return;
+
+    let itemsHtml = sale.items.map(item => `
+        <tr>
+            <td>${item.name}</td>
+            <td>${item.quantity}</td>
+            <td>${formatCurrency(item.price)}</td>
+            <td>${formatCurrency(item.subtotal)}</td>
+        </tr>
+    `).join('');
+
+    Swal.fire({
+        title: `Transaction Details: ${sale.id}`,
+        html: `
+            <div class="text-start">
+                <p><strong>Date:</strong> ${sale.date} ${sale.time}</p>
+                <p><strong>Staff:</strong> ${sale.staff}</p>
+                <table class="table table-sm table-bordered mt-3">
+                    <thead>
+                        <tr><th>Item</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                    <tfoot>
+                        <tr><th colspan="3" class="text-end">Total:</th><th>${formatCurrency(sale.total)}</th></tr>
+                    </tfoot>
+                </table>
             </div>
-        </div>
-        <div class="report-details">
-            <h5>Top Selling Items</h5>
-            <table class="table table-bordered">
-                <thead><tr><th>Menu Item</th><th>Quantity</th></tr></thead>
-                <tbody><tr><td>Beef Steak</td><td>42</td></tr></tbody>
-            </table>
-        </div>
-    `;
+        `,
+        confirmButtonColor: '#800000'
+    });
 }
 
-function generateIngredientUsageReport(startDate, endDate) {
-    return `<div class="p-3 text-center"><h5>Ingredient Usage Report Preview</h5><p>Data for ${startDate} to ${endDate}</p></div>`;
-}
+function printReport() {
+    const reportContent = document.getElementById('reports-content');
+    if (!reportContent) return;
 
-function generateLowStockReportPreview(startDate, endDate) {
-    return `<div class="p-3 text-center"><h5>Low Stock Report Preview</h5><p>Data for ${startDate} to ${endDate}</p></div>`;
-}
-
-function generateStaffActivityReport(startDate, endDate) {
-    return `<div class="p-3 text-center"><h5>Staff Activity Report Preview</h5><p>Data for ${startDate} to ${endDate}</p></div>`;
-}
-
-function printReportPreview() {
-    const preview = document.getElementById('reportPreview');
-    if (!preview) return;
-
-    const printContent = preview.innerHTML;
     const originalContent = document.body.innerHTML;
+    const printWindow = window.open('', '_blank');
 
-    document.body.innerHTML = `
-        <div class="container mt-4">
-            <div class="text-center mb-4">
-                <h2>Restaurant POS System Report</h2>
-                <p>Generated on ${new Date().toLocaleDateString()}</p>
-            </div>
-            ${printContent}
-        </div>
-    `;
+    // Create print-friendly version
+    const summary = {
+        sales: document.getElementById('totalNetSales').textContent,
+        transactions: document.getElementById('totalReportTransactions').textContent,
+        topItem: document.getElementById('topSellingItem').textContent,
+        avg: document.getElementById('avgOrderValue').textContent
+    };
 
-    window.print();
-    document.body.innerHTML = originalContent;
-    initializeReports();
-    showModalNotification('Report printed successfully', 'success', 'Print Complete');
+    const tableRows = document.querySelector('#reportsDetailTable tbody').innerHTML;
+
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Owner Report - ${new Date().toLocaleDateString()}</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    body { padding: 30px; }
+                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #800000; padding-bottom: 10px; }
+                    .metrics { display: flex; justify-content: space-between; margin-bottom: 30px; }
+                    .metric-box { border: 1px solid #ddd; padding: 15px; border-radius: 8px; flex: 1; margin: 0 10px; text-align: center; }
+                    .metric-val { font-size: 1.2rem; font-weight: bold; color: #800000; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h2>Ethan's Cafe - Owner Report</h2>
+                    <p>Generated on: ${new Date().toLocaleString()}</p>
+                </div>
+                <div class="metrics">
+                    <div class="metric-box"><div>Total Sales</div><div class="metric-val">${summary.sales}</div></div>
+                    <div class="metric-box"><div>Transactions</div><div class="metric-val">${summary.transactions}</div></div>
+                    <div class="metric-box"><div>Top Item</div><div class="metric-val">${summary.topItem}</div></div>
+                    <div class="metric-box"><div>Avg Order</div><div class="metric-val">${summary.avg}</div></div>
+                </div>
+                <h4>Transaction Details</h4>
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr><th>Date/Time</th><th>Reference</th><th>Staff</th><th>Items</th><th>Total</th></tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+                <div class="mt-5 text-center text-muted small">
+                    End of Report
+                </div>
+            </body>
+        </html>
+    `);
+
+    printWindow.document.close();
+    setTimeout(() => {
+        printWindow.print();
+    }, 500);
+
+    logAdminActivity('Printed report', 'Print View Generated', 'Success');
+}
+
+function exportToExcel() {
+    const sales = loadFromLocalStorage('sales') || [];
+    if (sales.length === 0) {
+        showModalNotification('No data to export', 'warning', 'Export Empty');
+        return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Date,Time,Reference,Staff,Items,Total\n";
+
+    sales.forEach(sale => {
+        const itemsList = sale.items.map(i => `${i.name} (${i.quantity})`).join('|');
+        const row = [
+            sale.date,
+            sale.time,
+            sale.id,
+            sale.staff,
+            `"${itemsList}"`,
+            sale.total
+        ].join(",");
+        csvContent += row + "\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Reports_Export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showModalNotification('Excel/CSV export completed', 'success', 'Export Success');
+    logAdminActivity('Exported reports', 'CSV Export', 'Success');
 }
 
 // Backup Functions
@@ -989,52 +2095,189 @@ function restoreBackup() {
 }
 
 // Requests Functions
-function initializeRequests() {
+// ===== Request Management Functions =====
 
-    const confirmApproveBtn = document.getElementById('confirmApproveBtn');
-    if (confirmApproveBtn) {
-        confirmApproveBtn.addEventListener('click', function () {
-            handleRequestApproval();
-        });
+function getAccountRequests() {
+    try {
+        const stored = localStorage.getItem('accountRequests');
+        return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveAccountRequests(requests) {
+    localStorage.setItem('accountRequests', JSON.stringify(requests));
+}
+
+function initializeRequests() {
+    // Search listener
+    const searchInput = document.getElementById('requestSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => loadRequests());
     }
 
+    // Filter listener
+    const statusFilter = document.getElementById('requestStatusFilter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', () => loadRequests());
+    }
+
+    // Initial load
     loadRequests();
 }
 
 function loadRequests() {
-    updateRequestBadges();
-    loadAccountRequests();
-}
+    const tableElem = document.getElementById('requestsTable');
+    if (!tableElem) {
+        updateRequestSidebarBadge();
+        return;
+    }
 
-function updateRequestBadges() {
-    const badge = document.getElementById('pendingRequestsBadge');
-    if (badge) badge.textContent = '3';
-
-    if (document.getElementById('accountRequestsCount')) document.getElementById('accountRequestsCount').textContent = '2';
-    if (document.getElementById('roleRequestsCount')) document.getElementById('roleRequestsCount').textContent = '1';
-}
-
-function loadAccountRequests() {
-    const tableElem = document.getElementById('accountRequestsTable');
-    if (!tableElem) return;
-
-    const tbody = tableElem.getElementsByTagName('tbody')[0];
+    const tbody = tableElem.querySelector('tbody');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Loading...</td></tr>';
+    const searchTerm = (document.getElementById('requestSearch')?.value || '').toLowerCase();
+    const statusFilter = document.getElementById('requestStatusFilter')?.value || 'Pending';
 
-    setTimeout(() => {
-        const requests = [
-            { id: 1, date: '2023-10-01', fullName: 'Robert Johnson', role: 'Staff' }
-        ];
+    let requests = getAccountRequests();
 
-        tbody.innerHTML = '';
+    // Apply filtering
+    if (statusFilter !== 'All') {
+        requests = requests.filter(r => r.status === statusFilter);
+    }
+    if (searchTerm) {
+        requests = requests.filter(r =>
+            r.fullName.toLowerCase().includes(searchTerm) ||
+            r.username.toLowerCase().includes(searchTerm) ||
+            r.requestedRole.toLowerCase().includes(searchTerm)
+        );
+    }
+
+    tbody.innerHTML = '';
+
+    if (requests.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No matching requests found.</td></tr>';
+    } else {
         requests.forEach(req => {
             const row = tbody.insertRow();
-            row.innerHTML = `<td>${req.date}</td><td>${req.fullName}</td><td>-</td><td>${req.role}</td><td><button class="btn btn-sm btn-success">Approve</button></td>`;
+            row.classList.add('animate__animated', 'animate__fadeIn');
+
+            const isPending = req.status === 'Pending';
+
+            row.innerHTML = `
+                <td>${req.date}</td>
+                <td><strong>${req.fullName}</strong></td>
+                <td><span class="badge bg-secondary">Account Request</span></td>
+                <td>${req.requestedRole}</td>
+                <td class="small">${isPending ? 'New user registration' : 'Processed'}</td>
+                <td><span class="badge ${req.status === 'Pending' ? 'bg-warning' : req.status === 'Approved' ? 'bg-success' : 'bg-danger'}">${req.status}</span></td>
+                <td>
+                    ${isPending ? `
+                        <div class="table-actions">
+                            <button class="btn btn-sm btn-outline-success" onclick="approveRequest(${req.id})" title="Approve">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="denyRequest(${req.id})" title="Deny">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    ` : '<span class="text-muted small">No actions</span>'}
+                </td>
+            `;
         });
-    }, 800);
+    }
+
+    updateRequestSidebarBadge();
+
+    const pageBadge = document.getElementById('pendingRequestsBadge');
+    if (pageBadge) {
+        const pendingCount = getAccountRequests().filter(r => r.status === 'Pending').length;
+        pageBadge.textContent = `${pendingCount} Pending Request${pendingCount !== 1 ? 's' : ''}`;
+    }
 }
+
+function updateRequestSidebarBadge() {
+    const pendingCount = getAccountRequests().filter(r => r.status === 'Pending').length;
+
+    // Find "Requests" sidebar link
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+    sidebarLinks.forEach(link => {
+        if (link.textContent.includes('Requests')) {
+            // Check if badge already exists
+            let badge = link.querySelector('.sidebar-badge');
+            if (pendingCount > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge bg-danger rounded-pill ms-auto sidebar-badge animate__animated animate__bounceIn';
+                    link.appendChild(badge);
+                }
+                badge.textContent = pendingCount;
+            } else if (badge) {
+                badge.remove();
+            }
+        }
+    });
+
+    // Also update dashboard alert count if on dashboard
+    const alertsCount = document.getElementById('systemAlerts');
+    if (alertsCount) {
+        const lowStock = getAvailableIngredients().filter(ing => ing.quantity <= ing.threshold).length;
+        alertsCount.textContent = (pendingCount > 0 || lowStock > 0) ? (pendingCount + (lowStock > 0 ? 1 : 0)) : '0';
+    }
+}
+
+function approveRequest(id) {
+    let requests = getAccountRequests();
+    const reqIndex = requests.findIndex(r => r.id === id);
+    if (reqIndex === -1) return;
+
+    const req = requests[reqIndex];
+
+    showConfirm(`Approve account request for "${req.fullName}"?`, function () {
+        // 1. Add to users
+        let users = getUsers();
+        const maxId = users.length > 0 ? Math.max(...users.map(u => u.id)) : 0;
+
+        users.push({
+            id: maxId + 1,
+            name: req.fullName,
+            username: req.username,
+            password: req.password,
+            role: req.requestedRole,
+            status: 'Active',
+            lastLogin: 'Never',
+            isDeleted: false
+        });
+        saveUsersToStorage(users);
+
+        // 2. Mark request as approved (or remove it, but user wants realtime/functional)
+        requests[reqIndex].status = 'Approved';
+        saveAccountRequests(requests);
+
+        showModalNotification(`Account for "${req.username}" has been created and approved`, 'success', 'Request Approved');
+        logAdminActivity('Approved account request', req.username, 'Success');
+        loadRequests();
+    });
+}
+
+function denyRequest(id) {
+    let requests = getAccountRequests();
+    const reqIndex = requests.findIndex(r => r.id === id);
+    if (reqIndex === -1) return;
+
+    const req = requests[reqIndex];
+
+    showConfirm(`Deny account request for "${req.fullName}"?`, function () {
+        requests[reqIndex].status = 'Denied';
+        saveAccountRequests(requests);
+
+        showModalNotification(`Account request for "${req.username}" has been denied`, 'info', 'Request Denied');
+        logAdminActivity('Denied account request', req.username, 'Admin Action');
+        loadRequests();
+    });
+}
+
 
 // System Settings Functions
 function initializeSystemSettings() {
@@ -1055,7 +2298,224 @@ function saveSystemSettings() {
     }, 1000);
 }
 
-// Activity Log Functions
+// ===== Activity Log Functions =====
+
+// Determine category of an activity based on its action text
+function getActivityCategory(action) {
+    const a = action.toLowerCase();
+    if (a.includes('log in') || a.includes('logged in') || a.includes('login') ||
+        a.includes('log out') || a.includes('logged out') || a.includes('logout')) {
+        return 'Login';
+    }
+    if (a.includes('sale') || a.includes('receipt') || a.includes('transaction') ||
+        a.includes('recorded sale') || a.includes('printed receipt') || a.includes('payment') ||
+        a.includes('order') || a.includes('refund') || a.includes('void')) {
+        return 'Sales';
+    }
+    if (a.includes('ingredient') || a.includes('inventory') || a.includes('stock') ||
+        a.includes('increased') || a.includes('decreased') || a.includes('restock') ||
+        a.includes('quantity')) {
+        return 'Inventory';
+    }
+    // Everything else is Administrative
+    return 'Admin';
+}
+
+// Get category badge HTML
+function getCategoryBadge(category) {
+    const map = {
+        'Login': { bg: 'bg-info', label: 'Login / Logout', icon: 'fa-sign-in-alt' },
+        'Sales': { bg: 'bg-success', label: 'Sales & Transactions', icon: 'fa-cash-register' },
+        'Inventory': { bg: 'bg-warning text-dark', label: 'Inventory Update', icon: 'fa-boxes' },
+        'Admin': { bg: 'bg-danger', label: 'Administrative', icon: 'fa-shield-alt' }
+    };
+    const info = map[category] || map['Admin'];
+    return `<span class="badge ${info.bg}"><i class="fas ${info.icon} me-1"></i>${info.label}</span>`;
+}
+
+// Get all activity logs from localStorage (merged with sample data)
+function getAllActivityLogs() {
+    let logs = [];
+    try {
+        const stored = localStorage.getItem('systemActivityLogs');
+        if (stored) logs = JSON.parse(stored);
+    } catch (e) { logs = []; }
+
+    // If empty, seed with sample data
+    if (!logs || logs.length === 0) {
+        logs = generateSeedActivityLogs();
+        localStorage.setItem('systemActivityLogs', JSON.stringify(logs));
+    }
+    // Sort by timestamp descending (most recent first)
+    logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return logs;
+}
+
+// Generate seed activity data so the log is not empty on first load
+function generateSeedActivityLogs() {
+    const today = new Date();
+    const fmt = (d) => {
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    };
+    const ms = (h, m) => h * 3600000 + m * 60000;
+
+    // Generate activities for today and past couple of days
+    const seeds = [];
+    let id = 1;
+
+    // --- Today ---
+    const t0 = new Date(today); t0.setHours(8, 5, 12, 0);
+    seeds.push({ id: id++, userName: 'Admin', action: 'Logged in', reference: 'System', timestamp: fmt(t0), category: 'Login', ip: '192.168.1.10' });
+
+    const t1 = new Date(today); t1.setHours(8, 12, 45, 0);
+    seeds.push({ id: id++, userName: 'Admin', action: 'Updated system settings', reference: 'System Settings', timestamp: fmt(t1), category: 'Admin', ip: '192.168.1.10' });
+
+    const t2 = new Date(today); t2.setHours(8, 30, 0, 0);
+    seeds.push({ id: id++, userName: 'John Doe', action: 'Logged in', reference: 'System', timestamp: fmt(t2), category: 'Login', ip: '192.168.1.15' });
+
+    const t3 = new Date(today); t3.setHours(9, 15, 33, 0);
+    seeds.push({ id: id++, userName: 'John Doe', action: 'Recorded sale', reference: 'SALE-2001', timestamp: fmt(t3), category: 'Sales', ip: '192.168.1.15' });
+
+    const t4 = new Date(today); t4.setHours(9, 17, 10, 0);
+    seeds.push({ id: id++, userName: 'John Doe', action: 'Printed receipt', reference: 'REC-2001', timestamp: fmt(t4), category: 'Sales', ip: '192.168.1.15' });
+
+    const t5 = new Date(today); t5.setHours(10, 0, 22, 0);
+    seeds.push({ id: id++, userName: 'Jane Smith', action: 'Logged in', reference: 'System', timestamp: fmt(t5), category: 'Login', ip: '192.168.1.20' });
+
+    const t6 = new Date(today); t6.setHours(10, 25, 5, 0);
+    seeds.push({ id: id++, userName: 'Jane Smith', action: 'Increased ingredient quantity', reference: 'Chicken (+10 kg)', timestamp: fmt(t6), category: 'Inventory', ip: '192.168.1.20' });
+
+    const t7 = new Date(today); t7.setHours(11, 2, 44, 0);
+    seeds.push({ id: id++, userName: 'Jane Smith', action: 'Recorded sale', reference: 'SALE-2002', timestamp: fmt(t7), category: 'Sales', ip: '192.168.1.20' });
+
+    const t8 = new Date(today); t8.setHours(11, 45, 18, 0);
+    seeds.push({ id: id++, userName: 'Admin', action: 'Added new menu item', reference: 'Grilled Salmon', timestamp: fmt(t8), category: 'Admin', ip: '192.168.1.10' });
+
+    const t9 = new Date(today); t9.setHours(12, 10, 30, 0);
+    seeds.push({ id: id++, userName: 'John Doe', action: 'Recorded sale', reference: 'SALE-2003', timestamp: fmt(t9), category: 'Sales', ip: '192.168.1.15' });
+
+    const t10 = new Date(today); t10.setHours(13, 5, 0, 0);
+    seeds.push({ id: id++, userName: 'Admin', action: 'Decreased ingredient quantity', reference: 'Tomatoes (-2 kg, Spoilage)', timestamp: fmt(t10), category: 'Inventory', ip: '192.168.1.10' });
+
+    const t11 = new Date(today); t11.setHours(14, 0, 0, 0);
+    seeds.push({ id: id++, userName: 'Sarah Williams', action: 'Logged in', reference: 'System', timestamp: fmt(t11), category: 'Login', ip: '192.168.1.25' });
+
+    const t12 = new Date(today); t12.setHours(14, 20, 15, 0);
+    seeds.push({ id: id++, userName: 'Sarah Williams', action: 'Recorded sale', reference: 'SALE-2004', timestamp: fmt(t12), category: 'Sales', ip: '192.168.1.25' });
+
+    const t13 = new Date(today); t13.setHours(15, 30, 0, 0);
+    seeds.push({ id: id++, userName: 'Admin', action: 'Created full system backup', reference: 'Backup', timestamp: fmt(t13), category: 'Admin', ip: '192.168.1.10' });
+
+    const t14 = new Date(today); t14.setHours(16, 0, 0, 0);
+    seeds.push({ id: id++, userName: 'John Doe', action: 'Logged out', reference: 'System', timestamp: fmt(t14), category: 'Login', ip: '192.168.1.15' });
+
+    // --- Yesterday ---
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const y0 = new Date(yesterday); y0.setHours(7, 55, 0, 0);
+    seeds.push({ id: id++, userName: 'Admin', action: 'Logged in', reference: 'System', timestamp: fmt(y0), category: 'Login', ip: '192.168.1.10' });
+
+    const y1 = new Date(yesterday); y1.setHours(8, 30, 0, 0);
+    seeds.push({ id: id++, userName: 'John Doe', action: 'Logged in', reference: 'System', timestamp: fmt(y1), category: 'Login', ip: '192.168.1.15' });
+
+    const y2 = new Date(yesterday); y2.setHours(9, 0, 0, 0);
+    seeds.push({ id: id++, userName: 'John Doe', action: 'Recorded sale', reference: 'SALE-1998', timestamp: fmt(y2), category: 'Sales', ip: '192.168.1.15' });
+
+    const y3 = new Date(yesterday); y3.setHours(10, 15, 0, 0);
+    seeds.push({ id: id++, userName: 'Admin', action: 'Approved staff account request', reference: 'Robert Johnson', timestamp: fmt(y3), category: 'Admin', ip: '192.168.1.10' });
+
+    const y4 = new Date(yesterday); y4.setHours(11, 30, 0, 0);
+    seeds.push({ id: id++, userName: 'Jane Smith', action: 'Logged in', reference: 'System', timestamp: fmt(y4), category: 'Login', ip: '192.168.1.20' });
+
+    const y5 = new Date(yesterday); y5.setHours(12, 45, 0, 0);
+    seeds.push({ id: id++, userName: 'Jane Smith', action: 'Recorded sale', reference: 'SALE-1999', timestamp: fmt(y5), category: 'Sales', ip: '192.168.1.20' });
+
+    const y6 = new Date(yesterday); y6.setHours(14, 0, 0, 0);
+    seeds.push({ id: id++, userName: 'Admin', action: 'Increased ingredient quantity', reference: 'Beef (+5 kg)', timestamp: fmt(y6), category: 'Inventory', ip: '192.168.1.10' });
+
+    const y7 = new Date(yesterday); y7.setHours(15, 30, 0, 0);
+    seeds.push({ id: id++, userName: 'Jane Smith', action: 'Recorded sale', reference: 'SALE-2000', timestamp: fmt(y7), category: 'Sales', ip: '192.168.1.20' });
+
+    const y8 = new Date(yesterday); y8.setHours(17, 0, 0, 0);
+    seeds.push({ id: id++, userName: 'Admin', action: 'Logged out', reference: 'System', timestamp: fmt(y8), category: 'Login', ip: '192.168.1.10' });
+
+    // --- Two days ago ---
+    const twoDaysAgo = new Date(today);
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+    const d0 = new Date(twoDaysAgo); d0.setHours(8, 0, 0, 0);
+    seeds.push({ id: id++, userName: 'Admin', action: 'Logged in', reference: 'System', timestamp: fmt(d0), category: 'Login', ip: '192.168.1.10' });
+
+    const d1 = new Date(twoDaysAgo); d1.setHours(9, 15, 0, 0);
+    seeds.push({ id: id++, userName: 'Admin', action: 'Deleted user account', reference: 'Mike Brown', timestamp: fmt(d1), category: 'Admin', ip: '192.168.1.10' });
+
+    const d2 = new Date(twoDaysAgo); d2.setHours(10, 30, 0, 0);
+    seeds.push({ id: id++, userName: 'Robert Johnson', action: 'Logged in', reference: 'System', timestamp: fmt(d2), category: 'Login', ip: '192.168.1.30' });
+
+    const d3 = new Date(twoDaysAgo); d3.setHours(11, 0, 0, 0);
+    seeds.push({ id: id++, userName: 'Robert Johnson', action: 'Recorded sale', reference: 'SALE-1995', timestamp: fmt(d3), category: 'Sales', ip: '192.168.1.30' });
+
+    const d4 = new Date(twoDaysAgo); d4.setHours(13, 0, 0, 0);
+    seeds.push({ id: id++, userName: 'Admin', action: 'Decreased ingredient quantity', reference: 'Onions (-1 kg, Used)', timestamp: fmt(d4), category: 'Inventory', ip: '192.168.1.10' });
+
+    const d5 = new Date(twoDaysAgo); d5.setHours(16, 0, 0, 0);
+    seeds.push({ id: id++, userName: 'Admin', action: 'Generated PDF report', reference: 'Daily Sales', timestamp: fmt(d5), category: 'Admin', ip: '192.168.1.10' });
+
+    return seeds;
+}
+
+// ===== Dashboard Recent Activity Timeline =====
+function loadRecentActivities() {
+    const container = document.getElementById('recentActivities');
+    if (!container) return;
+
+    const logs = getAllActivityLogs();
+    const recent = logs.slice(0, 8); // Show last 8 activities
+
+    if (recent.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted py-4">No recent activities.</p>';
+        return;
+    }
+
+    const iconMap = {
+        'Login': { icon: 'fa-sign-in-alt', color: 'text-info' },
+        'Sales': { icon: 'fa-cash-register', color: 'text-success' },
+        'Inventory': { icon: 'fa-boxes', color: 'text-warning' },
+        'Admin': { icon: 'fa-shield-alt', color: 'text-danger' }
+    };
+
+    let html = '';
+    recent.forEach(log => {
+        const cat = log.category || getActivityCategory(log.action);
+        const info = iconMap[cat] || iconMap['Admin'];
+        const ts = new Date(log.timestamp);
+        const timeStr = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = ts.toLocaleDateString();
+
+        html += `
+            <div class="activity-item">
+                <div class="d-flex align-items-start">
+                    <div class="activity-icon me-3 ${info.color}" style="min-width:40px;">
+                        <i class="fas ${info.icon}"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong class="small">${log.userName}</strong>
+                            <small class="text-muted">${timeStr}</small>
+                        </div>
+                        <p class="mb-0 small">${log.action}</p>
+                        <small class="text-muted">${log.reference || ''} &middot; ${dateStr}</small>
+                    </div>
+                </div>
+            </div>`;
+    });
+
+    container.innerHTML = html;
+}
+
+// ===== Old initializeActivityLog (for activityLogTable if it exists on other pages) =====
 function initializeActivityLog() {
     const exportBtn = document.getElementById('exportActivityLog');
     if (exportBtn) {
@@ -1063,7 +2523,6 @@ function initializeActivityLog() {
             showModalNotification('Exporting activity log...', 'info', 'Exporting');
         });
     }
-
     loadActivityLog();
 }
 
@@ -1074,11 +2533,213 @@ function loadActivityLog() {
     const tbody = tableElem.getElementsByTagName('tbody')[0];
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center">Loading activity log...</td></tr>';
+    const logs = getAllActivityLogs().slice(0, 20);
+    if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No activity logs found.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = '';
+    logs.forEach(log => {
+        const row = tbody.insertRow();
+        row.innerHTML = `<td>${log.timestamp}</td><td>${log.userName}</td><td>${log.action}</td><td>${log.reference || '-'}</td>`;
+    });
+}
+
+// ===== Full Activity Log Page =====
+let fullLogCurrentPage = 1;
+const FULL_LOG_PAGE_SIZE = 15;
+let fullLogFilteredData = [];
+
+function initializeFullActivityLog() {
+    // Category filter
+    const categoryFilter = document.getElementById('activityCategoryFilter');
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', function () {
+            fullLogCurrentPage = 1;
+            loadFullActivityLog();
+        });
+    }
+
+    // User filter
+    const userFilter = document.getElementById('activityUserFilter');
+    if (userFilter) {
+        userFilter.addEventListener('change', function () {
+            fullLogCurrentPage = 1;
+            loadFullActivityLog();
+        });
+    }
+
+    // Filter button
+    const filterBtn = document.getElementById('filterFullActivityBtn');
+    if (filterBtn) {
+        filterBtn.addEventListener('click', function () {
+            fullLogCurrentPage = 1;
+            loadFullActivityLog();
+        });
+    }
+
+    // Populate user dropdown
+    populateUserFilter();
+
+    // Initial load
+    loadFullActivityLog();
+}
+
+function populateUserFilter() {
+    const userFilter = document.getElementById('activityUserFilter');
+    if (!userFilter) return;
+
+    const logs = getAllActivityLogs();
+    const users = [...new Set(logs.map(l => l.userName))];
+    users.sort();
+
+    // Keep the "All Users" option, add user options
+    userFilter.innerHTML = '<option value="">All Users</option>';
+    users.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u;
+        opt.textContent = u;
+        userFilter.appendChild(opt);
+    });
+}
+
+function loadFullActivityLog() {
+    const tableElem = document.getElementById('fullActivityLogTable');
+    if (!tableElem) return;
+
+    const tbody = tableElem.getElementsByTagName('tbody')[0];
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm text-danger me-2" role="status"></div>Loading activity logs...</td></tr>';
+
+    // Get filter values
+    const categoryVal = document.getElementById('activityCategoryFilter')?.value || '';
+    const userVal = document.getElementById('activityUserFilter')?.value || '';
+    const fromDate = document.getElementById('activityFromDate')?.value || '';
+    const toDate = document.getElementById('activityToDate')?.value || '';
 
     setTimeout(() => {
-        tbody.innerHTML = '<tr><td>2023-10-01 10:00</td><td>Admin</td><td>Logged in</td><td>Success</td></tr>';
-    }, 500);
+        let logs = getAllActivityLogs();
+
+        // Apply category filter
+        if (categoryVal) {
+            logs = logs.filter(log => {
+                const cat = log.category || getActivityCategory(log.action);
+                return cat === categoryVal;
+            });
+        }
+
+        // Apply user filter
+        if (userVal) {
+            logs = logs.filter(log => log.userName === userVal);
+        }
+
+        // Apply date filters
+        if (fromDate) {
+            const from = new Date(fromDate);
+            from.setHours(0, 0, 0, 0);
+            logs = logs.filter(log => new Date(log.timestamp) >= from);
+        }
+        if (toDate) {
+            const to = new Date(toDate);
+            to.setHours(23, 59, 59, 999);
+            logs = logs.filter(log => new Date(log.timestamp) <= to);
+        }
+
+        fullLogFilteredData = logs;
+
+        // Update entry count
+        const countBadge = document.getElementById('logEntryCount');
+        if (countBadge) countBadge.textContent = `${logs.length} Entries`;
+
+        // Paginate
+        const totalPages = Math.max(1, Math.ceil(logs.length / FULL_LOG_PAGE_SIZE));
+        if (fullLogCurrentPage > totalPages) fullLogCurrentPage = totalPages;
+
+        const startIdx = (fullLogCurrentPage - 1) * FULL_LOG_PAGE_SIZE;
+        const pageData = logs.slice(startIdx, startIdx + FULL_LOG_PAGE_SIZE);
+
+        tbody.innerHTML = '';
+
+        if (pageData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2 d-block"></i>No activity logs match your filters.</td></tr>';
+        } else {
+            pageData.forEach(log => {
+                const cat = log.category || getActivityCategory(log.action);
+                const row = tbody.insertRow();
+                row.classList.add('animate__animated', 'animate__fadeIn');
+                row.innerHTML = `
+                    <td><small>${log.timestamp}</small></td>
+                    <td><strong>${log.userName}</strong></td>
+                    <td>${log.action}</td>
+                    <td>${getCategoryBadge(cat)}</td>
+                    <td><code>${log.ip || 'N/A'}</code></td>
+                    <td><small class="text-muted">${log.reference || '-'}</small></td>
+                `;
+            });
+        }
+
+        // Render pagination
+        renderActivityPagination(totalPages);
+    }, 400);
+}
+
+function renderActivityPagination(totalPages) {
+    const paginationContainer = document.getElementById('activityPagination');
+    if (!paginationContainer) return;
+
+    paginationContainer.innerHTML = '';
+
+    if (totalPages <= 1) return;
+
+    // Previous button
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${fullLogCurrentPage === 1 ? 'disabled' : ''}`;
+    prevLi.innerHTML = `<a class="page-link" href="#" tabindex="-1"><i class="fas fa-chevron-left"></i></a>`;
+    prevLi.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (fullLogCurrentPage > 1) {
+            fullLogCurrentPage--;
+            loadFullActivityLog();
+        }
+    });
+    paginationContainer.appendChild(prevLi);
+
+    // Page numbers (show max 5 pages around current)
+    let startPage = Math.max(1, fullLogCurrentPage - 2);
+    let endPage = Math.min(totalPages, startPage + 4);
+    if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+
+    for (let i = startPage; i <= endPage; i++) {
+        const li = document.createElement('li');
+        li.className = `page-item ${i === fullLogCurrentPage ? 'active' : ''}`;
+        li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+        li.addEventListener('click', function (e) {
+            e.preventDefault();
+            fullLogCurrentPage = i;
+            loadFullActivityLog();
+        });
+        paginationContainer.appendChild(li);
+    }
+
+    // Next button
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${fullLogCurrentPage === totalPages ? 'disabled' : ''}`;
+    nextLi.innerHTML = `<a class="page-link" href="#"><i class="fas fa-chevron-right"></i></a>`;
+    nextLi.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (fullLogCurrentPage < totalPages) {
+            fullLogCurrentPage++;
+            loadFullActivityLog();
+        }
+    });
+    paginationContainer.appendChild(nextLi);
+
+    // Style active page
+    paginationContainer.querySelectorAll('.page-item.active .page-link').forEach(el => {
+        el.style.backgroundColor = '#dc3545';
+        el.style.borderColor = '#dc3545';
+    });
 }
 
 // Temp Account Functions
@@ -1103,42 +2764,47 @@ function loadTempAccounts() {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center">No active temporary accounts</td></tr>';
 }
 
-// Helper Functions
+// ===== Helper Functions =====
 function logAdminActivity(action, details, status) {
     console.log(`Activity: ${action} | Details: ${details} | Status: ${status}`);
-}
 
-function showModalNotification(msg, type, title) {
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: title || 'Notification',
-            text: msg,
-            icon: type || 'info',
-            confirmButtonColor: '#800000'
-        });
-    } else {
-        alert(`${title}: ${msg}`);
+    // Persist to localStorage
+    let logs = [];
+    try {
+        const stored = localStorage.getItem('systemActivityLogs');
+        if (stored) logs = JSON.parse(stored);
+    } catch (e) { logs = []; }
+
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const newLog = {
+        id: Date.now(),
+        userName: localStorage.getItem('loggedInUser') || 'Admin',
+        action: action,
+        reference: details,
+        timestamp: ts,
+        category: getActivityCategory(action),
+        ip: '192.168.1.10'
+    };
+
+    logs.unshift(newLog);
+
+    // Keep max 500 entries
+    if (logs.length > 500) logs = logs.slice(0, 500);
+
+    localStorage.setItem('systemActivityLogs', JSON.stringify(logs));
+
+    // Refresh dashboard recent activities if on dashboard
+    if (document.getElementById('recentActivities')) {
+        loadRecentActivities();
+    }
+
+    // Refresh full log if on activity log page
+    if (document.getElementById('fullActivityLogTable')) {
+        loadFullActivityLog();
     }
 }
 
-function showConfirm(msg, callback) {
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: 'Confirm Action',
-            text: msg,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#800000',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Yes, proceed'
-        }).then((result) => {
-            if (result.isConfirmed && callback) {
-                callback();
-            }
-        });
-    } else {
-        if (confirm(msg) && callback) {
-            callback();
-        }
-    }
-}
+// showModalNotification and showConfirm are defined in main.js — not duplicated here

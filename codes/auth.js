@@ -46,97 +46,71 @@ function handleLogin() {
 
     // Simulate API call with delay
     setTimeout(() => {
-        // Mock authentication
-        // In a real app, this would be a server-side check
+        // 1. Check dynamic users from localStorage
+        let users = [];
+        try {
+            const stored = localStorage.getItem('users');
+            if (stored) users = JSON.parse(stored);
+        } catch (e) { }
 
-        // Default admin account
-        if (trimmedUsername === 'admin' && trimmedPassword === 'admin123') {
-            // Login successful
+        const foundUser = users.find(u =>
+            u.username.toLowerCase() === trimmedUsername.toLowerCase() &&
+            u.password === trimmedPassword &&
+            !u.isDeleted &&
+            u.status === 'Active'
+        );
+
+        if (foundUser || (trimmedUsername === 'admin' && trimmedPassword === 'admin123')) {
+            const role = foundUser ? foundUser.role.toLowerCase().replace(' ', '') : 'admin';
+            const displayName = foundUser ? foundUser.name : 'Admin';
+
             loginBtn.innerHTML = originalText;
             loginBtn.disabled = false;
 
-            // Save simple auth flag
-            try {
-                localStorage.setItem('loggedInRole', 'admin');
-            } catch (e) { }
+            // Save auth flag
+            localStorage.setItem('loggedInRole', role === 'seniorstaff' ? 'admin' : role);
+            localStorage.setItem('loggedInUser', displayName);
 
             if (window.Swal) {
                 Swal.fire({
                     icon: 'success',
                     title: 'Login Successful',
-                    text: 'Welcome back, Admin!',
+                    text: `Welcome back, ${displayName}!`,
                     timer: 1500,
                     timerProgressBar: true,
                     showConfirmButton: false,
                     heightAuto: false
                 }).then(() => {
+                    if (role === 'admin' || role === 'seniorstaff' || role === 'owner') {
+                        window.location.href = 'admin-dashboard.html';
+                    } else {
+                        window.location.href = 'staff-menu.html';
+                    }
+                });
+            } else {
+                if (role === 'admin' || role === 'seniorstaff' || role === 'owner') {
                     window.location.href = 'admin-dashboard.html';
-                });
-            } else {
-                window.location.href = 'admin-dashboard.html';
+                } else {
+                    window.location.href = 'staff-menu.html';
+                }
             }
             return;
         }
 
-        // Mock staff account
-        if (trimmedUsername === 'staff' && trimmedPassword === 'staff123') {
+        // 2. Legacy hardcoded check for safety (optional but good for dev)
+        if ((trimmedUsername === 'staff' && trimmedPassword === 'staff123') ||
+            (trimmedUsername === 'cashier' && trimmedPassword === 'cashier123')) {
+
+            const role = trimmedUsername;
             loginBtn.innerHTML = originalText;
             loginBtn.disabled = false;
-
-            try {
-                localStorage.setItem('loggedInRole', 'staff');
-            } catch (e) { }
-
-            if (window.Swal) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Login Successful',
-                    text: 'Welcome back, Staff!',
-                    timer: 1500,
-                    timerProgressBar: true,
-                    showConfirmButton: false,
-                    heightAuto: false
-                }).then(() => {
-                    window.location.href = 'staff-menu.html';
-                });
-            } else {
-                window.location.href = 'staff-menu.html';
-            }
-            return;
-        }
-
-        // Mock cashier account
-        if (trimmedUsername === 'cashier' && trimmedPassword === 'cashier123') {
-            loginBtn.innerHTML = originalText;
-            loginBtn.disabled = false;
-
-            try {
-                localStorage.setItem('loggedInRole', 'cashier');
-            } catch (e) { }
-
-            if (window.Swal) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Login Successful',
-                    text: 'Welcome back, Cashier!',
-                    timer: 1500,
-                    timerProgressBar: true,
-                    showConfirmButton: false,
-                    heightAuto: false
-                }).then(() => {
-                    // Cashier uses same interface as staff
-                    window.location.href = 'staff-menu.html';
-                });
-            } else {
-                window.location.href = 'staff-menu.html';
-            }
+            localStorage.setItem('loggedInRole', role);
+            window.location.href = 'staff-menu.html';
             return;
         }
 
         // If credentials don't match
         showLoginError('Invalid username or password');
-
-        // Reset button
         loginBtn.innerHTML = originalText;
         loginBtn.disabled = false;
     }, 1500);
@@ -228,41 +202,28 @@ function handleAccountRequest() {
         requests.push(request);
         localStorage.setItem('accountRequests', JSON.stringify(requests));
 
-        // Show inline success message (fallback)
-        if (requestSuccess) {
-            requestSuccess.classList.remove('d-none');
-        }
-        if (requestError) {
-            requestError.classList.add('d-none');
+        // Fancy SweetAlert success card
+        if (window.Swal) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Request Submitted!',
+                text: 'Your account request is now pending approval. Please wait for an administrator to activate your account.',
+                confirmButtonText: 'Great, thanks!',
+                confirmButtonColor: '#800000',
+                background: '#fff',
+                heightAuto: false,
+                customClass: {
+                    popup: 'swal2-rounded'
+                }
+            });
+        } else {
+            alert('Your request has been submitted and is pending approval.');
         }
 
         // Reset form
         requestAccountForm.reset();
-
-        // Reset button
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
-
-        // Fancy SweetAlert success card
-        if (window.Swal) {
-            Swal.fire({
-                iconHtml: '<div style="font-size:40px;line-height:1;">😊</div>',
-                customClass: {
-                    popup: 'swal2-rounded swal2-border-0',
-                    title: 'swal2-title',
-                    confirmButton: 'swal2-confirm'
-                },
-                iconColor: '#22c55e',
-                title: 'yay!',
-                html: '<p style="margin:0 0 8px;font-size:15px;color:#4b5563;">You completed the registration!</p>',
-                confirmButtonText: 'Ok Cool!',
-                confirmButtonColor: '#22c55e',
-                showCloseButton: false,
-                showCancelButton: false,
-                background: '#f0fdf4',
-                heightAuto: false
-            });
-        }
     }, 1000);
 }
 

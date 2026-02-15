@@ -58,13 +58,13 @@ function showConfirm(message, callback) {
     // Prefer SweetAlert2 confirmation dialog
     if (window.Swal) {
         Swal.fire({
-            title: 'Are you sure?',
+            title: 'Confirm Action',
             text: message,
-            icon: 'warning',
+            icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'Yes',
+            confirmButtonText: 'Yes, proceed',
             cancelButtonText: 'No',
-            confirmButtonColor: '#d33',
+            confirmButtonColor: '#800000',
             cancelButtonColor: '#6c757d'
         }).then((result) => {
             if (result.isConfirmed && typeof callback === 'function') {
@@ -77,6 +77,20 @@ function showConfirm(message, callback) {
     // Fallback to native confirm if SweetAlert2 is not loaded
     if (window.confirm(message) && typeof callback === 'function') {
         callback();
+    }
+}
+
+// Modal notification function (uses SweetAlert2 when available)
+function showModalNotification(msg, type, title) {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: title || 'Notification',
+            text: msg,
+            icon: type || 'info',
+            confirmButtonColor: '#800000'
+        });
+    } else {
+        alert(`${title}: ${msg}`);
     }
 }
 

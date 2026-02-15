@@ -252,10 +252,84 @@ function recordSale() {
     if (currentSaleItems.length === 0) return;
 
     showModalNotification('Recording sale...', 'info', 'Processing');
+
     setTimeout(() => {
+        // Calculate total
+        // We need price info from allMenuItems
+        let total = 0;
+        const itemsWithDetails = currentSaleItems.map(item => {
+            const menuItem = allMenuItems.find(m => m.id == item.id);
+            const price = menuItem ? menuItem.price : 0;
+            const subtotal = price * item.quantity;
+            total += subtotal;
+            return {
+                ...item,
+                price: price,
+                subtotal: subtotal
+            };
+        });
+
+        // Create sale object
+        const newSale = {
+            id: generateId('SALE-'),
+            date: formatDate(new Date(), 'yyyy-mm-dd'),
+            time: formatTime(new Date()),
+            timestamp: new Date().getTime(),
+            items: itemsWithDetails,
+            total: total,
+            staff: 'Current User' // In a real app we'd get this from session
+        };
+
+        // Save to localStorage
+        let sales = loadFromLocalStorage('sales') || [];
+        sales.push(newSale);
+        saveToLocalStorage('sales', sales);
+
+        // Update ingredients (deduct quantity)
+        updateIngredientsStock(itemsWithDetails);
+
         showModalNotification('Sale recorded successfully!', 'success', 'Success');
         clearCurrentSale();
+
+        // Log activity
+        logStaffActivity('Recorded Sale', newSale.id, 'Success');
     }, 1000);
+}
+
+function updateIngredientsStock(saleItems) {
+    let ingredients = loadFromLocalStorage('ingredients') || [];
+    let recipes = loadFromLocalStorage('adminRecipes') || [];
+
+    saleItems.forEach(saleItem => {
+        // Find recipe for this menu item
+        // Note: menu item id in sale matches id in allMenuItems
+        const recipe = recipes.find(r => r.menuItem === saleItem.name);
+        if (recipe) {
+            recipe.ingredients.forEach(recIng => {
+                const ing = ingredients.find(i => i.name === recIng.name);
+                if (ing) {
+                    ing.quantity -= (recIng.qty * saleItem.quantity);
+                    if (ing.quantity < 0) ing.quantity = 0;
+                }
+            });
+        }
+    });
+
+    saveToLocalStorage('ingredients', ingredients);
+}
+
+function logStaffActivity(action, reference, status) {
+    let logs = loadFromLocalStorage('activityLogs') || [];
+    const newLog = {
+        id: Date.now(),
+        userName: 'Current User',
+        action: action,
+        reference: reference,
+        timestamp: formatDate(new Date(), 'yyyy-mm-dd') + ' ' + formatTime(new Date()),
+        status: status
+    };
+    logs.unshift(newLog);
+    saveToLocalStorage('activityLogs', logs.slice(0, 100)); // Keep last 100
 }
 
 // Ingredients Functions
@@ -404,21 +478,4 @@ function loadActivityLog() {
     tbody.innerHTML = '<tr><td>2023-10-01</td><td>Logged in</td><td>-</td><td>Success</td></tr>';
 }
 
-// Helper Functions
-function showModalNotification(msg, type, title) {
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({ title: title || 'Notification', text: msg, icon: type || 'info', confirmButtonColor: '#800000' });
-    } else {
-        alert(`${title}: ${msg}`);
-    }
-}
-
-function showConfirm(msg, callback) {
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: 'Confirm', text: msg, icon: 'question', showCancelButton: true, confirmButtonColor: '#800000'
-        }).then(result => { if (result.isConfirmed && callback) callback(); });
-    } else {
-        if (confirm(msg) && callback) callback();
-    }
-}
+// showModalNotification and showConfirm are defined in main.js — not duplicated here
