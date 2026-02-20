@@ -1,7 +1,3 @@
-
-
-
-
 // DOM Ready
 document.addEventListener('DOMContentLoaded', function () {
     // Login form submission
@@ -137,18 +133,20 @@ function showLoginError(message) {
 
 // Handle account request
 function handleAccountRequest() {
-    const fullName = document.getElementById('fullName').value;
-    const username = document.getElementById('requestUsername').value;
-    const password = document.getElementById('requestPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
+    const fullName = document.getElementById('fullName').value.trim();
+    const username = document.getElementById('requestUsername').value.trim();
+    const password = document.getElementById('requestPassword').value.trim();
+    const confirmPassword = document.getElementById('confirmPassword').value.trim();
     const requestedRole = document.getElementById('requestedRole').value;
-
-    const requestError = document.getElementById('requestError');
-    const requestSuccess = document.getElementById('requestSuccess');
 
     // Validation
     if (!fullName || !username || !password || !confirmPassword) {
         showRequestError('Please fill in all required fields');
+        return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        showRequestError('Invalid username format. Only letters, numbers, and underscores allowed.');
         return;
     }
 
@@ -162,62 +160,65 @@ function handleAccountRequest() {
         return;
     }
 
-    // Check username uniqueness (simulated)
-    const existingUsers = ['admin', 'staff', 'cashier', 'john', 'jane'];
-    if (existingUsers.includes(username.toLowerCase())) {
-        showRequestError('Username already exists. Please choose a different username.');
-        return;
-    }
-
-    // Show loading state
     const requestAccountForm = document.getElementById('requestAccountForm');
     if (!requestAccountForm) return;
+
     const submitBtn = requestAccountForm.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
     submitBtn.innerHTML = '<span class="loading-spinner"></span> Submitting...';
     submitBtn.disabled = true;
 
-    // Simulate API call
-    setTimeout(() => {
-        // Save request to local storage (simulated)
-        const request = {
-            id: Date.now(),
-            fullName,
-            username,
-            password, // In real app, this would be hashed
-            requestedRole,
-            status: 'Pending',
-            date: new Date().toLocaleDateString()
-        };
-
-        // Get existing requests or initialize array
-        let requests = JSON.parse(localStorage.getItem('accountRequests')) || [];
-        requests.push(request);
-        localStorage.setItem('accountRequests', JSON.stringify(requests));
-
-        // Fancy SweetAlert success card
-        if (window.Swal) {
-            Swal.fire({
-                icon: 'success',
-                title: 'Request Submitted!',
-                text: 'Your account request is now pending approval. Please wait for an administrator to activate your account.',
-                confirmButtonText: 'Great, thanks!',
-                confirmButtonColor: '#800000',
-                background: '#fff',
-                heightAuto: false,
-                customClass: {
-                    popup: 'swal2-rounded'
-                }
-            });
-        } else {
-            alert('Your request has been submitted and is pending approval.');
-        }
-
-        // Reset form
-        requestAccountForm.reset();
+    fetch("http://localhost/Ethans%20Cafe/codes/php/register.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            full_name: fullName,
+            username: username,
+            password: password,
+            requested_role_id: requestedRole
+        })
+    })
+    .then(function(res) {
+        return res.json().then(function(data) {
+            return { status: res.status, data: data };
+        });
+    })
+    .then(function(result) {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
-    }, 1000);
+
+        if (result.data.error) {
+            showRequestError(result.data.error);
+            return;
+        }
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Request Submitted!',
+            text: 'Your account request is now pending approval. Please wait for an administrator to activate your account.',
+            confirmButtonText: 'Great, thanks!',
+            confirmButtonColor: '#800000',
+            background: '#fff',
+            heightAuto: false
+        });
+
+        requestAccountForm.reset();
+    })
+    .catch(function(err) {
+        console.error('Request failed:', err);
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+        showRequestError('Network error. Please try again.');
+    });
+}
+
+// Hook up form submit
+const requestAccountForm = document.getElementById('requestAccountForm');
+if (requestAccountForm) {
+    requestAccountForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        handleAccountRequest();
+    });
 }
 
 function showRequestError(message) {
