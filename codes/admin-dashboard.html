@@ -27,6 +27,8 @@
                 window.location.href = 'index.html';
             }
         })();
+
+        
     </script>
 </head>
 
@@ -178,6 +180,9 @@
                                     <div class="col mr-2">
                                         <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: black;">
                                             Total Sales Records
+                                            <button class="btn btn-link btn-sm p-0 ms-2" id="salesPrevBtn" title="Previous" tabindex="0"><i class="fas fa-chevron-up"></i></button>
+                                            <button class="btn btn-link btn-sm p-0 ms-1" id="salesNextBtn" title="Next" tabindex="0"><i class="fas fa-chevron-down"></i></button>
+                                            <span class="badge bg-danger ms-2" id="salesPeriodLabel">This Month</span>
                                         </div>
                                         <div class="h5 mb-0 font-weight-bold" id="totalSalesRecords"
                                             style="color: black;">0</div>
@@ -296,7 +301,26 @@
     <script src="admin.js"></script>
 
     <script>
-        // Any page-specific quick scripts can go here
+    // Sales period options
+    const salesPeriods = ["This Day", "This Month", "This Year"];
+    let currentPeriod = 1; // Start at "This Month"
+
+    function updateSalesPeriod() {
+        document.getElementById('salesPeriodLabel').textContent = salesPeriods[currentPeriod];
+        // TODO: Update #totalSalesRecords value via AJAX or logic for the selected period
+    }
+
+    document.getElementById('salesPrevBtn').onclick = function() {
+        currentPeriod = (currentPeriod - 1 + salesPeriods.length) % salesPeriods.length;
+        updateSalesPeriod();
+    };
+    document.getElementById('salesNextBtn').onclick = function() {
+        currentPeriod = (currentPeriod + 1) % salesPeriods.length;
+        updateSalesPeriod();
+    };
+
+    // Initialize label
+    updateSalesPeriod();
     </script>
 </body>
 

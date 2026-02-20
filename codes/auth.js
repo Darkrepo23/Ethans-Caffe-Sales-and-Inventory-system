@@ -1,4 +1,6 @@
-// Authentication JavaScript
+
+
+
 
 // DOM Ready
 document.addEventListener('DOMContentLoaded', function () {
@@ -22,99 +24,90 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 // Handle login
-function handleLogin() {
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const loginError = document.getElementById('loginError');
+async function handleLogin() {
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const loginBtn = document.querySelector('#loginForm button[type="submit"]');
 
-    // Basic validation
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    // Basic client-side validation
     if (!username || !password) {
-        showLoginError('Please enter both username and password');
+        showLoginError("Please enter both username and password");
         return;
     }
 
-    const trimmedUsername = username.trim();
-    const trimmedPassword = password.trim();
+    // Enforce length limits client-side too
+    if (username.length > 100 || password.length > 255) {
+        showLoginError("Input is too long");
+        return;
+    }
 
-    // Show loading state
-    const loginForm = document.getElementById('loginForm');
-    if (!loginForm) return;
-    const loginBtn = loginForm.querySelector('button[type="submit"]');
+    // Validate username format client-side
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        showLoginError("Invalid username format");
+        return;
+    }
+
     const originalText = loginBtn.innerHTML;
     loginBtn.innerHTML = '<span class="loading-spinner"></span> Logging in...';
     loginBtn.disabled = true;
 
-    // Simulate API call with delay
-    setTimeout(() => {
-        // 1. Check dynamic users from localStorage
-        let users = [];
-        try {
-            const stored = localStorage.getItem('users');
-            if (stored) users = JSON.parse(stored);
-        } catch (e) { }
+    try {
+        console.log("Sending login request...", { username, password: "[HIDDEN]" });
 
-        const foundUser = users.find(u =>
-            u.username.toLowerCase() === trimmedUsername.toLowerCase() &&
-            u.password === trimmedPassword &&
-            !u.isDeleted &&
-            u.status === 'Active'
-        );
+        const res = await fetch("http://localhost/Ethans%20Cafe/codes/php/login.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
+        });
 
-        if (foundUser || (trimmedUsername === 'admin' && trimmedPassword === 'admin123')) {
-            const role = foundUser ? foundUser.role.toLowerCase().replace(' ', '') : 'admin';
-            const displayName = foundUser ? foundUser.name : 'Admin';
+        const data = await res.json();
 
-            loginBtn.innerHTML = originalText;
-            loginBtn.disabled = false;
-
-            // Save auth flag
-            localStorage.setItem('loggedInRole', role === 'seniorstaff' ? 'admin' : role);
-            localStorage.setItem('loggedInUser', displayName);
-
-            if (window.Swal) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Login Successful',
-                    text: `Welcome back, ${displayName}!`,
-                    timer: 1500,
-                    timerProgressBar: true,
-                    showConfirmButton: false,
-                    heightAuto: false
-                }).then(() => {
-                    if (role === 'admin' || role === 'seniorstaff' || role === 'owner') {
-                        window.location.href = 'admin-dashboard.html';
-                    } else {
-                        window.location.href = 'staff-menu.html';
-                    }
-                });
-            } else {
-                if (role === 'admin' || role === 'seniorstaff' || role === 'owner') {
-                    window.location.href = 'admin-dashboard.html';
-                } else {
-                    window.location.href = 'staff-menu.html';
-                }
-            }
-            return;
-        }
-
-        // 2. Legacy hardcoded check for safety (optional but good for dev)
-        if ((trimmedUsername === 'staff' && trimmedPassword === 'staff123') ||
-            (trimmedUsername === 'cashier' && trimmedPassword === 'cashier123')) {
-
-            const role = trimmedUsername;
-            loginBtn.innerHTML = originalText;
-            loginBtn.disabled = false;
-            localStorage.setItem('loggedInRole', role);
-            window.location.href = 'staff-menu.html';
-            return;
-        }
-
-        // If credentials don't match
-        showLoginError('Invalid username or password');
         loginBtn.innerHTML = originalText;
         loginBtn.disabled = false;
-    }, 1500);
+
+        if (!res.ok || data.error) {
+            showLoginError(data.error || "Login failed");
+            return;
+        }
+
+        // Clear inputs after successful login
+        usernameInput.value = '';
+        passwordInput.value = '';
+
+        Swal.fire({
+            icon: "success",
+            title: "Login Successful",
+            text: `Welcome back, ${data.full_name}!`,
+            showConfirmButton: false,
+            timer: 1200,
+            timerProgressBar: true
+        }).then(() => {
+            const role = parseInt(data.role_id);
+            const roleName = (data.role_name || "").toLowerCase();
+
+            if (role === 1 || roleName === "admin") {
+                localStorage.setItem('loggedInRole', 'admin');
+                window.location.href = "admin-dashboard.html";
+            } else if (role === 2 || roleName === "staff") {
+                localStorage.setItem('loggedInRole', 'staff');
+                window.location.href = "staff-menu.html";
+            } else {
+                localStorage.setItem('loggedInRole', 'user');
+                window.location.href = "staff-menu.html";
+            }
+        });
+
+    } catch (err) {
+        loginBtn.innerHTML = originalText;
+        loginBtn.disabled = false;
+        console.error("Network or JS error:", err);
+        showLoginError("Network error. Please try again.");
+    }
 }
+
 
 function showLoginError(message) {
     if (window.Swal) {
@@ -252,3 +245,21 @@ function showRequestError(message) {
         }
     }
 }
+
+// Add admin user with password '123' (password will be hashed by backend)
+// usersDB.add({
+//     full_name: "Admin User",
+//     username: "admin",
+//     password_hash: "123", // Backend will hash this
+//     role_id: 1,            // Make sure this role exists
+//     status: "active",
+//     created_at: new Date().toISOString().slice(0, 19).replace("T", " ")
+// }).then(result => {
+//     if (result && result.error) {
+//         console.error('Failed to add admin user:', result.error);
+//         alert('Failed to add admin user: ' + result.error);
+//     } else {
+//         console.log('Admin user added:', result);
+//         alert('Admin user added successfully!');
+//     }
+// });

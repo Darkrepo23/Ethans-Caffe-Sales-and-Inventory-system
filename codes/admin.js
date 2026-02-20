@@ -1,9 +1,244 @@
 // Admin Dashboard JavaScript - Updated with User Management and Multi-page fixes
+const API_URL = "http://localhost/Ethans%20Cafe/codes/php/app.php";
+
+function createDB(table) {
+	 return {
+	 add: async (data) => {
+		 console.log(`[usersDB.add] Sending:`, { ...data, table });
+		 try {
+			 const res = await fetch(API_URL, {
+				 method: "POST",
+				 headers: {
+					 "Content-Type": "application/json",
+					 "Accept": "application/json",
+					 "X-Requested-With": "XMLHttpRequest"
+				 },
+				 body: JSON.stringify({ ...data, table })
+			 });
+			 console.log(`[usersDB.add] Response status:`, res.status);
+			 const text = await res.text();
+			 try {
+				 const json = JSON.parse(text);
+				 console.log(`[usersDB.add] Response JSON:`, json);
+				 if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				 return json;
+			 } catch (parseErr) {
+				 console.error(`[usersDB.add] Response not JSON:`, text);
+				 throw parseErr;
+			 }
+		 } catch (err) {
+			 console.error(`Add failed [${table}]:`, err);
+			 return { error: err.message };
+		 }
+	 },
+	 show: async (filters = {}) => {
+		 console.log(`[${table}DB.show] Filters:`, filters);
+		 try {
+			 const params = new URLSearchParams({ ...filters, table }).toString();
+			 const res = await fetch(`${API_URL}?${params}`, {
+				 headers: {
+					 "Accept": "application/json",
+					 "X-Requested-With": "XMLHttpRequest"
+				 }
+			 });
+			 console.log(`[${table}DB.show] Response status:`, res.status);
+			 const text = await res.text();
+			 try {
+				 const json = JSON.parse(text);
+				 console.log(`[${table}DB.show] Response JSON:`, json);
+				 if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				 return json;
+			 } catch (parseErr) {
+				 console.error(`[${table}DB.show] Response not JSON:`, text);
+				 throw parseErr;
+			 }
+		 } catch (err) {
+			 console.error(`Show failed [${table}]:`, err);
+			 return [];
+		 }
+	 },
+	 edit: async (data) => {
+		 console.log(`[${table}DB.edit] Data:`, data);
+		 try {
+			 if (!data.id && !data.key) throw new Error("Missing id/key for update");
+			 const res = await fetch(API_URL, {
+				 method: "PUT",
+				 headers: {
+					 "Content-Type": "application/json",
+					 "Accept": "application/json",
+					 "X-Requested-With": "XMLHttpRequest"
+				 },
+				 body: JSON.stringify({ ...data, table })
+			 });
+			 console.log(`[${table}DB.edit] Response status:`, res.status);
+			 const text = await res.text();
+			 try {
+				 const json = JSON.parse(text);
+				 console.log(`[${table}DB.edit] Response JSON:`, json);
+				 if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				 return json;
+			 } catch (parseErr) {
+				 console.error(`[${table}DB.edit] Response not JSON:`, text);
+				 throw parseErr;
+			 }
+		 } catch (err) {
+			 console.error(`Edit failed [${table}]:`, err);
+			 return { error: err.message };
+		 }
+	 },
+	 delete: async (idOrKey) => {
+		 console.log(`[${table}DB.delete] Key:`, idOrKey);
+		 try {
+			 const keyName = typeof idOrKey === 'object' ? Object.keys(idOrKey)[0] : (table === 'system_settings' ? 'key' : 'id');
+			 const keyValue = typeof idOrKey === 'object' ? Object.values(idOrKey)[0] : idOrKey;
+			 const res = await fetch(API_URL, {
+				 method: "DELETE",
+				 headers: {
+					 "Content-Type": "application/json",
+					 "Accept": "application/json",
+					 "X-Requested-With": "XMLHttpRequest"
+				 },
+				 body: JSON.stringify({ [keyName]: keyValue, table })
+			 });
+			 console.log(`[${table}DB.delete] Response status:`, res.status);
+			 const text = await res.text();
+			 try {
+				 const json = JSON.parse(text);
+				 console.log(`[${table}DB.delete] Response JSON:`, json);
+				 if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				 return json;
+			 } catch (parseErr) {
+				 console.error(`[${table}DB.delete] Response not JSON:`, text);
+				 throw parseErr;
+			 }
+		 } catch (err) {
+			 console.error(`Delete failed [${table}]:`, err);
+			 return { error: err.message };
+		 }
+	 }
+	 };
+}
+
+// Ready-to-use DB objects for each table
+const rolesDB = createDB('roles');
+const usersDB = createDB('users');
+const accountRequestsDB = createDB('account_requests');
+const menuCategoriesDB = createDB('menu_categories');
+const menuItemsDB = createDB('menu_items');
+const ingredientCategoriesDB = createDB('ingredient_categories');
+const unitsDB = createDB('units');
+const ingredientsDB = createDB('ingredients');
+const recipesDB = createDB('recipes');
+const salesDB = createDB('sales');
+const saleItemsDB = createDB('sale_items');
+const inventoryTransactionsDB = createDB('inventory_transactions');
+const activityLogsDB = createDB('activity_logs');
+const requestsTblDB = createDB('requests_tbl');
+const backupsDB = createDB('backups');
+const systemSettingsDB = createDB('system_settings');
+const temporaryAccountLogDB = createDB('temporary_account_log');
 
 // Global variables
 let tempAccountActive = false;
 let currentRequestType = null;
 let currentRequestId = null;
+
+
+
+
+async function loadUnits() {
+    console.log("🔄 loadUnits() called");
+
+    const unitSelect = document.getElementById("ingredientUnit");
+
+    if (!unitSelect) {
+        console.error("❌ ingredientUnit element NOT FOUND");
+        return;
+    }
+
+    console.log("✔ ingredientUnit element FOUND");
+
+    unitSelect.innerHTML = `<option value="">Select Unit</option>`;
+
+    try {
+        console.log("📡 Fetching units from unitsDB.show()...");
+        const units = await unitsDB.show();
+        console.log("📥 Units received:", units);
+
+        if (!units || units.length === 0) {
+            console.warn("⚠ No units found");
+            unitSelect.innerHTML = `<option value="">No units found</option>`;
+            return;
+        }
+
+        console.log(`✔ ${units.length} units found. Rendering...`);
+
+        units.forEach(unit => {
+            const opt = document.createElement("option");
+            opt.value = unit.id;
+            opt.textContent = unit.short_name || unit.name;
+            unitSelect.appendChild(opt);
+        });
+
+        console.log("🎉 Units successfully loaded!");
+
+    } catch (error) {
+        console.error("🔥 ERROR loading units:", error);
+    }
+}
+
+// Run on page load
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("🌐 DOMContentLoaded fired");
+    loadUnits();
+});
+
+
+// Load ingredient categories into the select element
+async function loadIngredientCategories() {
+    const categorySelect = document.getElementById("ingredientCategory");
+
+    if (!categorySelect) {
+        console.error("❌ ingredientCategory element not found");
+        return;
+    }
+
+    // Reset select
+    categorySelect.innerHTML = `<option value="">Select Category</option>`;
+
+    try {
+        console.log("📡 Fetching categories from ingredientCategoriesDB...");
+        const categories = await ingredientCategoriesDB.show();
+        console.log("📥 Categories received:", categories);
+
+        if (!Array.isArray(categories) || categories.length === 0) {
+            categorySelect.innerHTML = `<option value="">No categories found</option>`;
+            return;
+        }
+
+        categories.forEach(cat => {
+            const opt = document.createElement("option");
+            opt.value = cat.id;       // Save ID to ingredients table
+            opt.textContent = cat.name; // Display name
+            categorySelect.appendChild(opt);
+        });
+
+        console.log("🎉 Ingredient categories loaded successfully!");
+    } catch (error) {
+        console.error("🔥 ERROR loading ingredient categories:", error);
+        categorySelect.innerHTML = `<option value="">Error loading categories</option>`;
+    }
+}
+
+// Ensure DOM is ready before loading
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof ingredientCategoriesDB === 'undefined') {
+        console.error("❌ ingredientCategoriesDB is not defined!");
+        return;
+    }
+    loadIngredientCategories();
+});
+
 
 // DOM Ready
 document.addEventListener('DOMContentLoaded', function () {
@@ -1068,7 +1303,7 @@ function initializeIngredientsMasterlist() {
     loadIngredientsMasterlist();
 }
 
-function loadIngredientsMasterlist() {
+async function loadIngredientsMasterlist() {
     const tableElement = document.getElementById('ingredientsMasterTable');
     if (!tableElement) return;
 
@@ -1079,11 +1314,26 @@ function loadIngredientsMasterlist() {
     const searchQuery = (document.getElementById('masterIngredientSearch')?.value || '').toLowerCase().trim();
     const categoryFilter = document.getElementById('masterCategoryFilter')?.value || '';
 
-    let ingredients = getAvailableIngredients();
+    // 1️⃣ Load ingredients from DB
+    let ingredients = await ingredientsDB.show(); // fetch all ingredients
 
-    // Apply filtering
+    // 2️⃣ Load categories and units to map IDs to names
+    const categories = await ingredientCategoriesDB.show();
+    const units = await unitsDB.show();
+
+    const getCategoryName = (id) => {
+        const cat = categories.find(c => c.id == id);
+        return cat ? cat.name : 'Unknown';
+    };
+
+    const getUnitName = (id) => {
+        const unit = units.find(u => u.id == id);
+        return unit ? (unit.short_name || unit.name) : 'Unknown';
+    };
+
+    // 3️⃣ Apply filtering
     if (categoryFilter) {
-        ingredients = ingredients.filter(ing => ing.category === categoryFilter);
+        ingredients = ingredients.filter(ing => getCategoryName(ing.category_id) === categoryFilter);
     }
     if (searchQuery) {
         ingredients = ingredients.filter(ing =>
@@ -1092,42 +1342,35 @@ function loadIngredientsMasterlist() {
         );
     }
 
-    // Count low stock items (on all items, not just filtered)
-    const allIngredients = getAvailableIngredients();
+    // 4️⃣ Count low stock items
     let lowStockCount = 0;
-    allIngredients.forEach(ing => {
-        if (ing.quantity <= ing.threshold) lowStockCount++;
+    ingredients.forEach(ing => {
+        if (ing.current_quantity <= ing.low_stock_threshold) lowStockCount++;
     });
 
     if (masterLowStockCount) masterLowStockCount.textContent = lowStockCount;
-    if (masterTotalIngredients) masterTotalIngredients.textContent = allIngredients.length;
+    if (masterTotalIngredients) masterTotalIngredients.textContent = ingredients.length;
 
     ingredientsMasterTable.innerHTML = '';
-
     if (ingredients.length === 0) {
         ingredientsMasterTable.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No ingredients found.</td></tr>';
         return;
     }
 
-    const recipes = getRecipes();
-
+    // 5️⃣ Display ingredients
     ingredients.forEach(ingredient => {
-        const isLow = ingredient.quantity <= ingredient.threshold;
-        const usedInCount = recipes.filter(r =>
-            r.ingredients.some(ri => ri.name === ingredient.name)
-        ).length;
-
+        const isLow = ingredient.current_quantity <= ingredient.low_stock_threshold;
         const row = ingredientsMasterTable.insertRow();
         row.classList.add('animate__animated', 'animate__fadeIn');
         row.innerHTML = `
             <td>${ingredient.id}</td>
             <td><strong>${ingredient.name}</strong></td>
-            <td><span class="badge bg-secondary">${ingredient.category}</span></td>
-            <td>${ingredient.unit}</td>
-            <td class="${isLow ? 'text-danger fw-bold' : ''}">${ingredient.quantity} ${ingredient.unit}</td>
-            <td>${ingredient.threshold} ${ingredient.unit}</td>
+            <td><span class="badge bg-secondary">${getCategoryName(ingredient.category_id)}</span></td>
+            <td>${getUnitName(ingredient.unit_id)}</td>
+            <td class="${isLow ? 'text-danger fw-bold' : ''}">${ingredient.current_quantity} ${getUnitName(ingredient.unit_id)}</td>
+            <td>${ingredient.low_stock_threshold} ${getUnitName(ingredient.unit_id)}</td>
             <td><span class="badge ${!isLow ? 'bg-success' : 'bg-warning'}">${!isLow ? 'Normal' : 'Low Stock'}</span></td>
-            <td><span class="badge bg-info">${usedInCount} menu items</span></td>
+            <td><!-- You can add used-in menu items count if needed --></td>
             <td>
                 <div class="table-actions">
                     <button class="btn btn-sm btn-outline-danger" onclick="editIngredient(${ingredient.id})" title="Edit">
@@ -1142,110 +1385,139 @@ function loadIngredientsMasterlist() {
     });
 }
 
-function showAddIngredientModal() {
-    // Update threshold unit based on selected unit
-    const unitSelect = document.getElementById('ingredientUnit');
-    const thresholdUnit = document.getElementById('thresholdUnit');
 
-    if (unitSelect && thresholdUnit) {
-        unitSelect.addEventListener('change', function () {
-            thresholdUnit.textContent = this.value;
-        });
+async function showAddIngredientModal() {
+    const modalElem = document.getElementById('addIngredientModal');
+    if (!modalElem) return;
+
+    const unitSelect = document.getElementById('ingredientUnit');
+    const categorySelect = document.getElementById('ingredientCategory');
+    const thresholdUnit = document.getElementById('thresholdUnit');
+    const modalTitle = modalElem.querySelector('.modal-title');
+    const form = document.getElementById('addIngredientForm');
+
+    // 1️⃣ Load categories dynamically from DB
+    try {
+        const categories = await ingredientCategoriesDB.show();
+        if (categorySelect) {
+            categorySelect.innerHTML = '<option value="">Select Category</option>';
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.id;    // store ID for DB
+                opt.textContent = cat.name;
+                categorySelect.appendChild(opt);
+            });
+        }
+    } catch (err) {
+        console.error("Failed to load categories:", err);
     }
 
-    // Update title
-    const modalTitle = document.querySelector('#addIngredientModal .modal-title');
+    // 2️⃣ Load units dynamically from DB
+    try {
+        const units = await unitsDB.show();
+        if (unitSelect) {
+            unitSelect.innerHTML = '<option value="">Select Unit</option>';
+            units.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.id;                // store ID
+                opt.textContent = u.short_name || u.name;
+                opt.dataset.short = u.short_name || u.name; // for threshold display
+                unitSelect.appendChild(opt);
+            });
+        }
+    } catch (err) {
+        console.error("Failed to load units:", err);
+    }
+
+    // 3️⃣ Update modal title
     if (modalTitle) {
         modalTitle.innerHTML = editingIngredientId
             ? '<i class="fas fa-edit me-2"></i>Edit Ingredient'
             : '<i class="fas fa-plus-circle me-2"></i>Add Ingredient';
     }
 
-    // Pre-fill if editing
+    // 4️⃣ Pre-fill values if editing
     if (editingIngredientId) {
         const ingredients = getAvailableIngredients();
         const ing = ingredients.find(i => i.id === editingIngredientId);
         if (ing) {
             document.getElementById('ingredientName').value = ing.name;
-            document.getElementById('ingredientCategory').value = ing.category;
-            document.getElementById('ingredientUnit').value = ing.unit;
-            document.getElementById('lowStockThreshold').value = ing.threshold;
-            if (thresholdUnit) thresholdUnit.textContent = ing.unit;
+            if (categorySelect) categorySelect.value = ing.category_id;
+            if (unitSelect) {
+                unitSelect.value = ing.unit_id;
+                if (thresholdUnit) thresholdUnit.textContent = unitSelect.selectedOptions[0]?.dataset.short || '';
+            }
+            document.getElementById('lowStockThreshold').value = ing.low_stock_threshold;
         }
     } else {
-        const form = document.getElementById('addIngredientForm');
         if (form) form.reset();
         if (thresholdUnit) thresholdUnit.textContent = 'kg';
     }
 
-    // Show modal
-    const modalElem = document.getElementById('addIngredientModal');
-    if (!modalElem) return;
+    // 5️⃣ Update threshold unit when unit changes
+    if (unitSelect && thresholdUnit) {
+        unitSelect.addEventListener('change', function () {
+            thresholdUnit.textContent = this.selectedOptions[0]?.dataset.short || '';
+        }, { once: true }); // prevent multiple listeners stacking
+    }
+
+    // 6️⃣ Show modal
     const modal = new bootstrap.Modal(modalElem);
     modal.show();
 
-    // Save ingredient button
+    // 7️⃣ Attach save button listener safely
     const saveBtn = document.getElementById('saveIngredientBtn');
     if (saveBtn) {
         const newSaveBtn = saveBtn.cloneNode(true);
         saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
-        newSaveBtn.addEventListener('click', function () {
-            saveIngredient();
-        });
+        newSaveBtn.addEventListener('click', saveIngredient);
     }
 }
 
-function saveIngredient() {
+
+async function saveIngredient() {
     const name = document.getElementById('ingredientName')?.value.trim();
-    const category = document.getElementById('ingredientCategory')?.value;
-    const unit = document.getElementById('ingredientUnit')?.value;
+    const category_id = parseInt(document.getElementById('ingredientCategory')?.value);
+    const unit_id = parseInt(document.getElementById('ingredientUnit')?.value);
     const threshold = parseFloat(document.getElementById('lowStockThreshold')?.value) || 0;
 
-    // Validation
-    if (!name || !category || !unit) {
+    if (!name || !category_id || !unit_id) {
         showModalNotification('Please fill in all required fields', 'warning', 'Validation Error');
         return;
     }
 
-    let ingredients = getAvailableIngredients();
+    const ingredientData = {
+        name,
+        category_id,
+        unit_id,
+        current_quantity: 0,
+        low_stock_threshold: threshold,
+        status: 'active',
+        created_at: new Date().toISOString().slice(0,19).replace('T',' '),
+        updated_at: new Date().toISOString().slice(0,19).replace('T',' ')
+    };
 
-    if (editingIngredientId) {
-        const idx = ingredients.findIndex(i => i.id === editingIngredientId);
-        if (idx !== -1) {
-            ingredients[idx].name = name;
-            ingredients[idx].category = category;
-            ingredients[idx].unit = unit;
-            ingredients[idx].threshold = threshold;
+    try {
+        if (editingIngredientId) {
+            ingredientData.id = editingIngredientId;
+            await ingredientsDB.edit(ingredientData);
+            editingIngredientId = null;
+        } else {
+            await ingredientsDB.add(ingredientData);
         }
-        showModalNotification(`Ingredient "${name}" updated successfully`, 'success', 'Ingredient Updated');
-        logAdminActivity('Updated ingredient', name, 'Success');
-        editingIngredientId = null;
-    } else {
-        const maxId = ingredients.length > 0 ? Math.max(...ingredients.map(i => i.id)) : 0;
-        const newIngredient = {
-            id: maxId + 1,
-            name: name,
-            category: category,
-            unit: unit,
-            quantity: 0, // Default for new items
-            threshold: threshold,
-            usedIn: 0
-        };
-        ingredients.push(newIngredient);
-        showModalNotification(`Ingredient "${name}" added successfully`, 'success', 'Ingredient Added');
-        logAdminActivity('Added ingredient', name, 'Success');
+
+        const modalElem = document.getElementById('addIngredientModal');
+        const modal = bootstrap.Modal.getInstance(modalElem);
+        if (modal) modal.hide();
+
+        loadIngredientsMasterlist();
+        showModalNotification(`Ingredient "${name}" saved successfully`, 'success', 'Ingredient Saved');
+    } catch (err) {
+        console.error('Failed to save ingredient:', err);
+        showModalNotification('Failed to save ingredient', 'danger', 'Error');
     }
-
-    saveIngredientsToStorage(ingredients);
-
-    // Close modal
-    const modalElem = document.getElementById('addIngredientModal');
-    const modal = bootstrap.Modal.getInstance(modalElem);
-    if (modal) modal.hide();
-
-    // Refresh
-    loadIngredientsMasterlist();
 }
+
 
 function showSetThresholdsModal() {
     const ingredients = getAvailableIngredients();
@@ -1289,63 +1561,125 @@ function showSetThresholdsModal() {
     });
 }
 
-function editIngredient(id) {
-    editingIngredientId = id;
-    showAddIngredientModal();
+async function editIngredient(id) {
+    try {
+        // 1️⃣ Fetch ingredient from DB
+        const ingredients = await ingredientsDB.show({ id });
+        if (!ingredients || ingredients.length === 0) return;
+        const ing = ingredients[0];
+
+        // 2️⃣ Fetch all categories and units
+        const categories = await ingredientCategoriesDB.show();
+        const units = await unitsDB.show();
+
+        const categorySelect = document.getElementById('ingredientCategory');
+        const unitSelect = document.getElementById('ingredientUnit');
+        const thresholdUnit = document.getElementById('thresholdUnit');
+
+        if (!categorySelect || !unitSelect || !thresholdUnit) return;
+
+        // 3️⃣ Populate categories dropdown and pre-select current
+        categorySelect.innerHTML = `<option value="">Select Category</option>`;
+        categories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.id;          // ID stored as value
+            opt.textContent = cat.name;  // Name shown
+            if (cat.id == ing.category_id) opt.selected = true;
+            categorySelect.appendChild(opt);
+        });
+
+        // 4️⃣ Populate units dropdown and pre-select current
+        unitSelect.innerHTML = `<option value="">Select Unit</option>`;
+        units.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id;                      // ID stored as value
+            opt.textContent = u.short_name || u.name; // Name shown
+            if (u.id == ing.unit_id) opt.selected = true;
+            unitSelect.appendChild(opt);
+        });
+
+        // 5️⃣ Update threshold unit display
+        const selectedUnit = units.find(u => u.id == ing.unit_id);
+        thresholdUnit.textContent = selectedUnit ? (selectedUnit.short_name || selectedUnit.name) : '';
+
+        // 6️⃣ Fill other modal fields
+        document.getElementById('ingredientName').value = ing.name;
+        document.getElementById('lowStockThreshold').value = ing.low_stock_threshold;
+
+        // 7️⃣ Set editing ID
+        editingIngredientId = id;
+
+        // 8️⃣ Show modal
+        const modalElem = document.getElementById('addIngredientModal');
+        const modal = new bootstrap.Modal(modalElem);
+        modal.show();
+
+    } catch (err) {
+        console.error('Failed to edit ingredient:', err);
+        showModalNotification('Failed to load ingredient for editing', 'danger', 'Error');
+    }
 }
 
-function deleteIngredient(id) {
-    const ingredients = getAvailableIngredients();
-    const ing = ingredients.find(i => i.id === id);
-    if (!ing) return;
 
-    showConfirm(`Are you sure you want to delete "${ing.name}"? This will also remove it from any assigned recipes.`, function () {
-        const updated = ingredients.filter(i => i.id !== id);
-        saveIngredientsToStorage(updated);
+async function deleteIngredient(id) {
+    try {
+        // 1️⃣ Fetch ingredient
+        const ingredients = await ingredientsDB.show({ id });
+        if (!ingredients || ingredients.length === 0) return;
+        const ing = ingredients[0];
 
-        showModalNotification(`"${ing.name}" has been deleted`, 'success', 'Ingredient Deleted');
-        logAdminActivity('Deleted ingredient', ing.name, 'Success');
-        loadIngredientsMasterlist();
-    });
+        // 2️⃣ Confirm deletion
+        showConfirm(`Are you sure you want to delete "${ing.name}"? This will also remove it from any assigned recipes.`, async function () {
+            // 3️⃣ Delete via DB
+            await ingredientsDB.delete(id);
+
+            showModalNotification(`"${ing.name}" has been deleted`, 'success', 'Ingredient Deleted');
+            logAdminActivity('Deleted ingredient', ing.name, 'Success');
+
+            // 4️⃣ Refresh table
+            loadIngredientsMasterlist();
+        });
+    } catch (err) {
+        console.error('Failed to delete ingredient:', err);
+        showModalNotification('Failed to delete ingredient', 'danger', 'Error');
+    }
 }
-
 // ===== User Management Functions =====
 
-function getUsers() {
-    let users = [];
+async function getUsers() {
     try {
-        const stored = localStorage.getItem('users');
-        if (stored) users = JSON.parse(stored);
-    } catch (e) { users = []; }
+        const dbUsers = await usersDB.show();
+        if (!dbUsers || dbUsers.length === 0) return [];
 
-    if (!users || users.length === 0) {
-        users = [
-            { id: 1, name: 'John Doe', role: 'Staff', username: 'johndoe', status: 'Active', lastLogin: 'Today', isDeleted: false },
-            { id: 2, name: 'Jane Smith', role: 'Cashier', username: 'janesmith', status: 'Active', lastLogin: 'Today', isDeleted: false },
-            { id: 3, name: 'Robert Johnson', role: 'Staff', username: 'robertj', status: 'Active', lastLogin: 'Yesterday', isDeleted: false },
-            { id: 4, name: 'Sarah Williams', role: 'Senior Staff', username: 'sarahw', status: 'Active', lastLogin: 'Today', isDeleted: false },
-            { id: 5, name: 'Mike Brown', role: 'Staff', username: 'mikeb', deletedDate: '2023-09-28', deletedBy: 'Admin', isDeleted: true },
-            { id: 6, name: 'Emily Davis', role: 'Cashier', username: 'emilyd', deletedDate: '2023-09-25', deletedBy: 'Admin', isDeleted: true }
-        ];
-        localStorage.setItem('users', JSON.stringify(users));
+        const users = dbUsers.map(u => ({
+            id: u.id,
+            name: u.full_name,
+            username: u.username,
+            role: u.role_id,              // map role_id to string later if needed
+            status: u.status || 'Active',
+            lastLogin: u.last_login ? new Date(u.last_login).toLocaleString() : 'Never',
+            isDeleted: !!u.deleted_at,
+            deletedDate: u.deleted_at ? new Date(u.deleted_at).toLocaleDateString() : null,
+            deletedBy: u.deleted_by || null
+        }));
+
+        return users;
+    } catch (e) {
+        console.error('Failed to fetch users:', e);
+        return [];
     }
-    return users;
-}
-
-function saveUsersToStorage(users) {
-    localStorage.setItem('users', JSON.stringify(users));
 }
 
 function initializeUserManagement() {
     // Add User Button
-    const addUserBtn = document.getElementById('addUserBtn'); // Re-using ID from HTML
+    const addUserBtn = document.getElementById('addUserBtn');
     if (addUserBtn) {
         addUserBtn.addEventListener('click', function () {
             showAddUserModal();
         });
     }
 
-    // Save New User Button (in modal)
+    // Save New User Button
     const saveNewUserBtn = document.getElementById('saveNewUserBtn');
     if (saveNewUserBtn) {
         saveNewUserBtn.addEventListener('click', function () {
@@ -1353,7 +1687,7 @@ function initializeUserManagement() {
         });
     }
 
-    // Save Edit User Button (in modal)
+    // Save Edit User Button
     const saveUserChangesBtn = document.getElementById('saveUserChangesBtn');
     if (saveUserChangesBtn) {
         saveUserChangesBtn.addEventListener('click', function () {
@@ -1365,19 +1699,28 @@ function initializeUserManagement() {
     loadUserManagement();
 }
 
-function loadUserManagement() {
-    loadActiveUsers();
-    loadDeletedUsers();
+async function loadUserManagement() {
+    await loadActiveUsers();
+    await loadDeletedUsers();
 }
 
-function loadActiveUsers() {
+async function loadActiveUsers() {
     const tableElem = document.getElementById('activeUsersTable');
     if (!tableElem) return;
 
     const tbody = tableElem.querySelector('tbody');
     if (!tbody) return;
 
-    const users = getUsers().filter(u => !u.isDeleted);
+    // 1️⃣ Get all users
+    const users = (await getUsers()).filter(u => !u.isDeleted);
+
+    // 2️⃣ Get all roles from roleDB
+    let roles = [];
+    try {
+        roles = await rolesDB.show(); // [{id:1, name:'Staff'}, ...]
+    } catch (err) {
+        console.error('Failed to fetch roles:', err);
+    }
 
     tbody.innerHTML = '';
     if (users.length === 0) {
@@ -1386,11 +1729,14 @@ function loadActiveUsers() {
     }
 
     users.forEach(user => {
+        // Map role_id to role name
+        const roleName = roles.find(r => r.id === user.role)?.name || 'Unknown';
+
         const row = tbody.insertRow();
         row.classList.add('animate__animated', 'animate__fadeIn');
         row.innerHTML = `
             <td><strong>${user.name}</strong></td>
-            <td><span class="badge ${user.role === 'Staff' ? 'bg-success' : user.role === 'Cashier' ? 'bg-info' : 'bg-warning'}">${user.role}</span></td>
+            <td><span class="badge ${roleName === 'Staff' ? 'bg-success' : roleName === 'Cashier' ? 'bg-info' : 'bg-warning'}">${roleName}</span></td>
             <td>${user.username}</td>
             <td><span class="badge ${user.status === 'Active' ? 'bg-success' : 'bg-secondary'}">${user.status}</span></td>
             <td>${user.lastLogin || 'Never'}</td>
@@ -1408,7 +1754,61 @@ function loadActiveUsers() {
     });
 }
 
-function loadDeletedUsers() {
+// Populate ingredient select with unit_id as attribute
+function populateIngredientSelect(selectId) {
+    const selectElem = document.getElementById(selectId);
+    if (!selectElem) return;
+
+    selectElem.innerHTML = '<option value="">Select Ingredient</option>'; // placeholder
+
+    ingredientsDB.show().then(ingredients => {
+        unitsDB.show().then(units => {
+            ingredients.forEach(ing => {
+                const option = document.createElement('option');
+                option.value = ing.id; // store ingredient id as value
+                option.textContent = ing.name; // display ingredient name
+
+                // Add unit_id as custom attribute
+                option.setAttribute('data-unit-id', ing.unit_id);
+
+                // Optionally display unit name next to ingredient
+                const unitName = units.find(u => u.id === ing.unit_id)?.name || '';
+                option.textContent = `${ing.name} (${unitName})`;
+
+                selectElem.appendChild(option);
+            });
+        }).catch(err => console.error('Failed to load units:', err));
+    }).catch(err => console.error('Failed to load ingredients:', err));
+}
+
+populateIngredientSelect()
+// Usage
+populateIngredientSelect('ingredientsSelect');
+
+async function filterRole(selectId) {
+    const selectElem = document.getElementById(selectId);
+    if (!selectElem) return;
+
+    selectElem.innerHTML = '<option value="">Select</option>'; // placeholder
+
+    try {
+        const roles = await rolesDB.show(); // fetch all roles from rolesDB
+        roles.forEach(role => {
+            const option = document.createElement('option');
+            option.value = role.name;
+            option.textContent = role.name; // display the role name
+            selectElem.appendChild(option);
+        });
+    } catch (err) {
+        console.error('Failed to load roles for select:', err);
+    }
+}
+
+filterRole("editUserRole")
+filterRole("newUserRole")
+
+
+async function loadDeletedUsers() {
     const tableElem = document.getElementById('deletedUsersTable');
     if (!tableElem) return;
 
@@ -1416,7 +1816,7 @@ function loadDeletedUsers() {
     const badge = document.getElementById('deletedUsersCount');
     if (!tbody) return;
 
-    const users = getUsers().filter(u => u.isDeleted);
+    const users = (await getUsers()).filter(u => u.isDeleted);
 
     if (badge) badge.textContent = users.length;
 
@@ -1448,7 +1848,6 @@ function loadDeletedUsers() {
         `;
     });
 }
-
 function showAddUserModal() {
     const form = document.getElementById('addUserForm');
     if (form) form.reset();
@@ -1459,14 +1858,27 @@ function showAddUserModal() {
     modal.show();
 }
 
-function saveNewUser() {
-    const name = document.getElementById('newFullName').value.trim();
-    const username = document.getElementById('newUsername').value.trim();
-    const pass = document.getElementById('newUserPassword').value;
-    const confirmPass = document.getElementById('confirmUserPassword').value;
-    const role = document.getElementById('newUserRole').value;
+// Helper: get role ID by role name from DB
+async function getRoleIdByName(roleName) {
+    const roles = await rolesDB.show(); // fetch all roles
+    const role = roles.find(r => r.name.toLowerCase() === roleName.toLowerCase());
+    return role ? role.id : null;
+}
 
-    if (!name || !username || !pass) {
+async function getRoleNameById(roleId) {
+    const roles = await rolesDB.show();
+    const role = roles.find(r => r.id === roleId);
+    return role ? role.name : '';
+}
+
+async function saveNewUser() {
+    const name = document.getElementById('newFullName')?.value.trim();
+    const username = document.getElementById('newUsername')?.value.trim();
+    const pass = document.getElementById('newUserPassword')?.value;
+    const confirmPass = document.getElementById('confirmUserPassword')?.value;
+    const roleName = document.getElementById('newUserRole')?.value;
+
+    if (!name || !username || !pass || !confirmPass || !roleName) {
         showModalNotification('Please fill in all fields', 'warning', 'Validation Error');
         return;
     }
@@ -1476,133 +1888,201 @@ function saveNewUser() {
         return;
     }
 
-    let users = getUsers();
-    if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
-        showModalNotification('Username already exists', 'warning', 'Duplicate Entry');
-        return;
+    try {
+        // 1️⃣ Get role_id from DB
+        const role_id = await getRoleIdByName(roleName);
+        if (!role_id) {
+            showModalNotification('Invalid role selected', 'warning', 'Validation Error');
+            return;
+        }
+
+        // 2️⃣ Check if username already exists in DB
+        const existingUsers = await usersDB.show({ username });
+        if (existingUsers.length > 0) {
+            showModalNotification('Username already exists', 'warning', 'Duplicate Entry');
+            return;
+        }
+
+        // 3️⃣ Create user object
+        const newUser = {
+            full_name: name,
+            username: username,
+            password_hash: pass, // store hash if needed
+            role_id: role_id,
+            status: 'Active',
+            last_login: null,
+            created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+            updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+        };
+
+        // 4️⃣ Insert into users DB
+        await usersDB.add(newUser);
+
+        // 5️⃣ Close modal
+        const modalElem = document.getElementById('addUserModal');
+        const modal = bootstrap.Modal.getInstance(modalElem);
+        if (modal) modal.hide();
+
+        showModalNotification(`User "${name}" created successfully`, 'success', 'User Added');
+
+        // 6️⃣ Log activity and refresh table
+        logAdminActivity('Created new user account', username, 'Success');
+        loadUserManagement();
+
+    } catch (err) {
+        console.error('Failed to add new user:', err);
+        showModalNotification('Failed to create user', 'danger', 'Error');
     }
-
-    const maxId = users.length > 0 ? Math.max(...users.map(u => u.id)) : 0;
-    const newUser = {
-        id: maxId + 1,
-        name: name,
-        username: username,
-        password: pass,
-        role: role,
-        status: 'Active',
-        lastLogin: 'Never',
-        isDeleted: false
-    };
-
-    users.push(newUser);
-    saveUsersToStorage(users);
-
-    const modalElem = document.getElementById('addUserModal');
-    const modal = bootstrap.Modal.getInstance(modalElem);
-    if (modal) modal.hide();
-
-    showModalNotification(`User "${name}" created successfully`, 'success', 'User Added');
-    logAdminActivity('Created new user account', username, 'Success');
-    loadUserManagement();
 }
 
-function editUser(id) {
-    const users = getUsers();
-    const user = users.find(u => u.id === id);
-    if (!user) return;
+// Attach click listener
+document.getElementById('saveNewUserBtn')?.addEventListener('click', saveNewUser);
 
-    document.getElementById('editUserId').value = user.id;
-    document.getElementById('editFullName').value = user.name;
-    document.getElementById('editUsername').value = user.username;
-    document.getElementById('editUserRole').value = user.role;
-    document.getElementById('editUserStatus').value = user.status;
-    document.getElementById('editUserPassword').value = ''; // Clear password field
+// Edit user: fetch from DB and prefill modal
+async function editUser(id) {
+    try {
+        const users = await usersDB.show({ id });
+        if (!users || users.length === 0) return;
+        const user = users[0];
 
-    const modalElem = document.getElementById('editUserModal');
-    if (!modalElem) return;
-    const modal = new bootstrap.Modal(modalElem);
-    modal.show();
+        document.getElementById('editUserId').value = user.id;
+        document.getElementById('editFullName').value = user.full_name;
+        document.getElementById('editUsername').value = user.username;
+        document.getElementById('editUserStatus').value = user.status;
+
+        // Fetch role name from role_id
+        const roleName = await getRoleNameById(user.role_id);
+        document.getElementById('editUserRole').value = roleName;
+
+        document.getElementById('editUserPassword').value = ''; // clear password
+
+        const modalElem = document.getElementById('editUserModal');
+        if (!modalElem) return;
+        const modal = new bootstrap.Modal(modalElem);
+        modal.show();
+
+    } catch (err) {
+        console.error('Failed to load user for editing:', err);
+        showModalNotification('Failed to load user', 'danger', 'Error');
+    }
 }
 
-function saveUserChanges() {
+// Save edited user to DB
+async function saveUserChanges() {
     const id = parseInt(document.getElementById('editUserId').value);
     const name = document.getElementById('editFullName').value.trim();
-    const role = document.getElementById('editUserRole').value;
+    const username = document.getElementById('editUsername').value.trim();
+    const roleName = document.getElementById('editUserRole').value;
     const status = document.getElementById('editUserStatus').value;
     const newPass = document.getElementById('editUserPassword').value;
 
-    if (!name) {
-        showModalNotification('Full name is required', 'warning', 'Validation Error');
+    if (!name || !username || !roleName) {
+        showModalNotification('Full name, username, and role are required', 'warning', 'Validation Error');
         return;
     }
 
-    let users = getUsers();
-    const idx = users.findIndex(u => u.id === id);
-    if (idx === -1) return;
+    try {
+        const role_id = await getRoleIdByName(roleName);
+        if (!role_id) {
+            showModalNotification('Invalid role selected', 'warning', 'Validation Error');
+            return;
+        }
 
-    users[idx].name = name;
-    users[idx].role = role;
-    users[idx].status = status;
-    if (newPass) users[idx].password = newPass;
+        // Fetch user
+        const users = await usersDB.show({ id });
+        if (!users || users.length === 0) return;
+        const user = users[0];
 
-    saveUsersToStorage(users);
+        // Update fields
+        const updatedUser = {
+            ...user,
+            full_name: name,
+            username: username,
+            role_id: role_id,
+            status: status,
+            updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+        };
 
-    const modalElem = document.getElementById('editUserModal');
-    const modal = bootstrap.Modal.getInstance(modalElem);
-    if (modal) modal.hide();
+        // Update password if provided
+        if (newPass) updatedUser.password_hash = newPass;
 
-    showModalNotification(`Account for "${name}" updated`, 'success', 'User Updated');
-    logAdminActivity('Updated user account', users[idx].username, 'Success');
-    loadUserManagement();
+        // Save to DB
+        await usersDB.edit(updatedUser);
+
+        const modalElem = document.getElementById('editUserModal');
+        const modal = bootstrap.Modal.getInstance(modalElem);
+        if (modal) modal.hide();
+
+        showModalNotification(`Account for "${name}" updated`, 'success', 'User Updated');
+        logAdminActivity('Updated user account', username, 'Success');
+        loadUserManagement();
+
+    } catch (err) {
+        console.error('Failed to save user changes:', err);
+        showModalNotification('Failed to update user', 'danger', 'Error');
+    }
 }
 
-function deleteUser(id) {
-    const users = getUsers();
-    const user = users.find(u => u.id === id);
-    if (!user) return;
+// Delete user: mark as deleted in DB
+async function deleteUser(id) {
+    try {
+        const users = await usersDB.show({ id });
+        if (!users || users.length === 0) return;
+        const user = users[0];
 
-    showConfirm(`Are you sure you want to delete "${user.name}"? This account will be moved to Deleted Accounts.`, function () {
-        const idx = users.findIndex(u => u.id === id);
-        users[idx].isDeleted = true;
-        users[idx].deletedDate = new Date().toLocaleDateString();
-        users[idx].deletedBy = 'Administrator';
+        showConfirm(`Are you sure you want to delete "${user.full_name}"? This account will be moved to Deleted Accounts.`, async function () {
+            const updatedUser = {
+                ...user,
+                status: 'Deleted',
+                deleted_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                deleted_by: 'Administrator'
+            };
 
-        saveUsersToStorage(users);
-        showModalNotification(`Account "${user.username}" deleted`, 'success', 'User Removed');
-        logAdminActivity('Deleted user account', user.username, 'Success');
-        loadUserManagement();
-    });
+            await usersDB.edit(updatedUser);
+
+            showModalNotification(`Account "${user.username}" deleted`, 'success', 'User Removed');
+            logAdminActivity('Deleted user account', user.username, 'Success');
+            loadUserManagement();
+        });
+    } catch (err) {
+        console.error('Failed to delete user:', err);
+        showModalNotification('Failed to delete user', 'danger', 'Error');
+    }
+}
+async function restoreUser(id) {
+    try {
+        const users = await usersDB.show({ id });
+        if (!users || users.length === 0) return;
+        const user = users[0];
+
+        showConfirm(`Restore account for "${user.full_name}"?`, async function () {
+            await usersDB.edit({ id: user.id, deleted_at: null });
+            showModalNotification(`Account "${user.username}" restored`, 'success', 'User Restored');
+            logAdminActivity('Restored user account', user.username, 'Success');
+            loadUserManagement();
+        });
+    } catch (err) {
+        console.error('Failed to restore user:', err);
+        showModalNotification('Failed to restore user', 'danger', 'Error');
+    }
 }
 
-function restoreUser(id) {
-    const users = getUsers();
-    const user = users.find(u => u.id === id);
-    if (!user) return;
+async function permanentlyDeleteUser(id) {
+    try {
+        const users = await usersDB.show({ id });
+        if (!users || users.length === 0) return;
+        const user = users[0];
 
-    showConfirm(`Restore account for "${user.name}"?`, function () {
-        const idx = users.findIndex(u => u.id === id);
-        users[idx].isDeleted = false;
-
-        saveUsersToStorage(users);
-        showModalNotification(`Account "${user.username}" restored`, 'success', 'User Restored');
-        logAdminActivity('Restored user account', user.username, 'Success');
-        loadUserManagement();
-    });
-}
-
-function permanentlyDeleteUser(id) {
-    const users = getUsers();
-    const user = users.find(u => u.id === id);
-    if (!user) return;
-
-    showConfirm(`PERMANENTLY DELETE "${user.name}"? This action cannot be reversed.`, function () {
-        const updated = users.filter(u => u.id !== id);
-        saveUsersToStorage(updated);
-
-        showModalNotification(`Account "${user.username}" permanently removed`, 'success', 'User Purged');
-        logAdminActivity('Permanently deleted user account', user.username, 'Success');
-        loadUserManagement();
-    });
+        showConfirm(`PERMANENTLY DELETE "${user.full_name}"? This action cannot be reversed.`, async function () {
+            await usersDB.delete({ id: user.id });
+            showModalNotification(`Account "${user.username}" permanently removed`, 'success', 'User Purged');
+            logAdminActivity('Permanently deleted user account', user.username, 'Success');
+            loadUserManagement();
+        });
+    } catch (err) {
+        console.error('Failed to permanently delete user:', err);
+        showModalNotification('Failed to delete user', 'danger', 'Error');
+    }
 }
 
 // Reports Functions
