@@ -2,121 +2,121 @@
 const API_URL = "http://localhost/Ethans%20Cafe/codes/php/app.php";
 
 function createDB(table) {
-	 return {
-	 add: async (data) => {
-		 console.log(`[usersDB.add] Sending:`, { ...data, table });
-		 try {
-			 const res = await fetch(API_URL, {
-				 method: "POST",
-				 headers: {
-					 "Content-Type": "application/json",
-					 "Accept": "application/json",
-					 "X-Requested-With": "XMLHttpRequest"
-				 },
-				 body: JSON.stringify({ ...data, table })
-			 });
-			 console.log(`[usersDB.add] Response status:`, res.status);
-			 const text = await res.text();
-			 try {
-				 const json = JSON.parse(text);
-				 console.log(`[usersDB.add] Response JSON:`, json);
-				 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-				 return json;
-			 } catch (parseErr) {
-				 console.error(`[usersDB.add] Response not JSON:`, text);
-				 throw parseErr;
-			 }
-		 } catch (err) {
-			 console.error(`Add failed [${table}]:`, err);
-			 return { error: err.message };
-		 }
-	 },
-	 show: async (filters = {}) => {
-		 console.log(`[${table}DB.show] Filters:`, filters);
-		 try {
-			 const params = new URLSearchParams({ ...filters, table }).toString();
-			 const res = await fetch(`${API_URL}?${params}`, {
-				 headers: {
-					 "Accept": "application/json",
-					 "X-Requested-With": "XMLHttpRequest"
-				 }
-			 });
-			 console.log(`[${table}DB.show] Response status:`, res.status);
-			 const text = await res.text();
-			 try {
-				 const json = JSON.parse(text);
-				 console.log(`[${table}DB.show] Response JSON:`, json);
-				 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-				 return json;
-			 } catch (parseErr) {
-				 console.error(`[${table}DB.show] Response not JSON:`, text);
-				 throw parseErr;
-			 }
-		 } catch (err) {
-			 console.error(`Show failed [${table}]:`, err);
-			 return [];
-		 }
-	 },
-	 edit: async (data) => {
-		 console.log(`[${table}DB.edit] Data:`, data);
-		 try {
-			 if (!data.id && !data.key) throw new Error("Missing id/key for update");
-			 const res = await fetch(API_URL, {
-				 method: "PUT",
-				 headers: {
-					 "Content-Type": "application/json",
-					 "Accept": "application/json",
-					 "X-Requested-With": "XMLHttpRequest"
-				 },
-				 body: JSON.stringify({ ...data, table })
-			 });
-			 console.log(`[${table}DB.edit] Response status:`, res.status);
-			 const text = await res.text();
-			 try {
-				 const json = JSON.parse(text);
-				 console.log(`[${table}DB.edit] Response JSON:`, json);
-				 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-				 return json;
-			 } catch (parseErr) {
-				 console.error(`[${table}DB.edit] Response not JSON:`, text);
-				 throw parseErr;
-			 }
-		 } catch (err) {
-			 console.error(`Edit failed [${table}]:`, err);
-			 return { error: err.message };
-		 }
-	 },
-	 delete: async (idOrKey) => {
-		 console.log(`[${table}DB.delete] Key:`, idOrKey);
-		 try {
-			 const keyName = typeof idOrKey === 'object' ? Object.keys(idOrKey)[0] : (table === 'system_settings' ? 'key' : 'id');
-			 const keyValue = typeof idOrKey === 'object' ? Object.values(idOrKey)[0] : idOrKey;
-			 const res = await fetch(API_URL, {
-				 method: "DELETE",
-				 headers: {
-					 "Content-Type": "application/json",
-					 "Accept": "application/json",
-					 "X-Requested-With": "XMLHttpRequest"
-				 },
-				 body: JSON.stringify({ [keyName]: keyValue, table })
-			 });
-			 console.log(`[${table}DB.delete] Response status:`, res.status);
-			 const text = await res.text();
-			 try {
-				 const json = JSON.parse(text);
-				 console.log(`[${table}DB.delete] Response JSON:`, json);
-				 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-				 return json;
-			 } catch (parseErr) {
-				 console.error(`[${table}DB.delete] Response not JSON:`, text);
-				 throw parseErr;
-			 }
-		 } catch (err) {
-			 console.error(`Delete failed [${table}]:`, err);
-			 return { error: err.message };
-		 }
-	 }
-	 };
+    return {
+        add: async (data) => {
+            console.log(`[usersDB.add] Sending:`, { ...data, table });
+            try {
+                const res = await fetch(API_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+                    body: JSON.stringify({ ...data, table })
+                });
+                console.log(`[usersDB.add] Response status:`, res.status);
+                const text = await res.text();
+                try {
+                    const json = JSON.parse(text);
+                    console.log(`[usersDB.add] Response JSON:`, json);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return json;
+                } catch (parseErr) {
+                    console.error(`[usersDB.add] Response not JSON:`, text);
+                    throw parseErr;
+                }
+            } catch (err) {
+                console.error(`Add failed [${table}]:`, err);
+                return { error: err.message };
+            }
+        },
+        show: async (filters = {}) => {
+            console.log(`[${table}DB.show] Filters:`, filters);
+            try {
+                const params = new URLSearchParams({ ...filters, table }).toString();
+                const res = await fetch(`${API_URL}?${params}`, {
+                    headers: {
+                        "Accept": "application/json",
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                });
+                console.log(`[${table}DB.show] Response status:`, res.status);
+                const text = await res.text();
+                try {
+                    const json = JSON.parse(text);
+                    console.log(`[${table}DB.show] Response JSON:`, json);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return json;
+                } catch (parseErr) {
+                    console.error(`[${table}DB.show] Response not JSON:`, text);
+                    throw parseErr;
+                }
+            } catch (err) {
+                console.error(`Show failed [${table}]:`, err);
+                return [];
+            }
+        },
+        edit: async (data) => {
+            console.log(`[${table}DB.edit] Data:`, data);
+            try {
+                if (!data.id && !data.key) throw new Error("Missing id/key for update");
+                const res = await fetch(API_URL, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+                    body: JSON.stringify({ ...data, table })
+                });
+                console.log(`[${table}DB.edit] Response status:`, res.status);
+                const text = await res.text();
+                try {
+                    const json = JSON.parse(text);
+                    console.log(`[${table}DB.edit] Response JSON:`, json);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return json;
+                } catch (parseErr) {
+                    console.error(`[${table}DB.edit] Response not JSON:`, text);
+                    throw parseErr;
+                }
+            } catch (err) {
+                console.error(`Edit failed [${table}]:`, err);
+                return { error: err.message };
+            }
+        },
+        delete: async (idOrKey) => {
+            console.log(`[${table}DB.delete] Key:`, idOrKey);
+            try {
+                const keyName = typeof idOrKey === 'object' ? Object.keys(idOrKey)[0] : (table === 'system_settings' ? 'key' : 'id');
+                const keyValue = typeof idOrKey === 'object' ? Object.values(idOrKey)[0] : idOrKey;
+                const res = await fetch(API_URL, {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+                    body: JSON.stringify({ [keyName]: keyValue, table })
+                });
+                console.log(`[${table}DB.delete] Response status:`, res.status);
+                const text = await res.text();
+                try {
+                    const json = JSON.parse(text);
+                    console.log(`[${table}DB.delete] Response JSON:`, json);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return json;
+                } catch (parseErr) {
+                    console.error(`[${table}DB.delete] Response not JSON:`, text);
+                    throw parseErr;
+                }
+            } catch (err) {
+                console.error(`Delete failed [${table}]:`, err);
+                return { error: err.message };
+            }
+        }
+    };
 }
 
 // Ready-to-use DB objects for each table
@@ -490,33 +490,42 @@ function loadMenuControl() {
     const menuControlTable = tableElement.getElementsByTagName('tbody')[0];
     if (!menuControlTable) return;
 
-    const showInactive = document.getElementById('showInactiveItems')?.checked || false;
+    const showInactive = document.getElementById('showInactiveItems') ? document.getElementById('showInactiveItems').checked : false;
     const searchQuery = (document.getElementById('menuControlSearch')?.value || '').toLowerCase().trim();
     const categoryFilter = document.getElementById('menuControlCategory')?.value || '';
 
     menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
 
-    menuItemsDB.show().then(function(allItems) {
+    Promise.all([
+        menuItemsDB.show(),
+        menuCategoriesDB.show()
+    ]).then(function (results) {
+        const allItems = results[0];
+        const categories = results[1];
+
+        const categoryMap = {};
+        categories.forEach(function (cat) {
+            categoryMap[cat.id] = cat.name;
+        });
+
         let menuItems = allItems;
 
-        // Filter by active/inactive
         if (!showInactive) {
-            menuItems = menuItems.filter(function(item) {
-                return item.status === 'Active';
+            menuItems = menuItems.filter(function (item) {
+                return (item.status || '').trim().toLowerCase() === 'active';
             });
         }
 
-        // Filter by search
         if (searchQuery) {
-            menuItems = menuItems.filter(function(item) {
+            menuItems = menuItems.filter(function (item) {
+                const catName = (categoryMap[item.category_id] || '').toLowerCase();
                 return item.name.toLowerCase().includes(searchQuery) ||
-                       (item.category_name || '').toLowerCase().includes(searchQuery);
+                    catName.includes(searchQuery);
             });
         }
 
-        // Filter by category
         if (categoryFilter) {
-            menuItems = menuItems.filter(function(item) {
+            menuItems = menuItems.filter(function (item) {
                 return item.category_id == categoryFilter;
             });
         }
@@ -526,22 +535,25 @@ function loadMenuControl() {
         if (menuItems.length === 0) {
             menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-utensils fa-2x mb-2 d-block"></i>No menu items found.</td></tr>';
         } else {
-            menuItems.forEach(function(item) {
+            menuItems.forEach(function (item) {
+                const catName = categoryMap[item.category_id] || '—';
+                const itemStatus = (item.status || '').trim();
+                const isActive = itemStatus.toLowerCase() === 'active';
                 const row = menuControlTable.insertRow();
                 row.classList.add('animate__animated', 'animate__fadeIn');
                 row.innerHTML = `
                     <td>${item.id}</td>
                     <td><strong>${item.name}</strong></td>
-                    <td><span class="badge bg-secondary">${item.category_name || '—'}</span></td>
+                    <td><span class="badge bg-secondary">${catName}</span></td>
                     <td>₱${parseFloat(item.price_reference || 0).toFixed(2)}</td>
-                    <td><span class="badge ${item.status === 'Active' ? 'bg-success' : 'bg-secondary'}">${item.status}</span></td>
+                    <td><span class="badge ${isActive ? 'bg-success' : 'bg-secondary'}">${itemStatus}</span></td>
                     <td><span class="badge bg-info">${item.recipe || 0} ingredients</span></td>
                     <td>
                         <div class="table-actions">
-                            <button class="btn btn-sm btn-outline-danger" onclick="editMenuItem(${item.id})" title="Edit">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editMenuItem(${item.id})" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-${item.status === 'Active' ? 'warning' : 'success'}" onclick="toggleMenuItemStatus(${item.id})" title="${item.status === 'Active' ? 'Deactivate' : 'Activate'}">
+                            <button class="btn btn-sm btn-outline-${isActive ? 'warning' : 'success'}" onclick="toggleMenuItemStatus(${item.id})" title="${isActive ? 'Deactivate' : 'Activate'}">
                                 <i class="fas fa-power-off"></i>
                             </button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteMenuItem(${item.id})" title="Delete">
@@ -553,16 +565,14 @@ function loadMenuControl() {
             });
         }
 
-        // Update total count
         const totalElems = document.getElementById('totalMenuItems');
         if (totalElems) totalElems.textContent = `${allItems.length} Items`;
 
-    }).catch(function(err) {
-        console.error('Failed to load menu items:', err);
+    }).catch(function (err) {
+        console.error('Failed to load menu control:', err);
         menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load menu items.</td></tr>';
     });
 }
-
 function showAddMenuItemModal() {
     // Clear form
     const form = document.getElementById('addMenuItemForm');
@@ -585,11 +595,11 @@ function showAddMenuItemModal() {
     }
 
     // Load categories into dropdown
-    menuCategoriesDB.show().then(function(categories) {
+    menuCategoriesDB.show().then(function (categories) {
         const select = document.getElementById('menuItemCategory');
         if (!select) return;
         select.innerHTML = '<option value="">Select Category</option>';
-        categories.forEach(function(cat) {
+        categories.forEach(function (cat) {
             const opt = document.createElement('option');
             opt.value = cat.id;
             opt.textContent = cat.name;
@@ -598,26 +608,26 @@ function showAddMenuItemModal() {
 
         // If editing, fetch item from DB and pre-fill after categories are loaded
         if (editingMenuItemId) {
-            menuItemsDB.show({ id: editingMenuItemId }).then(function(items) {
+            menuItemsDB.show({ id: editingMenuItemId }).then(function (items) {
                 const item = Array.isArray(items) ? items[0] : items;
                 if (!item) return;
 
-                const nameEl     = document.getElementById('menuItemName');
-                const catEl      = document.getElementById('menuItemCategory');
-                const priceEl    = document.getElementById('menuItemPrice');
-                const statusEl   = document.getElementById('menuItemStatus');
+                const nameEl = document.getElementById('menuItemName');
+                const catEl = document.getElementById('menuItemCategory');
+                const priceEl = document.getElementById('menuItemPrice');
+                const statusEl = document.getElementById('menuItemStatus');
 
-                if (nameEl)   nameEl.value   = item.name              || '';
-                if (catEl)    catEl.value    = item.category_id        || '';
-                if (priceEl)  priceEl.value  = item.price_reference    || '';
-                if (statusEl) statusEl.value = item.status             || 'Active';
+                if (nameEl) nameEl.value = item.name || '';
+                if (catEl) catEl.value = item.category_id || '';
+                if (priceEl) priceEl.value = item.price_reference || '';
+                if (statusEl) statusEl.value = item.status || 'Active';
 
-            }).catch(function(err) {
+            }).catch(function (err) {
                 console.error('Failed to load menu item for editing:', err);
             });
         }
 
-    }).catch(function(err) {
+    }).catch(function (err) {
         console.error('Failed to load categories:', err);
     });
 
@@ -633,7 +643,7 @@ function showAddMenuItemModal() {
     if (addIngBtn) {
         const newBtn = addIngBtn.cloneNode(true);
         addIngBtn.parentNode.replaceChild(newBtn, addIngBtn);
-        newBtn.addEventListener('click', function() {
+        newBtn.addEventListener('click', function () {
             addIngredientToRecipeForm();
         });
     }
@@ -643,7 +653,7 @@ function showAddMenuItemModal() {
     if (saveBtn) {
         const newSaveBtn = saveBtn.cloneNode(true);
         saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
-        newSaveBtn.addEventListener('click', function() {
+        newSaveBtn.addEventListener('click', function () {
             saveMenuItem();
         });
     }
@@ -787,30 +797,41 @@ function editMenuItem(id) {
 }
 
 function toggleMenuItemStatus(id) {
-    const items = getMenuItems();
-    const item = items.find(i => i.id === id);
-    if (!item) return;
-
-    const newStatus = item.status === 'Active' ? 'Inactive' : 'Active';
-    const actionWord = newStatus === 'Inactive' ? 'deactivate' : 'activate';
-
-    showConfirm(`Are you sure you want to ${actionWord} "${item.name}"?`, function () {
-        item.status = newStatus;
-        saveMenuItemsToStorage(items);
-
-        showModalNotification(`"${item.name}" has been ${newStatus === 'Inactive' ? 'deactivated' : 'activated'}`, 'success', 'Status Changed');
-        logAdminActivity(`${newStatus === 'Inactive' ? 'Deactivated' : 'Activated'} menu item`, item.name, 'Success');
-        loadMenuControl();
-    });
-}
-
-function deleteMenuItem(id) {
-    menuItemsDB.show({ id: id }).then(function(items) {
+    menuItemsDB.show({ id: id }).then(function (items) {
         const item = Array.isArray(items) ? items[0] : items;
         if (!item) return;
 
-        showConfirm(`Are you sure you want to delete "${item.name}"? This action cannot be undone.`, function() {
-            menuItemsDB.delete(id).then(function(result) {
+        const newStatus = item.status === 'Active' ? 'Inactive' : 'Active';
+        const actionWord = newStatus === 'Inactive' ? 'deactivate' : 'activate';
+
+        showConfirm(`Are you sure you want to ${actionWord} "${item.name}"?`, function () {
+            menuItemsDB.edit({ id: id, status: newStatus }).then(function (result) {
+                if (result.error) {
+                    Swal.fire('Error', result.error, 'error');
+                    return;
+                }
+
+                showModalNotification(`"${item.name}" has been ${newStatus === 'Inactive' ? 'deactivated' : 'activated'}`, 'success', 'Status Changed');
+                logAdminActivity(`${newStatus === 'Inactive' ? 'Deactivated' : 'Activated'} menu item`, item.name, 'Success');
+                loadMenuControl();
+
+            }).catch(function (err) {
+                console.error('Failed to update menu item status:', err);
+                Swal.fire('Error', 'Failed to update status.', 'error');
+            });
+        });
+
+    }).catch(function (err) {
+        console.error('Failed to fetch menu item:', err);
+    });
+}
+function deleteMenuItem(id) {
+    menuItemsDB.show({ id: id }).then(function (items) {
+        const item = Array.isArray(items) ? items[0] : items;
+        if (!item) return;
+
+        showConfirm(`Are you sure you want to delete "${item.name}"? This action cannot be undone.`, function () {
+            menuItemsDB.delete(id).then(function (result) {
                 if (result.error) {
                     Swal.fire('Error', result.error, 'error');
                     return;
@@ -820,13 +841,13 @@ function deleteMenuItem(id) {
                 logAdminActivity('Deleted menu item', item.name, 'Success');
                 loadMenuControl();
 
-            }).catch(function(err) {
+            }).catch(function (err) {
                 console.error('Delete menu item failed:', err);
                 Swal.fire('Error', 'Failed to delete menu item.', 'error');
             });
         });
 
-    }).catch(function(err) {
+    }).catch(function (err) {
         console.error('Failed to fetch menu item:', err);
     });
 }
@@ -835,11 +856,11 @@ function deleteMenuItem(id) {
 
 // Available ingredients master list (shared with the rest of the system)
 function getAvailableIngredients(callback) {
-    ingredientsDB.show().then(function(ingredients) {
+    ingredientsDB.show().then(function (ingredients) {
         if (typeof callback === 'function') {
             callback(ingredients);
         }
-    }).catch(function(err) {
+    }).catch(function (err) {
         console.error('Failed to load ingredients:', err);
         if (typeof callback === 'function') {
             callback([]);
@@ -946,91 +967,110 @@ function loadRecipeControl() {
 
     const searchQuery = (document.getElementById('recipeSearch')?.value || '').toLowerCase().trim();
 
-    let recipes = getRecipes();
+    recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
 
-    // Filter by search
-    if (searchQuery) {
-        recipes = recipes.filter(r =>
-            r.menuItem.toLowerCase().includes(searchQuery) ||
-            r.ingredients.some(i => i.name.toLowerCase().includes(searchQuery))
-        );
-    }
+    Promise.all([
+        recipesDB.show(),
+        menuItemsDB.show(),
+        ingredientsDB.show()
+    ]).then(function(results) {
+        const recipes = results[0];
+        const menuItems = results[1];
+        const ingredients = results[2];
 
-    recipeMappingTable.innerHTML = '';
+        // Build lookup maps
+        const menuItemMap = {};
+        menuItems.forEach(function(item) {
+            menuItemMap[item.id] = item.name;
+        });
 
-    if (recipes.length === 0) {
-        recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="fas fa-clipboard-list fa-2x mb-2 d-block"></i>No recipe mappings found.</td></tr>';
-        return;
-    }
+        const ingredientMap = {};
+        ingredients.forEach(function(ing) {
+            ingredientMap[ing.id] = ing;
+        });
 
-    recipes.forEach(recipe => {
-        const totalQty = recipe.ingredients.reduce((sum, i) => sum + (i.qty || 0), 0);
-        const totalCost = recipe.ingredients.reduce((sum, i) => sum + (i.cost || 0), 0);
+        // Group recipe rows by menu_item_id
+        const grouped = {};
+        recipes.forEach(function(recipe) {
+            const mid = recipe.menu_item_id;
+            if (!grouped[mid]) {
+                grouped[mid] = {
+                    menu_item_id: mid,
+                    menu_item_name: menuItemMap[mid] || '—',
+                    ingredients: []
+                };
+            }
+            const ing = ingredientMap[recipe.ingredient_id];
+            grouped[mid].ingredients.push({
+                name: ing ? ing.name : '—',
+                qty: parseFloat(recipe.qty_per_sale) || 0,
+                unit: ing ? (ing.unit || 'kg') : 'kg'
+            });
+        });
 
-        // Create ingredient badge tags
-        const ingredientBadges = recipe.ingredients.map(i =>
-            `<span class="badge bg-light text-dark border me-1 mb-1" style="font-size: 0.78em;">
-                <i class="fas fa-leaf text-success me-1"></i>${i.name} <small class="text-muted">(${i.qty} ${i.unit})</small>
-            </span>`
-        ).join('');
+        let groupedList = Object.values(grouped);
 
-        const row = recipeMappingTable.insertRow();
-        row.classList.add('animate__animated', 'animate__fadeIn');
-        row.innerHTML = `
-            <td><strong>${recipe.menuItem}</strong></td>
-            <td style="max-width: 300px;">${ingredientBadges}</td>
-            <td><span class="badge bg-secondary">${totalQty.toFixed(2)} kg</span></td>
-            <td><span class="badge bg-success">$${totalCost.toFixed(2)}</span></td>
-            <td>
-                <div class="table-actions">
-                    <button class="btn btn-sm btn-outline-danger" onclick="editRecipe(${recipe.id})" title="Edit Recipe">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteRecipe(${recipe.id})" title="Delete Recipe">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </td>
-        `;
+        // Filter by search
+        if (searchQuery) {
+            groupedList = groupedList.filter(function(r) {
+                return r.menu_item_name.toLowerCase().includes(searchQuery) ||
+                       r.ingredients.some(function(i) {
+                           return i.name.toLowerCase().includes(searchQuery);
+                       });
+            });
+        }
+
+        recipeMappingTable.innerHTML = '';
+
+        if (groupedList.length === 0) {
+            recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="fas fa-clipboard-list fa-2x mb-2 d-block"></i>No recipe mappings found.</td></tr>';
+            return;
+        }
+
+        groupedList.forEach(function(recipe) {
+            const totalQty = recipe.ingredients.reduce(function(sum, i) {
+                return sum + (i.qty || 0);
+            }, 0);
+
+            const ingredientBadges = recipe.ingredients.map(function(i) {
+                return `<span class="badge bg-light text-dark border me-1 mb-1" style="font-size: 0.78em;">
+                    <i class="fas fa-leaf text-success me-1"></i>${i.name} <small class="text-muted">(${i.qty} ${i.unit})</small>
+                </span>`;
+            }).join('');
+
+            const row = recipeMappingTable.insertRow();
+            row.classList.add('animate__animated', 'animate__fadeIn');
+            row.innerHTML = `
+                <td><strong>${recipe.menu_item_name}</strong></td>
+                <td style="max-width: 300px;">${ingredientBadges}</td>
+                <td><span class="badge bg-secondary">${totalQty.toFixed(2)} kg</span></td>
+                <td>
+                    <div class="table-actions">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editRecipe(${recipe.menu_item_id})" title="Edit Recipe">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteRecipe(${recipe.menu_item_id})" title="Delete Recipe">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+        });
+
+    }).catch(function(err) {
+        console.error('Failed to load recipes:', err);
+        recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load recipes.</td></tr>';
     });
 }
-
 function showAssignRecipeModal() {
-    // Reset form
     const form = document.getElementById('assignRecipeForm');
     if (form) form.reset();
 
-    // Update title
     const title = document.getElementById('recipeModalTitle');
     if (title) {
         title.innerHTML = editingRecipeId
             ? '<i class="fas fa-edit me-2"></i>Edit Recipe'
             : '<i class="fas fa-book me-2"></i>Assign New Recipe';
-    }
-
-    // Populate menu item dropdown with items from localStorage
-    const menuSelect = document.getElementById('recipeMenuItem');
-    if (menuSelect) {
-        let menuItems = [];
-        try {
-            const stored = localStorage.getItem('adminMenuItems');
-            if (stored) menuItems = JSON.parse(stored);
-        } catch (e) { }
-        if (!menuItems || menuItems.length === 0) {
-            menuItems = [
-                { id: 1, name: 'Beef Steak' }, { id: 2, name: 'Chicken Curry' },
-                { id: 3, name: 'Vegetable Salad' }, { id: 4, name: 'Garlic Bread' },
-                { id: 5, name: 'French Fries' }, { id: 6, name: 'Grilled Salmon' },
-                { id: 7, name: 'Pasta Carbonara' }, { id: 8, name: 'Chocolate Cake' }
-            ];
-        }
-        menuSelect.innerHTML = '<option value="">Select a menu item...</option>';
-        menuItems.forEach(item => {
-            const opt = document.createElement('option');
-            opt.value = item.name;
-            opt.textContent = item.name;
-            menuSelect.appendChild(opt);
-        });
     }
 
     // Clear ingredients area
@@ -1042,21 +1082,63 @@ function showAssignRecipeModal() {
     // Reset summary
     updateRecipeSummary();
 
-    // If editing, pre-fill
-    if (editingRecipeId) {
-        const recipes = getRecipes();
-        const recipe = recipes.find(r => r.id === editingRecipeId);
-        if (recipe) {
-            if (menuSelect) menuSelect.value = recipe.menuItem;
-            // Clear the no-ingredients message
-            if (ingredientsArea) ingredientsArea.innerHTML = '';
-            // Add each ingredient row
-            recipe.ingredients.forEach(ing => {
-                addRecipeIngredientRow(ing.name, ing.qty);
+    // Load menu items and ingredients from DB together
+    Promise.all([
+        menuItemsDB.show(),
+        ingredientsDB.show()
+    ]).then(function (results) {
+        const menuItems = results[0];
+        const ingredients = results[1];
+
+        // Populate menu item dropdown
+        const menuSelect = document.getElementById('recipeMenuItem');
+        if (menuSelect) {
+            menuSelect.innerHTML = '<option value="">Select a menu item...</option>';
+            menuItems.forEach(function (item) {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = item.name;
+                menuSelect.appendChild(opt);
             });
-            updateRecipeSummary();
         }
-    }
+
+        // If editing, pre-fill from DB
+        if (editingRecipeId) {
+            recipesDB.show({ menu_item_id: editingRecipeId }).then(function (recipes) {
+                if (!recipes || recipes.length === 0) return;
+
+                // Set selected menu item
+                if (menuSelect) menuSelect.value = recipes[0].menu_item_id;
+
+                // Clear no-ingredients message
+                if (ingredientsArea) ingredientsArea.innerHTML = '';
+
+                // Add each ingredient row
+                recipes.forEach(function (recipe) {
+                    const ing = ingredients.find(function (i) { return i.id == recipe.ingredient_id; });
+                    addRecipeIngredientRow(ingredients, recipe.ingredient_id, recipe.qty_per_sale, recipe.unit_id);
+                });
+
+                updateRecipeSummary();
+
+            }).catch(function (err) {
+                console.error('Failed to load recipe for editing:', err);
+            });
+        } else {
+            // Wire up Add Ingredient button with fresh ingredients list
+            const addIngBtn = document.getElementById('addRecipeIngredientBtn');
+            if (addIngBtn) {
+                const newBtn = addIngBtn.cloneNode(true);
+                addIngBtn.parentNode.replaceChild(newBtn, addIngBtn);
+                newBtn.addEventListener('click', function () {
+                    addRecipeIngredientRow(ingredients);
+                });
+            }
+        }
+
+    }).catch(function (err) {
+        console.error('Failed to load modal data:', err);
+    });
 
     // Show modal
     const modalElem = document.getElementById('assignRecipeModal');
@@ -1064,17 +1146,7 @@ function showAssignRecipeModal() {
     const modal = new bootstrap.Modal(modalElem);
     modal.show();
 
-    // Wire up "Add Ingredient" button (clone to prevent duplicate listeners)
-    const addIngBtn = document.getElementById('addRecipeIngredientBtn');
-    if (addIngBtn) {
-        const newBtn = addIngBtn.cloneNode(true);
-        addIngBtn.parentNode.replaceChild(newBtn, addIngBtn);
-        newBtn.addEventListener('click', function () {
-            addRecipeIngredientRow();
-        });
-    }
-
-    // Wire up "Save" button
+    // Wire up Save button
     const saveBtn = document.getElementById('saveRecipeBtn');
     if (saveBtn) {
         const newBtn = saveBtn.cloneNode(true);
@@ -1085,179 +1157,175 @@ function showAssignRecipeModal() {
     }
 }
 
-function addRecipeIngredientRow(preselectedName, preselectedQty) {
-    const area = document.getElementById('recipeIngredientsArea');
-    if (!area) return;
+function addRecipeIngredientRow(ingredients, selectedIngredientId, qty, unitId) {
+    const ingredientsArea = document.getElementById('recipeIngredientsArea');
+    if (!ingredientsArea) return;
 
-    // Remove "no ingredients" placeholder
     const noMsg = document.getElementById('noIngredientsMsg');
     if (noMsg) noMsg.remove();
 
-    const ingredients = getAvailableIngredients();
-
     const row = document.createElement('div');
-    row.className = 'row g-2 mb-2 align-items-center recipe-ing-row animate__animated animate__fadeIn';
-    row.innerHTML = `
-        <div class="col-md-5">
-            <select class="form-select form-select-sm recipe-ing-select">
-                <option value="">Select Ingredient</option>
-                ${ingredients.map(i => `<option value="${i.name}" ${preselectedName === i.name ? 'selected' : ''}>${i.name} (${i.unit})</option>`).join('')}
-            </select>
-        </div>
-        <div class="col-md-4">
-            <div class="input-group input-group-sm">
-                <input type="number" class="form-control recipe-ing-qty" placeholder="Qty" min="0.01" step="0.01" value="${preselectedQty || ''}">
-                <span class="input-group-text">kg</span>
-            </div>
-        </div>
-        <div class="col-md-3 d-flex gap-1">
-            <span class="badge bg-light text-dark border flex-grow-1 d-flex align-items-center justify-content-center recipe-ing-cost-badge">$0.00</span>
-            <button type="button" class="btn btn-sm btn-outline-danger recipe-ing-remove" title="Remove">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `;
+    row.className = 'row align-items-center mb-2 recipe-ingredient-row';
 
-    area.appendChild(row);
+    // Ingredient dropdown
+    const ingSelect = document.createElement('select');
+    ingSelect.className = 'form-select ingredient-select col';
+    ingSelect.innerHTML = '<option value="">Select Ingredient</option>';
+    ingredients.forEach(function (ing) {
+        const opt = document.createElement('option');
+        opt.value = ing.id;
+        opt.textContent = ing.name;
+        if (ing.id == selectedIngredientId) opt.selected = true;
+        ingSelect.appendChild(opt);
+    });
+
+    // Quantity input
+    const qtyInput = document.createElement('input');
+    qtyInput.type = 'number';
+    qtyInput.className = 'form-control ingredient-qty';
+    qtyInput.placeholder = 'Qty';
+    qtyInput.min = '0';
+    qtyInput.step = '0.01';
+    qtyInput.value = qty || '';
+    qtyInput.addEventListener('input', updateRecipeSummary);
 
     // Remove button
-    row.querySelector('.recipe-ing-remove').addEventListener('click', function () {
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn-sm btn-outline-danger';
+    removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
+    removeBtn.addEventListener('click', function () {
         row.remove();
-        if (area.querySelectorAll('.recipe-ing-row').length === 0) {
-            area.innerHTML = '<p class="text-muted text-center py-3" id="noIngredientsMsg"><i class="fas fa-info-circle me-1"></i>Click "Add Ingredient" to start building the recipe.</p>';
-        }
         updateRecipeSummary();
     });
 
-    // Update cost on ingredient or qty change
-    const select = row.querySelector('.recipe-ing-select');
-    const qtyInput = row.querySelector('.recipe-ing-qty');
-    const costBadge = row.querySelector('.recipe-ing-cost-badge');
+    const col1 = document.createElement('div');
+    col1.className = 'col-md-6';
+    col1.appendChild(ingSelect);
 
-    function updateRowCost() {
-        const ingName = select.value;
-        const qty = parseFloat(qtyInput.value) || 0;
-        const ing = ingredients.find(i => i.name === ingName);
-        const cost = ing ? qty * (ing.costPerUnit || 0) : 0;
-        costBadge.textContent = `$${cost.toFixed(2)}`;
-        costBadge.className = `badge ${cost > 0 ? 'bg-success text-white' : 'bg-light text-dark border'} flex-grow-1 d-flex align-items-center justify-content-center recipe-ing-cost-badge`;
-        updateRecipeSummary();
-    }
+    const col2 = document.createElement('div');
+    col2.className = 'col-md-4';
+    col2.appendChild(qtyInput);
 
-    select.addEventListener('change', updateRowCost);
-    qtyInput.addEventListener('input', updateRowCost);
+    const col3 = document.createElement('div');
+    col3.className = 'col-md-2 text-end';
+    col3.appendChild(removeBtn);
 
-    // If prefilled, compute cost
-    if (preselectedName && preselectedQty) {
-        updateRowCost();
-    }
+    row.appendChild(col1);
+    row.appendChild(col2);
+    row.appendChild(col3);
+
+    ingredientsArea.appendChild(row);
+    updateRecipeSummary();
 }
-
 function updateRecipeSummary() {
-    const rows = document.querySelectorAll('#recipeIngredientsArea .recipe-ing-row');
-    const ingredients = getAvailableIngredients();
-    let count = 0, totalQty = 0, totalCost = 0;
+    const rows = document.querySelectorAll('.recipe-ingredient-row');
+    const countEl = document.getElementById('recipeIngredientCount');
+    const totalQtyEl = document.getElementById('recipeTotalQty');
 
-    rows.forEach(row => {
-        const name = row.querySelector('.recipe-ing-select')?.value;
-        const qty = parseFloat(row.querySelector('.recipe-ing-qty')?.value) || 0;
-        if (name && qty > 0) {
-            count++;
-            totalQty += qty;
-            const ing = ingredients.find(i => i.name === name);
-            if (ing) totalCost += qty * (ing.costPerUnit || 0);
-        }
+    let totalQty = 0;
+    rows.forEach(function(row) {
+        const qty = parseFloat(row.querySelector('.ingredient-qty')?.value) || 0;
+        totalQty += qty;
     });
 
-    const countEl = document.getElementById('recipeIngredientCount');
-    const qtyEl = document.getElementById('recipeTotalQty');
-    const costEl = document.getElementById('recipeEstCost');
-    if (countEl) countEl.textContent = count;
-    if (qtyEl) qtyEl.textContent = `${totalQty.toFixed(2)} kg`;
-    if (costEl) costEl.textContent = `$${totalCost.toFixed(2)}`;
+    if (countEl) countEl.textContent = rows.length;
+    if (totalQtyEl) totalQtyEl.textContent = totalQty.toFixed(2);
 }
 
 function saveRecipe() {
-    const menuItemName = document.getElementById('recipeMenuItem')?.value;
-    if (!menuItemName) {
+    const menuItemId = document.getElementById('recipeMenuItem')?.value;
+    if (!menuItemId) {
         showModalNotification('Please select a menu item.', 'warning', 'Validation Error');
         return;
     }
 
-    const rows = document.querySelectorAll('#recipeIngredientsArea .recipe-ing-row');
-    const availableIngredients = getAvailableIngredients();
+    const rows = document.querySelectorAll('#recipeIngredientsArea .recipe-ingredient-row');
     const ingredientsList = [];
+    let valid = true;
 
-    rows.forEach(row => {
-        const name = row.querySelector('.recipe-ing-select')?.value;
-        const qty = parseFloat(row.querySelector('.recipe-ing-qty')?.value) || 0;
-        if (name && qty > 0) {
-            const ing = availableIngredients.find(i => i.name === name);
-            ingredientsList.push({
-                name: name,
-                qty: qty,
-                unit: ing?.unit || 'kg',
-                cost: ing ? parseFloat((qty * (ing.costPerUnit || 0)).toFixed(2)) : 0
-            });
+    rows.forEach(function(row) {
+        const ingredientId = row.querySelector('.ingredient-select')?.value;
+        const qty = parseFloat(row.querySelector('.ingredient-qty')?.value) || 0;
+
+        if (!ingredientId || qty <= 0) {
+            valid = false;
+            return;
         }
+
+        ingredientsList.push({
+            ingredient_id: ingredientId,
+            qty_per_sale: qty
+        });
     });
 
-    if (ingredientsList.length === 0) {
-        showModalNotification('Please add at least one ingredient with a quantity.', 'warning', 'Validation Error');
+    if (ingredientsList.length === 0 || !valid) {
+        showModalNotification('Please add at least one ingredient with a valid quantity.', 'warning', 'Validation Error');
         return;
     }
 
     // Check for duplicate ingredients
-    const names = ingredientsList.map(i => i.name);
-    if (new Set(names).size !== names.length) {
+    const ids = ingredientsList.map(function(i) { return i.ingredient_id; });
+    if (new Set(ids).size !== ids.length) {
         showModalNotification('Duplicate ingredients found. Please use each ingredient only once.', 'warning', 'Validation Error');
         return;
     }
 
-    let recipes = getRecipes();
-
     if (editingRecipeId) {
-        // Update existing
-        const idx = recipes.findIndex(r => r.id === editingRecipeId);
-        if (idx !== -1) {
-            recipes[idx].menuItem = menuItemName;
-            recipes[idx].ingredients = ingredientsList;
-        }
-        saveRecipesToStorage(recipes);
+        // Delete old recipe rows for this menu item then re-add
+        recipesDB.delete({ menu_item_id: editingRecipeId }).then(function() {
+            return Promise.all(ingredientsList.map(function(ing) {
+                return recipesDB.add({
+                    menu_item_id: menuItemId,
+                    ingredient_id: ing.ingredient_id,
+                    qty_per_sale: ing.qty_per_sale
+                });
+            }));
+        }).then(function() {
+            const modalElem = document.getElementById('assignRecipeModal');
+            const modal = bootstrap.Modal.getInstance(modalElem);
+            if (modal) modal.hide();
 
-        const modalElem = document.getElementById('assignRecipeModal');
-        const modal = bootstrap.Modal.getInstance(modalElem);
-        if (modal) modal.hide();
+            showModalNotification(`Recipe updated successfully!`, 'success', 'Recipe Updated');
+            logAdminActivity('Updated recipe', menuItemId, 'Success');
+            editingRecipeId = null;
+            loadRecipeControl();
 
-        showModalNotification(`Recipe for "${menuItemName}" updated successfully!`, 'success', 'Recipe Updated');
-        logAdminActivity('Updated recipe', menuItemName, 'Success');
-        editingRecipeId = null;
+        }).catch(function(err) {
+            console.error('Failed to update recipe:', err);
+            Swal.fire('Error', 'Failed to update recipe.', 'error');
+        });
+
     } else {
         // Check if recipe already exists for this menu item
-        const existing = recipes.find(r => r.menuItem === menuItemName);
-        if (existing) {
-            showModalNotification(`A recipe for "${menuItemName}" already exists. Edit the existing recipe instead.`, 'warning', 'Duplicate Recipe');
-            return;
-        }
+        recipesDB.show({ menu_item_id: menuItemId }).then(function(existing) {
+            if (existing && existing.length > 0) {
+                showModalNotification('A recipe for this menu item already exists. Edit the existing recipe instead.', 'warning', 'Duplicate Recipe');
+                return;
+            }
 
-        const maxId = recipes.length > 0 ? Math.max(...recipes.map(r => r.id)) : 0;
-        const newRecipe = {
-            id: maxId + 1,
-            menuItem: menuItemName,
-            ingredients: ingredientsList
-        };
-        recipes.push(newRecipe);
-        saveRecipesToStorage(recipes);
+            // Add all ingredient rows
+            return Promise.all(ingredientsList.map(function(ing) {
+                return recipesDB.add({
+                    menu_item_id: menuItemId,
+                    ingredient_id: ing.ingredient_id,
+                    qty_per_sale: ing.qty_per_sale
+                });
+            })).then(function() {
+                const modalElem = document.getElementById('assignRecipeModal');
+                const modal = bootstrap.Modal.getInstance(modalElem);
+                if (modal) modal.hide();
 
-        const modalElem = document.getElementById('assignRecipeModal');
-        const modal = bootstrap.Modal.getInstance(modalElem);
-        if (modal) modal.hide();
+                showModalNotification(`Recipe assigned successfully!`, 'success', 'Recipe Assigned');
+                logAdminActivity('Assigned new recipe', menuItemId, 'Success');
+                loadRecipeControl();
+            });
 
-        showModalNotification(`Recipe for "${menuItemName}" assigned successfully!`, 'success', 'Recipe Assigned');
-        logAdminActivity('Assigned new recipe', menuItemName, 'Success');
+        }).catch(function(err) {
+            console.error('Failed to save recipe:', err);
+            Swal.fire('Error', 'Failed to save recipe.', 'error');
+        });
     }
-
-    loadRecipeControl();
 }
 
 function editRecipe(id) {
@@ -1511,8 +1579,8 @@ async function saveIngredient() {
         current_quantity: 0,
         low_stock_threshold: threshold,
         status: 'active',
-        created_at: new Date().toISOString().slice(0,19).replace('T',' '),
-        updated_at: new Date().toISOString().slice(0,19).replace('T',' ')
+        created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
     };
 
     try {
