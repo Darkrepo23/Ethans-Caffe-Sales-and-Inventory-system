@@ -144,6 +144,76 @@ let currentRequestType = null;
 let currentRequestId = null;
 
 
+function loadDashboardStats() {
+    // Ingredients to Restock + Low Stock Table
+    Promise.all([
+        ingredientsDB.show(),
+        ingredientCategoriesDB.show()
+    ]).then(function (results) {
+        const ingredients = results[0];
+        const categories = results[1];
+
+        const categoryMap = {};
+        categories.forEach(function (cat) {
+            categoryMap[cat.id] = cat.name;
+        });
+
+        // Count restock
+        const lowItems = ingredients.filter(function (ing) {
+            return parseFloat(ing.current_quantity) <= parseFloat(ing.low_stock_threshold);
+        });
+
+        const restockEl = document.getElementById('ingredientsRestock');
+        if (restockEl) restockEl.textContent = lowItems.length;
+
+        // Fill low stock table
+        const lowStockTable = document.getElementById('lowStockTable');
+        if (!lowStockTable) return;
+
+        const tbody = lowStockTable.getElementsByTagName('tbody')[0];
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        if (lowItems.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No low stock items.</td></tr>';
+            return;
+        }
+
+        lowItems.forEach(function (ing) {
+            const isOut = parseFloat(ing.current_quantity) === 0;
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td><strong>${ing.name}</strong></td>
+                <td><span class="badge bg-secondary">${categoryMap[ing.category_id] || '—'}</span></td>
+                <td class="text-danger fw-bold">${ing.current_quantity}</td>
+                <td>${ing.low_stock_threshold}</td>
+                <td><span class="badge ${isOut ? 'bg-danger' : 'bg-warning'}">${isOut ? 'Out of Stock' : 'Low Stock'}</span></td>
+            `;
+        });
+
+    }).catch(function (err) {
+        console.error('Failed to load ingredient stats:', err);
+    });
+
+    // Active Staff Accounts
+    usersDB.show().then(function (users) {
+        const staffCount = users.filter(function (u) {
+            return parseInt(u.role_id) === 2 &&
+                (u.status || '').trim().toLowerCase() === 'active' &&
+                (u.deleted_at === null || u.deleted_at === undefined || u.deleted_at === '');
+        }).length;
+
+        const staffEl = document.getElementById('totalStaffAccounts');
+        if (staffEl) staffEl.textContent = staffCount;
+
+    }).catch(function (err) {
+        console.error('Failed to load staff accounts:', err);
+    });
+}
+
+// Call on page load
+loadDashboardStats();
 
 
 async function loadUnits() {
@@ -973,25 +1043,25 @@ function loadRecipeControl() {
         recipesDB.show(),
         menuItemsDB.show(),
         ingredientsDB.show()
-    ]).then(function(results) {
+    ]).then(function (results) {
         const recipes = results[0];
         const menuItems = results[1];
         const ingredients = results[2];
 
         // Build lookup maps
         const menuItemMap = {};
-        menuItems.forEach(function(item) {
+        menuItems.forEach(function (item) {
             menuItemMap[item.id] = item.name;
         });
 
         const ingredientMap = {};
-        ingredients.forEach(function(ing) {
+        ingredients.forEach(function (ing) {
             ingredientMap[ing.id] = ing;
         });
 
         // Group recipe rows by menu_item_id
         const grouped = {};
-        recipes.forEach(function(recipe) {
+        recipes.forEach(function (recipe) {
             const mid = recipe.menu_item_id;
             if (!grouped[mid]) {
                 grouped[mid] = {
@@ -1012,11 +1082,11 @@ function loadRecipeControl() {
 
         // Filter by search
         if (searchQuery) {
-            groupedList = groupedList.filter(function(r) {
+            groupedList = groupedList.filter(function (r) {
                 return r.menu_item_name.toLowerCase().includes(searchQuery) ||
-                       r.ingredients.some(function(i) {
-                           return i.name.toLowerCase().includes(searchQuery);
-                       });
+                    r.ingredients.some(function (i) {
+                        return i.name.toLowerCase().includes(searchQuery);
+                    });
             });
         }
 
@@ -1027,12 +1097,12 @@ function loadRecipeControl() {
             return;
         }
 
-        groupedList.forEach(function(recipe) {
-            const totalQty = recipe.ingredients.reduce(function(sum, i) {
+        groupedList.forEach(function (recipe) {
+            const totalQty = recipe.ingredients.reduce(function (sum, i) {
                 return sum + (i.qty || 0);
             }, 0);
 
-            const ingredientBadges = recipe.ingredients.map(function(i) {
+            const ingredientBadges = recipe.ingredients.map(function (i) {
                 return `<span class="badge bg-light text-dark border me-1 mb-1" style="font-size: 0.78em;">
                     <i class="fas fa-leaf text-success me-1"></i>${i.name} <small class="text-muted">(${i.qty} ${i.unit})</small>
                 </span>`;
@@ -1057,7 +1127,7 @@ function loadRecipeControl() {
             `;
         });
 
-    }).catch(function(err) {
+    }).catch(function (err) {
         console.error('Failed to load recipes:', err);
         recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load recipes.</td></tr>';
     });
@@ -1085,10 +1155,12 @@ function showAssignRecipeModal() {
     // Load menu items and ingredients from DB together
     Promise.all([
         menuItemsDB.show(),
-        ingredientsDB.show()
+        ingredientsDB.show(),
+        unitsDB.show()
     ]).then(function (results) {
         const menuItems = results[0];
         const ingredients = results[1];
+        const units = results[2];
 
         // Populate menu item dropdown
         const menuSelect = document.getElementById('recipeMenuItem');
@@ -1102,21 +1174,44 @@ function showAssignRecipeModal() {
             });
         }
 
+        // Build unit map
+        const unitMap = {};
+        units.forEach(function (u) {
+            unitMap[u.id] = u.short_name || u.name;
+        });
+
+        // Attach unit name to each ingredient
+        ingredients.forEach(function (ing) {
+            ing.unit_name = unitMap[ing.unit_id] || '';
+        });
+
+
+        // Wire up Add Ingredient button — always, not just in else
+        const addIngBtn = document.getElementById('addRecipeIngredientBtn');
+        if (addIngBtn) {
+            const newBtn = addIngBtn.cloneNode(true);
+            addIngBtn.parentNode.replaceChild(newBtn, addIngBtn);
+            newBtn.addEventListener('click', function () {
+                addRecipeIngredientRow(ingredients);
+            });
+        }
+
         // If editing, pre-fill from DB
         if (editingRecipeId) {
-            recipesDB.show({ menu_item_id: editingRecipeId }).then(function (recipes) {
+            recipesDB.show().then(function (allRecipes) {
+                const recipes = allRecipes.filter(function (r) {
+                    return r.menu_item_id == editingRecipeId;
+                });
+
                 if (!recipes || recipes.length === 0) return;
 
-                // Set selected menu item
                 if (menuSelect) menuSelect.value = recipes[0].menu_item_id;
 
-                // Clear no-ingredients message
+                const ingredientsArea = document.getElementById('recipeIngredientsArea');
                 if (ingredientsArea) ingredientsArea.innerHTML = '';
 
-                // Add each ingredient row
                 recipes.forEach(function (recipe) {
-                    const ing = ingredients.find(function (i) { return i.id == recipe.ingredient_id; });
-                    addRecipeIngredientRow(ingredients, recipe.ingredient_id, recipe.qty_per_sale, recipe.unit_id);
+                    addRecipeIngredientRow(ingredients, recipe.ingredient_id, recipe.qty_per_sale);
                 });
 
                 updateRecipeSummary();
@@ -1124,22 +1219,11 @@ function showAssignRecipeModal() {
             }).catch(function (err) {
                 console.error('Failed to load recipe for editing:', err);
             });
-        } else {
-            // Wire up Add Ingredient button with fresh ingredients list
-            const addIngBtn = document.getElementById('addRecipeIngredientBtn');
-            if (addIngBtn) {
-                const newBtn = addIngBtn.cloneNode(true);
-                addIngBtn.parentNode.replaceChild(newBtn, addIngBtn);
-                newBtn.addEventListener('click', function () {
-                    addRecipeIngredientRow(ingredients);
-                });
-            }
         }
 
     }).catch(function (err) {
         console.error('Failed to load modal data:', err);
     });
-
     // Show modal
     const modalElem = document.getElementById('assignRecipeModal');
     if (!modalElem) return;
@@ -1157,7 +1241,7 @@ function showAssignRecipeModal() {
     }
 }
 
-function addRecipeIngredientRow(ingredients, selectedIngredientId, qty, unitId) {
+function addRecipeIngredientRow(ingredients, selectedIngredientId, qty) {
     const ingredientsArea = document.getElementById('recipeIngredientsArea');
     if (!ingredientsArea) return;
 
@@ -1175,6 +1259,7 @@ function addRecipeIngredientRow(ingredients, selectedIngredientId, qty, unitId) 
         const opt = document.createElement('option');
         opt.value = ing.id;
         opt.textContent = ing.name;
+        opt.dataset.unit = ing.unit_name || ing.unit || '';
         if (ing.id == selectedIngredientId) opt.selected = true;
         ingSelect.appendChild(opt);
     });
@@ -1183,10 +1268,26 @@ function addRecipeIngredientRow(ingredients, selectedIngredientId, qty, unitId) 
     const qtyInput = document.createElement('input');
     qtyInput.type = 'number';
     qtyInput.className = 'form-control ingredient-qty';
-    qtyInput.placeholder = 'Qty';
     qtyInput.min = '0';
     qtyInput.step = '0.01';
     qtyInput.value = qty || '';
+
+    // Set initial placeholder based on pre-selected ingredient
+    if (selectedIngredientId) {
+        const preSelected = ingredients.find(function (i) { return i.id == selectedIngredientId; });
+        if (preSelected) qtyInput.placeholder = 'Qty (' + (preSelected.unit_name || preSelected.unit || 'unit') + ')';
+    } else {
+        qtyInput.placeholder = 'Qty';
+    }
+
+    // Update placeholder when ingredient changes
+    ingSelect.addEventListener('change', function () {
+        const selected = ingSelect.options[ingSelect.selectedIndex];
+        const unit = selected.dataset.unit || '';
+        qtyInput.placeholder = unit ? 'Qty (' + unit + ')' : 'Qty';
+        updateRecipeSummary();
+    });
+
     qtyInput.addEventListener('input', updateRecipeSummary);
 
     // Remove button
@@ -1224,7 +1325,7 @@ function updateRecipeSummary() {
     const totalQtyEl = document.getElementById('recipeTotalQty');
 
     let totalQty = 0;
-    rows.forEach(function(row) {
+    rows.forEach(function (row) {
         const qty = parseFloat(row.querySelector('.ingredient-qty')?.value) || 0;
         totalQty += qty;
     });
@@ -1244,7 +1345,7 @@ function saveRecipe() {
     const ingredientsList = [];
     let valid = true;
 
-    rows.forEach(function(row) {
+    rows.forEach(function (row) {
         const ingredientId = row.querySelector('.ingredient-select')?.value;
         const qty = parseFloat(row.querySelector('.ingredient-qty')?.value) || 0;
 
@@ -1264,87 +1365,122 @@ function saveRecipe() {
         return;
     }
 
-    // Check for duplicate ingredients
-    const ids = ingredientsList.map(function(i) { return i.ingredient_id; });
+    const ids = ingredientsList.map(function (i) { return i.ingredient_id; });
     if (new Set(ids).size !== ids.length) {
         showModalNotification('Duplicate ingredients found. Please use each ingredient only once.', 'warning', 'Validation Error');
         return;
     }
 
+    const saveBtn = document.getElementById('saveRecipeBtn');
+    if (saveBtn) saveBtn.disabled = true;
+
+    function doInsert() {
+        return Promise.all(ingredientsList.map(function (ing) {
+            return recipesDB.add({
+                menu_item_id: menuItemId,
+                ingredient_id: ing.ingredient_id,
+                qty_per_sale: ing.qty_per_sale
+            });
+        }));
+    }
+
+    function afterSave() {
+        const modalElem = document.getElementById('assignRecipeModal');
+        const modal = bootstrap.Modal.getInstance(modalElem);
+        if (modal) modal.hide();
+        editingRecipeId = null;
+        if (saveBtn) saveBtn.disabled = false;
+        loadRecipeControl();
+    }
+
     if (editingRecipeId) {
-        // Delete old recipe rows for this menu item then re-add
-        recipesDB.delete({ menu_item_id: editingRecipeId }).then(function() {
-            return Promise.all(ingredientsList.map(function(ing) {
-                return recipesDB.add({
-                    menu_item_id: menuItemId,
-                    ingredient_id: ing.ingredient_id,
-                    qty_per_sale: ing.qty_per_sale
-                });
+        // Fetch ALL recipes then filter client-side by menu_item_id
+        recipesDB.show().then(function (allRecipes) {
+            const existingRows = allRecipes.filter(function (r) {
+                return r.menu_item_id == editingRecipeId;
+            });
+
+            // Delete each row by its own id
+            return Promise.all(existingRows.map(function (r) {
+                return recipesDB.delete(r.id);
             }));
-        }).then(function() {
-            const modalElem = document.getElementById('assignRecipeModal');
-            const modal = bootstrap.Modal.getInstance(modalElem);
-            if (modal) modal.hide();
 
-            showModalNotification(`Recipe updated successfully!`, 'success', 'Recipe Updated');
+        }).then(function () {
+            return doInsert();
+
+        }).then(function () {
+            showModalNotification('Recipe updated successfully!', 'success', 'Recipe Updated');
             logAdminActivity('Updated recipe', menuItemId, 'Success');
-            editingRecipeId = null;
-            loadRecipeControl();
+            afterSave();
 
-        }).catch(function(err) {
+        }).catch(function (err) {
             console.error('Failed to update recipe:', err);
             Swal.fire('Error', 'Failed to update recipe.', 'error');
+            if (saveBtn) saveBtn.disabled = false;
         });
 
     } else {
-        // Check if recipe already exists for this menu item
-        recipesDB.show({ menu_item_id: menuItemId }).then(function(existing) {
-            if (existing && existing.length > 0) {
+        // Fetch ALL recipes then filter client-side to check duplicate
+        recipesDB.show().then(function (allRecipes) {
+            const existing = allRecipes.filter(function (r) {
+                return r.menu_item_id == menuItemId;
+            });
+
+            if (existing.length > 0) {
                 showModalNotification('A recipe for this menu item already exists. Edit the existing recipe instead.', 'warning', 'Duplicate Recipe');
+                if (saveBtn) saveBtn.disabled = false;
                 return;
             }
 
-            // Add all ingredient rows
-            return Promise.all(ingredientsList.map(function(ing) {
-                return recipesDB.add({
-                    menu_item_id: menuItemId,
-                    ingredient_id: ing.ingredient_id,
-                    qty_per_sale: ing.qty_per_sale
-                });
-            })).then(function() {
-                const modalElem = document.getElementById('assignRecipeModal');
-                const modal = bootstrap.Modal.getInstance(modalElem);
-                if (modal) modal.hide();
-
-                showModalNotification(`Recipe assigned successfully!`, 'success', 'Recipe Assigned');
+            return doInsert().then(function () {
+                showModalNotification('Recipe assigned successfully!', 'success', 'Recipe Assigned');
                 logAdminActivity('Assigned new recipe', menuItemId, 'Success');
-                loadRecipeControl();
+                afterSave();
             });
 
-        }).catch(function(err) {
+        }).catch(function (err) {
             console.error('Failed to save recipe:', err);
             Swal.fire('Error', 'Failed to save recipe.', 'error');
+            if (saveBtn) saveBtn.disabled = false;
         });
     }
 }
-
 function editRecipe(id) {
     editingRecipeId = id;
     showAssignRecipeModal();
 }
 
-function deleteRecipe(id) {
-    const recipes = getRecipes();
-    const recipe = recipes.find(r => r.id === id);
-    if (!recipe) return;
+function deleteRecipe(menuItemId) {
+    recipesDB.show().then(function (allRecipes) {
+        const rows = allRecipes.filter(function (r) {
+            return r.menu_item_id == menuItemId;
+        });
 
-    showConfirm(`Are you sure you want to delete the recipe for "${recipe.menuItem}"? This action cannot be undone.`, function () {
-        const updatedRecipes = recipes.filter(r => r.id !== id);
-        saveRecipesToStorage(updatedRecipes);
+        if (!rows || rows.length === 0) {
+            showModalNotification('Recipe not found.', 'warning', 'Not Found');
+            return;
+        }
 
-        showModalNotification(`Recipe for "${recipe.menuItem}" has been deleted.`, 'success', 'Recipe Deleted');
-        logAdminActivity('Deleted recipe', recipe.menuItem, 'Success');
-        loadRecipeControl();
+        menuItemsDB.show({ id: menuItemId }).then(function (items) {
+            const item = Array.isArray(items) ? items[0] : items;
+            const menuItemName = item ? item.name : 'Unknown';
+
+            showConfirm(`Are you sure you want to delete the recipe for "${menuItemName}"? This action cannot be undone.`, function () {
+                Promise.all(rows.map(function (r) {
+                    return recipesDB.delete(r.id);
+                })).then(function () {
+                    showModalNotification(`Recipe for "${menuItemName}" has been deleted.`, 'success', 'Recipe Deleted');
+                    logAdminActivity('Deleted recipe', menuItemName, 'Success');
+                    loadRecipeControl();
+                }).catch(function (err) {
+                    console.error('Failed to delete recipe:', err);
+                    Swal.fire('Error', 'Failed to delete recipe.', 'error');
+                });
+            });
+        });
+
+    }).catch(function (err) {
+        console.error('Failed to fetch recipes:', err);
     });
 }
 
@@ -1400,37 +1536,51 @@ async function loadIngredientsMasterlist() {
     const searchQuery = (document.getElementById('masterIngredientSearch')?.value || '').toLowerCase().trim();
     const categoryFilter = document.getElementById('masterCategoryFilter')?.value || '';
 
-    // 1️⃣ Load ingredients from DB
-    let ingredients = await ingredientsDB.show(); // fetch all ingredients
+    ingredientsMasterTable.innerHTML = '<tr><td colspan="9" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
 
-    // 2️⃣ Load categories and units to map IDs to names
-    const categories = await ingredientCategoriesDB.show();
-    const units = await unitsDB.show();
+    const results = await Promise.all([
+        ingredientsDB.show(),
+        ingredientCategoriesDB.show(),
+        unitsDB.show(),
+        recipesDB.show()
+    ]);
 
-    const getCategoryName = (id) => {
-        const cat = categories.find(c => c.id == id);
+    let ingredients = results[0];
+    const categories = results[1];
+    const units = results[2];
+    const recipes = results[3];
+
+    const getCategoryName = function (id) {
+        const cat = categories.find(function (c) { return c.id == id; });
         return cat ? cat.name : 'Unknown';
     };
 
-    const getUnitName = (id) => {
-        const unit = units.find(u => u.id == id);
+    const getUnitName = function (id) {
+        const unit = units.find(function (u) { return u.id == id; });
         return unit ? (unit.short_name || unit.name) : 'Unknown';
     };
 
-    // 3️⃣ Apply filtering
+    const getUsedInCount = function (ingredientId) {
+        return recipes.filter(function (r) {
+            return r.ingredient_id == ingredientId;
+        }).length;
+    };
+
     if (categoryFilter) {
-        ingredients = ingredients.filter(ing => getCategoryName(ing.category_id) === categoryFilter);
-    }
-    if (searchQuery) {
-        ingredients = ingredients.filter(ing =>
-            ing.name.toLowerCase().includes(searchQuery) ||
-            ing.id.toString().includes(searchQuery)
-        );
+        ingredients = ingredients.filter(function (ing) {
+            return ing.category_id == categoryFilter;
+        });
     }
 
-    // 4️⃣ Count low stock items
+    if (searchQuery) {
+        ingredients = ingredients.filter(function (ing) {
+            return ing.name.toLowerCase().includes(searchQuery) ||
+                ing.id.toString().includes(searchQuery);
+        });
+    }
+
     let lowStockCount = 0;
-    ingredients.forEach(ing => {
+    ingredients.forEach(function (ing) {
         if (ing.current_quantity <= ing.low_stock_threshold) lowStockCount++;
     });
 
@@ -1438,36 +1588,40 @@ async function loadIngredientsMasterlist() {
     if (masterTotalIngredients) masterTotalIngredients.textContent = ingredients.length;
 
     ingredientsMasterTable.innerHTML = '';
+
     if (ingredients.length === 0) {
         ingredientsMasterTable.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No ingredients found.</td></tr>';
         return;
     }
 
-    // 5️⃣ Display ingredients
-    ingredients.forEach(ingredient => {
-        const isLow = ingredient.current_quantity <= ingredient.low_stock_threshold;
+    ingredients.forEach(function (ingredient) {
+        const currentQty = parseFloat(ingredient.current_quantity) || 0;
+        const threshold = parseFloat(ingredient.low_stock_threshold) || 0;
+        const isLow = currentQty <= threshold;
+        const unitName = getUnitName(ingredient.unit_id);
+        const usedIn = getUsedInCount(ingredient.id);
         const row = ingredientsMasterTable.insertRow();
         row.classList.add('animate__animated', 'animate__fadeIn');
         row.innerHTML = `
-            <td>${ingredient.id}</td>
-            <td><strong>${ingredient.name}</strong></td>
-            <td><span class="badge bg-secondary">${getCategoryName(ingredient.category_id)}</span></td>
-            <td>${getUnitName(ingredient.unit_id)}</td>
-            <td class="${isLow ? 'text-danger fw-bold' : ''}">${ingredient.current_quantity} ${getUnitName(ingredient.unit_id)}</td>
-            <td>${ingredient.low_stock_threshold} ${getUnitName(ingredient.unit_id)}</td>
-            <td><span class="badge ${!isLow ? 'bg-success' : 'bg-warning'}">${!isLow ? 'Normal' : 'Low Stock'}</span></td>
-            <td><!-- You can add used-in menu items count if needed --></td>
-            <td>
-                <div class="table-actions">
-                    <button class="btn btn-sm btn-outline-danger" onclick="editIngredient(${ingredient.id})" title="Edit">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteIngredient(${ingredient.id})" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </td>
-        `;
+        <td>${ingredient.id}</td>
+        <td><strong>${ingredient.name}</strong></td>
+        <td><span class="badge bg-secondary">${getCategoryName(ingredient.category_id)}</span></td>
+        <td>${unitName}</td>
+        <td class="${isLow ? 'text-danger fw-bold' : ''}">${currentQty} ${unitName}</td>
+        <td>${threshold} ${unitName}</td>
+        <td><span class="badge ${!isLow ? 'bg-success' : 'bg-warning'}">${!isLow ? 'Normal' : 'Low Stock'}</span></td>
+        <td><span class="badge bg-info">${usedIn} menu item${usedIn !== 1 ? 's' : ''}</span></td>
+        <td>
+            <div class="table-actions">
+                <button class="btn btn-sm btn-outline-primary" onclick="editIngredient(${ingredient.id})" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteIngredient(${ingredient.id})" title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </td>
+    `;
     });
 }
 
@@ -1482,76 +1636,81 @@ async function showAddIngredientModal() {
     const modalTitle = modalElem.querySelector('.modal-title');
     const form = document.getElementById('addIngredientForm');
 
-    // 1️⃣ Load categories dynamically from DB
-    try {
-        const categories = await ingredientCategoriesDB.show();
-        if (categorySelect) {
-            categorySelect.innerHTML = '<option value="">Select Category</option>';
-            categories.forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat.id;    // store ID for DB
-                opt.textContent = cat.name;
-                categorySelect.appendChild(opt);
-            });
-        }
-    } catch (err) {
-        console.error("Failed to load categories:", err);
-    }
+    if (form) form.reset();
+    if (thresholdUnit) thresholdUnit.textContent = '';
 
-    // 2️⃣ Load units dynamically from DB
-    try {
-        const units = await unitsDB.show();
-        if (unitSelect) {
-            unitSelect.innerHTML = '<option value="">Select Unit</option>';
-            units.forEach(u => {
-                const opt = document.createElement('option');
-                opt.value = u.id;                // store ID
-                opt.textContent = u.short_name || u.name;
-                opt.dataset.short = u.short_name || u.name; // for threshold display
-                unitSelect.appendChild(opt);
-            });
-        }
-    } catch (err) {
-        console.error("Failed to load units:", err);
-    }
-
-    // 3️⃣ Update modal title
     if (modalTitle) {
         modalTitle.innerHTML = editingIngredientId
             ? '<i class="fas fa-edit me-2"></i>Edit Ingredient'
             : '<i class="fas fa-plus-circle me-2"></i>Add Ingredient';
     }
 
-    // 4️⃣ Pre-fill values if editing
-    if (editingIngredientId) {
-        const ingredients = getAvailableIngredients();
-        const ing = ingredients.find(i => i.id === editingIngredientId);
-        if (ing) {
-            document.getElementById('ingredientName').value = ing.name;
-            if (categorySelect) categorySelect.value = ing.category_id;
-            if (unitSelect) {
-                unitSelect.value = ing.unit_id;
-                if (thresholdUnit) thresholdUnit.textContent = unitSelect.selectedOptions[0]?.dataset.short || '';
-            }
-            document.getElementById('lowStockThreshold').value = ing.low_stock_threshold;
+    try {
+        const results = await Promise.all([
+            ingredientCategoriesDB.show(),
+            unitsDB.show()
+        ]);
+
+        const categories = results[0];
+        const units = results[1];
+
+        if (categorySelect) {
+            categorySelect.innerHTML = '<option value="">Select Category</option>';
+            categories.forEach(function (cat) {
+                const opt = document.createElement('option');
+                opt.value = cat.id;
+                opt.textContent = cat.name;
+                categorySelect.appendChild(opt);
+            });
         }
-    } else {
-        if (form) form.reset();
-        if (thresholdUnit) thresholdUnit.textContent = 'kg';
+
+        if (unitSelect) {
+            unitSelect.innerHTML = '<option value="">Select Unit</option>';
+            units.forEach(function (u) {
+                const opt = document.createElement('option');
+                opt.value = u.id;
+                opt.textContent = u.short_name || u.name;
+                opt.dataset.short = u.short_name || u.name;
+                unitSelect.appendChild(opt);
+            });
+        }
+
+        if (editingIngredientId) {
+            const ingredients = await ingredientsDB.show({ id: editingIngredientId });
+            const ing = Array.isArray(ingredients) ? ingredients[0] : ingredients;
+            if (ing) {
+                document.getElementById('ingredientName').value = ing.name;
+                if (categorySelect) categorySelect.value = ing.category_id;
+                if (unitSelect) {
+                    unitSelect.value = ing.unit_id;
+                    if (thresholdUnit) thresholdUnit.textContent = unitSelect.selectedOptions[0]?.dataset.short || '';
+                }
+                document.getElementById('lowStockThreshold').value = ing.low_stock_threshold;
+            }
+        }
+
+    } catch (err) {
+        console.error('Failed to load modal data:', err);
     }
 
-    // 5️⃣ Update threshold unit when unit changes
     if (unitSelect && thresholdUnit) {
-        unitSelect.addEventListener('change', function () {
+        const newUnitSelect = unitSelect.cloneNode(true);
+        unitSelect.parentNode.replaceChild(newUnitSelect, unitSelect);
+        newUnitSelect.addEventListener('change', function () {
             thresholdUnit.textContent = this.selectedOptions[0]?.dataset.short || '';
-        }, { once: true }); // prevent multiple listeners stacking
+        });
+        // Re-set value after clone
+        if (editingIngredientId) newUnitSelect.value = newUnitSelect.value;
     }
 
-    // 6️⃣ Show modal
     const modal = new bootstrap.Modal(modalElem);
     modal.show();
 
-    // 7️⃣ Attach save button listener safely
+    // Reset editingIngredientId when modal is closed
+    modalElem.addEventListener('hidden.bs.modal', function () {
+        editingIngredientId = null;
+    }, { once: true });
+
     const saveBtn = document.getElementById('saveIngredientBtn');
     if (saveBtn) {
         const newSaveBtn = saveBtn.cloneNode(true);
@@ -1561,29 +1720,47 @@ async function showAddIngredientModal() {
 }
 
 
+
 async function saveIngredient() {
     const name = document.getElementById('ingredientName')?.value.trim();
     const category_id = parseInt(document.getElementById('ingredientCategory')?.value);
     const unit_id = parseInt(document.getElementById('ingredientUnit')?.value);
     const threshold = parseFloat(document.getElementById('lowStockThreshold')?.value) || 0;
+    const quantity = parseFloat(document.getElementById('ingredientQuantity')?.value) || 0;
 
     if (!name || !category_id || !unit_id) {
         showModalNotification('Please fill in all required fields', 'warning', 'Validation Error');
         return;
     }
 
-    const ingredientData = {
-        name,
-        category_id,
-        unit_id,
-        current_quantity: 0,
-        low_stock_threshold: threshold,
-        status: 'active',
-        created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
-        updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
-    };
-
     try {
+        // Check for duplicate
+        const allIngredients = await ingredientsDB.show();
+        const duplicate = allIngredients.find(function(ing) {
+            const sameName = ing.name.trim().toLowerCase() === name.toLowerCase();
+            // If editing, exclude itself from duplicate check
+            if (editingIngredientId) {
+                return sameName && ing.id != editingIngredientId;
+            }
+            return sameName;
+        });
+
+        if (duplicate) {
+            showModalNotification(`Ingredient "${name}" already exists.`, 'warning', 'Duplicate Ingredient');
+            return;
+        }
+
+        const ingredientData = {
+            name,
+            category_id,
+            unit_id,
+            current_quantity: quantity,
+            low_stock_threshold: threshold,
+            status: 'active',
+            created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+            updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+        };
+
         if (editingIngredientId) {
             ingredientData.id = editingIngredientId;
             await ingredientsDB.edit(ingredientData);
@@ -1598,136 +1775,107 @@ async function saveIngredient() {
 
         loadIngredientsMasterlist();
         showModalNotification(`Ingredient "${name}" saved successfully`, 'success', 'Ingredient Saved');
+
     } catch (err) {
         console.error('Failed to save ingredient:', err);
         showModalNotification('Failed to save ingredient', 'danger', 'Error');
     }
 }
 
-
 function showSetThresholdsModal() {
-    const ingredients = getAvailableIngredients();
+    ingredientCategoriesDB.show().then(function (categories) {
+        const inputs = categories.map(function (cat) {
+            return `
+                <div class="mb-3">
+                    <label class="form-label">${cat.name}</label>
+                    <input type="number" id="swal-cat-${cat.id}" class="swal2-input mt-0" placeholder="Threshold" min="0" step="0.01">
+                </div>
+            `;
+        }).join('');
 
-    Swal.fire({
-        title: 'Global Stock Thresholds',
-        html: `
-            <div class="text-start">
-                <p class="small text-muted mb-3">Update warning thresholds for all categories.</p>
-                <div class="mb-3">
-                    <label class="form-label">Meat & Poultry (kg)</label>
-                    <input type="number" id="swal-meat" class="swal2-input mt-0" value="5">
+        Swal.fire({
+            title: 'Global Stock Thresholds',
+            html: `
+                <div class="text-start">
+                    <p class="small text-muted mb-3">Update warning thresholds for all categories.</p>
+                    ${inputs}
+                    <p class="small text-danger">Note: This will reset all individual thresholds in these categories.</p>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Vegetables (kg)</label>
-                    <input type="number" id="swal-veg" class="swal2-input mt-0" value="3">
-                </div>
-                <p class="small text-danger">Note: This will reset all individual thresholds in these categories.</p>
-            </div>
-        `,
-        showCancelButton: true,
-        confirmButtonText: 'Update All',
-        confirmButtonColor: '#dc3545',
-        preConfirm: () => {
-            return {
-                meat: document.getElementById('swal-meat').value,
-                veg: document.getElementById('swal-veg').value
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Update All',
+            confirmButtonColor: '#dc3545',
+            preConfirm: function () {
+                const values = {};
+                categories.forEach(function (cat) {
+                    const val = parseFloat(document.getElementById('swal-cat-' + cat.id)?.value);
+                    if (!isNaN(val)) values[cat.id] = val;
+                });
+                return values;
             }
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const updated = ingredients.map(ing => {
-                if (ing.category === 'Meat') ing.threshold = parseFloat(result.value.meat);
-                if (ing.category === 'Vegetables') ing.threshold = parseFloat(result.value.veg);
-                return ing;
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+
+            ingredientsDB.show().then(function (ingredients) {
+                const updates = ingredients
+                    .filter(function (ing) {
+                        return result.value[ing.category_id] !== undefined;
+                    })
+                    .map(function (ing) {
+                        return ingredientsDB.edit({
+                            id: ing.id,
+                            low_stock_threshold: result.value[ing.category_id]
+                        });
+                    });
+
+                Promise.all(updates).then(function () {
+                    showModalNotification('Thresholds updated successfully', 'success', 'Bulk Update');
+                    loadIngredientsMasterlist();
+                }).catch(function (err) {
+                    console.error('Failed to update thresholds:', err);
+                    showModalNotification('Failed to update thresholds', 'danger', 'Error');
+                });
             });
-            saveIngredientsToStorage(updated);
-            showModalNotification('Thresholds updated successfully', 'success', 'Bulk Update');
-            loadIngredientsMasterlist();
-        }
+        });
     });
 }
 
 async function editIngredient(id) {
-    try {
-        // 1️⃣ Fetch ingredient from DB
-        const ingredients = await ingredientsDB.show({ id });
-        if (!ingredients || ingredients.length === 0) return;
-        const ing = ingredients[0];
-
-        // 2️⃣ Fetch all categories and units
-        const categories = await ingredientCategoriesDB.show();
-        const units = await unitsDB.show();
-
-        const categorySelect = document.getElementById('ingredientCategory');
-        const unitSelect = document.getElementById('ingredientUnit');
-        const thresholdUnit = document.getElementById('thresholdUnit');
-
-        if (!categorySelect || !unitSelect || !thresholdUnit) return;
-
-        // 3️⃣ Populate categories dropdown and pre-select current
-        categorySelect.innerHTML = `<option value="">Select Category</option>`;
-        categories.forEach(cat => {
-            const opt = document.createElement('option');
-            opt.value = cat.id;          // ID stored as value
-            opt.textContent = cat.name;  // Name shown
-            if (cat.id == ing.category_id) opt.selected = true;
-            categorySelect.appendChild(opt);
-        });
-
-        // 4️⃣ Populate units dropdown and pre-select current
-        unitSelect.innerHTML = `<option value="">Select Unit</option>`;
-        units.forEach(u => {
-            const opt = document.createElement('option');
-            opt.value = u.id;                      // ID stored as value
-            opt.textContent = u.short_name || u.name; // Name shown
-            if (u.id == ing.unit_id) opt.selected = true;
-            unitSelect.appendChild(opt);
-        });
-
-        // 5️⃣ Update threshold unit display
-        const selectedUnit = units.find(u => u.id == ing.unit_id);
-        thresholdUnit.textContent = selectedUnit ? (selectedUnit.short_name || selectedUnit.name) : '';
-
-        // 6️⃣ Fill other modal fields
-        document.getElementById('ingredientName').value = ing.name;
-        document.getElementById('lowStockThreshold').value = ing.low_stock_threshold;
-
-        // 7️⃣ Set editing ID
-        editingIngredientId = id;
-
-        // 8️⃣ Show modal
-        const modalElem = document.getElementById('addIngredientModal');
-        const modal = new bootstrap.Modal(modalElem);
-        modal.show();
-
-    } catch (err) {
-        console.error('Failed to edit ingredient:', err);
-        showModalNotification('Failed to load ingredient for editing', 'danger', 'Error');
-    }
+    editingIngredientId = id;
+    showAddIngredientModal();
 }
-
 
 async function deleteIngredient(id) {
     try {
-        // 1️⃣ Fetch ingredient
         const ingredients = await ingredientsDB.show({ id });
         if (!ingredients || ingredients.length === 0) return;
-        const ing = ingredients[0];
+        const ing = Array.isArray(ingredients) ? ingredients[0] : ingredients;
 
-        // 2️⃣ Confirm deletion
         showConfirm(`Are you sure you want to delete "${ing.name}"? This will also remove it from any assigned recipes.`, async function () {
-            // 3️⃣ Delete via DB
-            await ingredientsDB.delete(id);
+            try {
+                // Delete related recipe rows first
+                const recipeRows = await recipesDB.show({ ingredient_id: id });
+                if (recipeRows && recipeRows.length > 0) {
+                    await Promise.all(recipeRows.map(function (r) {
+                        return recipesDB.delete(r.id);
+                    }));
+                }
 
-            showModalNotification(`"${ing.name}" has been deleted`, 'success', 'Ingredient Deleted');
-            logAdminActivity('Deleted ingredient', ing.name, 'Success');
+                // Then delete the ingredient
+                await ingredientsDB.delete(id);
 
-            // 4️⃣ Refresh table
-            loadIngredientsMasterlist();
+                showModalNotification(`"${ing.name}" has been deleted`, 'success', 'Ingredient Deleted');
+                logAdminActivity('Deleted ingredient', ing.name, 'Success');
+                loadIngredientsMasterlist();
+
+            } catch (err) {
+                console.error('Failed to delete ingredient:', err);
+                showModalNotification('Failed to delete ingredient', 'danger', 'Error');
+            }
         });
+
     } catch (err) {
-        console.error('Failed to delete ingredient:', err);
-        showModalNotification('Failed to delete ingredient', 'danger', 'Error');
+        console.error('Failed to fetch ingredient:', err);
     }
 }
 // ===== User Management Functions =====

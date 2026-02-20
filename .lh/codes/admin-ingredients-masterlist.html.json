@@ -3,7 +3,7 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 14,
+            "activePatchIndex": 15,
             "patches": [
                 {
                     "date": 1771514792383,
@@ -64,6 +64,10 @@
                 {
                     "date": 1771524632434,
                     "content": "Index: \n===================================================================\n--- \n+++ \n@@ -267,9 +267,9 @@\n     <script src=\"https://cdn.jsdelivr.net/npm/sweetalert2@11\"></script>\r\n \r\n     <!-- Custom JS -->\r\n     <script src=\"main.js\"></script>\r\n-    <script tsrc=\"admin.js\"></script>\r\n+    <script src=\"admin.js\"></script>\r\n    \r\n \r\n     <script>\r\n         // Ingredients Masterlist specific scripts\r\n"
+                },
+                {
+                    "date": 1771609570525,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -235,8 +235,15 @@\n                             <select class=\"form-select\" id=\"ingredientCategory\" required>\r\n                                 <option value=\"\">Loading categories...</option>\r\n                             </select>\r\n                         </div>\r\n+                        <div class=\"mb-3\">\r\n+    <label class=\"form-label\">Initial Quantity</label>\r\n+    <div class=\"input-group\">\r\n+        <input type=\"number\" class=\"form-control\" id=\"ingredientQuantity\" min=\"0\" step=\"0.01\" value=\"0\">\r\n+        <span class=\"input-group-text\" id=\"quantityUnit\"></span>\r\n+    </div>\r\n+</div>\r\n                         <div class=\"row\">\r\n                             <div class=\"col-md-6 mb-3\">\r\n                                 <label class=\"form-label\">Unit</label>\r\n                                 <select class=\"form-select\" id=\"ingredientUnit\" required>\r\n"
                 }
             ],
             "date": 1771514792383,
