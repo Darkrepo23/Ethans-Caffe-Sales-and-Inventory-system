@@ -1,0 +1,18 @@
+{
+    "sourceFile": "issue-new-2.0.txt",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1771594615371,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1771594615371,
+            "name": "Commit-0",
+            "content": "dfgd"
+        }
+    ]
+}

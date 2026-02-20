@@ -494,62 +494,73 @@ function loadMenuControl() {
     const searchQuery = (document.getElementById('menuControlSearch')?.value || '').toLowerCase().trim();
     const categoryFilter = document.getElementById('menuControlCategory')?.value || '';
 
-    let menuItems = getMenuItems();
+    menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
 
-    // Filter by active/inactive
-    if (!showInactive) {
-        menuItems = menuItems.filter(item => item.status === 'Active');
-    }
+    menuItemsDB.show().then(function(allItems) {
+        let menuItems = allItems;
 
-    // Filter by search
-    if (searchQuery) {
-        menuItems = menuItems.filter(item =>
-            item.name.toLowerCase().includes(searchQuery) ||
-            item.category.toLowerCase().includes(searchQuery)
-        );
-    }
+        // Filter by active/inactive
+        if (!showInactive) {
+            menuItems = menuItems.filter(function(item) {
+                return item.status === 'Active';
+            });
+        }
 
-    // Filter by category
-    if (categoryFilter) {
-        menuItems = menuItems.filter(item => item.category === categoryFilter);
-    }
+        // Filter by search
+        if (searchQuery) {
+            menuItems = menuItems.filter(function(item) {
+                return item.name.toLowerCase().includes(searchQuery) ||
+                       (item.category_name || '').toLowerCase().includes(searchQuery);
+            });
+        }
 
-    menuControlTable.innerHTML = '';
+        // Filter by category
+        if (categoryFilter) {
+            menuItems = menuItems.filter(function(item) {
+                return item.category_id == categoryFilter;
+            });
+        }
 
-    if (menuItems.length === 0) {
-        menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-utensils fa-2x mb-2 d-block"></i>No menu items found.</td></tr>';
-    } else {
-        menuItems.forEach(item => {
-            const row = menuControlTable.insertRow();
-            row.classList.add('animate__animated', 'animate__fadeIn');
-            row.innerHTML = `
-                <td>${item.id}</td>
-                <td><strong>${item.name}</strong></td>
-                <td><span class="badge bg-secondary">${item.category}</span></td>
-                <td>$${parseFloat(item.price).toFixed(2)}</td>
-                <td><span class="badge ${item.status === 'Active' ? 'bg-success' : 'bg-secondary'}">${item.status}</span></td>
-                <td><span class="badge bg-info">${item.recipes || 0} ingredients</span></td>
-                <td>
-                    <div class="table-actions">
-                        <button class="btn btn-sm btn-outline-danger" onclick="editMenuItem(${item.id})" title="Edit">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-${item.status === 'Active' ? 'warning' : 'success'}" onclick="toggleMenuItemStatus(${item.id})" title="${item.status === 'Active' ? 'Deactivate' : 'Activate'}">
-                            <i class="fas fa-power-off"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteMenuItem(${item.id})" title="Delete">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            `;
-        });
-    }
+        menuControlTable.innerHTML = '';
 
-    // Update total count (show all items count, not just filtered)
-    const allItems = getMenuItems();
-    const totalElems = document.getElementById('totalMenuItems');
-    if (totalElems) totalElems.textContent = `${allItems.length} Items`;
+        if (menuItems.length === 0) {
+            menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-utensils fa-2x mb-2 d-block"></i>No menu items found.</td></tr>';
+        } else {
+            menuItems.forEach(function(item) {
+                const row = menuControlTable.insertRow();
+                row.classList.add('animate__animated', 'animate__fadeIn');
+                row.innerHTML = `
+                    <td>${item.id}</td>
+                    <td><strong>${item.name}</strong></td>
+                    <td><span class="badge bg-secondary">${item.category_name || '—'}</span></td>
+                    <td>₱${parseFloat(item.price_reference || 0).toFixed(2)}</td>
+                    <td><span class="badge ${item.status === 'Active' ? 'bg-success' : 'bg-secondary'}">${item.status}</span></td>
+                    <td><span class="badge bg-info">${item.recipe || 0} ingredients</span></td>
+                    <td>
+                        <div class="table-actions">
+                            <button class="btn btn-sm btn-outline-danger" onclick="editMenuItem(${item.id})" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-${item.status === 'Active' ? 'warning' : 'success'}" onclick="toggleMenuItemStatus(${item.id})" title="${item.status === 'Active' ? 'Deactivate' : 'Activate'}">
+                                <i class="fas fa-power-off"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteMenuItem(${item.id})" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+            });
+        }
+
+        // Update total count
+        const totalElems = document.getElementById('totalMenuItems');
+        if (totalElems) totalElems.textContent = `${allItems.length} Items`;
+
+    }).catch(function(err) {
+        console.error('Failed to load menu items:', err);
+        menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load menu items.</td></tr>';
+    });
 }
 
 function showAddMenuItemModal() {
@@ -563,7 +574,7 @@ function showAddMenuItemModal() {
         recipeContainer.innerHTML = '<p class="text-muted text-center py-2">No ingredients assigned yet</p>';
     }
 
-    // Update modal title based on add vs edit
+    // Update modal title
     const modalTitle = document.querySelector('#addMenuItemModal .modal-title');
     if (modalTitle) {
         if (editingMenuItemId) {
@@ -573,21 +584,42 @@ function showAddMenuItemModal() {
         }
     }
 
-    // If editing, pre-fill the form
-    if (editingMenuItemId) {
-        const items = getMenuItems();
-        const item = items.find(i => i.id === editingMenuItemId);
-        if (item) {
-            const nameEl = document.getElementById('menuItemName');
-            const catEl = document.getElementById('menuItemCategory');
-            const priceEl = document.getElementById('menuItemPrice');
-            const statusEl = document.getElementById('menuItemStatus');
-            if (nameEl) nameEl.value = item.name;
-            if (catEl) catEl.value = item.category;
-            if (priceEl) priceEl.value = item.price;
-            if (statusEl) statusEl.value = item.status;
+    // Load categories into dropdown
+    menuCategoriesDB.show().then(function(categories) {
+        const select = document.getElementById('menuItemCategory');
+        if (!select) return;
+        select.innerHTML = '<option value="">Select Category</option>';
+        categories.forEach(function(cat) {
+            const opt = document.createElement('option');
+            opt.value = cat.id;
+            opt.textContent = cat.name;
+            select.appendChild(opt);
+        });
+
+        // If editing, fetch item from DB and pre-fill after categories are loaded
+        if (editingMenuItemId) {
+            menuItemsDB.show({ id: editingMenuItemId }).then(function(items) {
+                const item = Array.isArray(items) ? items[0] : items;
+                if (!item) return;
+
+                const nameEl     = document.getElementById('menuItemName');
+                const catEl      = document.getElementById('menuItemCategory');
+                const priceEl    = document.getElementById('menuItemPrice');
+                const statusEl   = document.getElementById('menuItemStatus');
+
+                if (nameEl)   nameEl.value   = item.name              || '';
+                if (catEl)    catEl.value    = item.category_id        || '';
+                if (priceEl)  priceEl.value  = item.price_reference    || '';
+                if (statusEl) statusEl.value = item.status             || 'Active';
+
+            }).catch(function(err) {
+                console.error('Failed to load menu item for editing:', err);
+            });
         }
-    }
+
+    }).catch(function(err) {
+        console.error('Failed to load categories:', err);
+    });
 
     // Show modal
     const modalElem = document.getElementById('addMenuItemModal');
@@ -596,22 +628,22 @@ function showAddMenuItemModal() {
     const modal = new bootstrap.Modal(modalElem);
     modal.show();
 
-    // Add ingredient to recipe button
+    // Add ingredient button — clone to remove old listeners
     const addIngBtn = document.getElementById('addIngredientToRecipe');
     if (addIngBtn) {
         const newBtn = addIngBtn.cloneNode(true);
         addIngBtn.parentNode.replaceChild(newBtn, addIngBtn);
-        newBtn.addEventListener('click', function () {
+        newBtn.addEventListener('click', function() {
             addIngredientToRecipeForm();
         });
     }
 
-    // Save menu item button
+    // Save button — clone to remove old listeners
     const saveBtn = document.getElementById('saveMenuItemBtn');
     if (saveBtn) {
         const newSaveBtn = saveBtn.cloneNode(true);
         saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
-        newSaveBtn.addEventListener('click', function () {
+        newSaveBtn.addEventListener('click', function() {
             saveMenuItem();
         });
     }
@@ -773,60 +805,46 @@ function toggleMenuItemStatus(id) {
 }
 
 function deleteMenuItem(id) {
-    const items = getMenuItems();
-    const item = items.find(i => i.id === id);
-    if (!item) return;
+    menuItemsDB.show({ id: id }).then(function(items) {
+        const item = Array.isArray(items) ? items[0] : items;
+        if (!item) return;
 
-    showConfirm(`Are you sure you want to delete "${item.name}"? This action cannot be undone.`, function () {
-        const updatedItems = items.filter(i => i.id !== id);
-        saveMenuItemsToStorage(updatedItems);
+        showConfirm(`Are you sure you want to delete "${item.name}"? This action cannot be undone.`, function() {
+            menuItemsDB.delete(id).then(function(result) {
+                if (result.error) {
+                    Swal.fire('Error', result.error, 'error');
+                    return;
+                }
 
-        showModalNotification(`"${item.name}" has been deleted`, 'success', 'Item Deleted');
-        logAdminActivity('Deleted menu item', item.name, 'Success');
-        loadMenuControl();
+                showModalNotification(`"${item.name}" has been deleted`, 'success', 'Item Deleted');
+                logAdminActivity('Deleted menu item', item.name, 'Success');
+                loadMenuControl();
+
+            }).catch(function(err) {
+                console.error('Delete menu item failed:', err);
+                Swal.fire('Error', 'Failed to delete menu item.', 'error');
+            });
+        });
+
+    }).catch(function(err) {
+        console.error('Failed to fetch menu item:', err);
     });
 }
 
 // ===== Recipe Control Functions =====
 
 // Available ingredients master list (shared with the rest of the system)
-function getAvailableIngredients() {
-    let ingredients = [];
-    try {
-        const stored = localStorage.getItem('ingredients');
-        if (stored) ingredients = JSON.parse(stored);
-    } catch (e) { }
-    if (!ingredients || ingredients.length === 0) {
-        ingredients = [
-            { id: 1, name: 'Beef', category: 'Meat', unit: 'kg', quantity: 15, threshold: 5, costPerUnit: 12.00, status: 'Normal', usedIn: 2 },
-            { id: 2, name: 'Chicken', category: 'Meat', unit: 'kg', quantity: 8, threshold: 10, costPerUnit: 8.00, status: 'Low', usedIn: 1 },
-            { id: 3, name: 'Rice', category: 'Grains', unit: 'kg', quantity: 25, threshold: 10, costPerUnit: 2.50, status: 'Normal', usedIn: 1 },
-            { id: 4, name: 'Tomatoes', category: 'Vegetables', unit: 'kg', quantity: 5, threshold: 3, costPerUnit: 3.00, status: 'Normal', usedIn: 2 },
-            { id: 5, name: 'Onions', category: 'Vegetables', unit: 'kg', quantity: 3, threshold: 5, costPerUnit: 2.00, status: 'Low', usedIn: 3 },
-            { id: 6, name: 'Garlic', category: 'Spices', unit: 'kg', quantity: 1, threshold: 2, costPerUnit: 5.00, status: 'Low', usedIn: 2 },
-            { id: 7, name: 'Cooking Oil', category: 'Supplies', unit: 'L', quantity: 2, threshold: 5, costPerUnit: 3.50, status: 'Low', usedIn: 5 },
-            { id: 8, name: 'Flour', category: 'Grains', unit: 'kg', quantity: 12, threshold: 5, costPerUnit: 1.50, status: 'Normal', usedIn: 1 },
-            { id: 9, name: 'Cheese', category: 'Dairy', unit: 'kg', quantity: 4, threshold: 5, costPerUnit: 10.00, status: 'Low', usedIn: 1 },
-            { id: 10, name: 'Butter', category: 'Dairy', unit: 'kg', quantity: 6, threshold: 2, costPerUnit: 7.00, status: 'Normal', usedIn: 1 },
-            { id: 11, name: 'Red Wine', category: 'Beverages', unit: 'bottles', quantity: 1, threshold: 3, costPerUnit: 15.00, status: 'Low', usedIn: 1 }
-        ];
-        localStorage.setItem('ingredients', JSON.stringify(ingredients));
-    }
-
-    // Patch: ensure every ingredient has costPerUnit (for existing localStorage data without it)
-    const defaultCosts = { 'Beef': 12, 'Chicken': 8, 'Rice': 2.5, 'Tomatoes': 3, 'Onions': 2, 'Garlic': 5, 'Cooking Oil': 3.5, 'Flour': 1.5, 'Cheese': 10, 'Butter': 7, 'Red Wine': 15 };
-    let patched = false;
-    ingredients.forEach(ing => {
-        if (ing.costPerUnit === undefined || ing.costPerUnit === null) {
-            ing.costPerUnit = defaultCosts[ing.name] || 5.00;
-            patched = true;
+function getAvailableIngredients(callback) {
+    ingredientsDB.show().then(function(ingredients) {
+        if (typeof callback === 'function') {
+            callback(ingredients);
+        }
+    }).catch(function(err) {
+        console.error('Failed to load ingredients:', err);
+        if (typeof callback === 'function') {
+            callback([]);
         }
     });
-    if (patched) {
-        localStorage.setItem('ingredients', JSON.stringify(ingredients));
-    }
-
-    return ingredients;
 }
 
 function saveIngredientsToStorage(ingredients) {
