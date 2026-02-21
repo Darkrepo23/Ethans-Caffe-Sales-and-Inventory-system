@@ -17,7 +17,17 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="staff.css">
     <script>
+        // Immediate Sidebar State Initialization
         (function () {
+            const html = document.documentElement;
+            html.classList.add('initializing');
+
+            const sidebarState = localStorage.getItem('sidebarActive');
+            if (sidebarState === 'true' && window.innerWidth >= 992) {
+                html.classList.add('sidebar-active');
+            }
+
+            // Auth Guard (Staff/Cashier version)
             try {
                 const role = localStorage.getItem('loggedInRole');
                 if (role !== 'staff' && role !== 'cashier') {
@@ -37,11 +47,7 @@
             <button class="sidebar-toggle mt-1 me-2" id="sidebarToggle">
                 <i class="fas fa-bars"></i>
             </button>
-            <a class="navbar-brand d-flex align-items-center" href="staff-menu.html">
-                <img src="resources/ethans logo.jpg" alt="Logo" height="60" class="me-2">
-                <span class="fw-bold">Restaurant POS</span>
-                <span class="badge bg-maroon ms-2">Staff</span>
-            </a>
+
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#headerNav">
                 <span class="fas fa-ellipsis-v"></span>
             </button>
@@ -49,7 +55,7 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i>John Doe
+                            <i class="fas fa-user-circle me-1"></i>Staff Member
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 animate__animated animate__fadeIn">
                             <li><a class="dropdown-item active" href="staff-account.html"><i
@@ -71,6 +77,15 @@
     <div class="dashboard-layout">
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
+            <div class="sidebar-branding">
+                <button class="sidebar-toggle in-sidebar" id="sidebarToggleInternal">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <a href="staff-dashboard.html" class="sidebar-brand-group">
+                    <img src="resources/ethans logo.jpg" alt="Logo">
+                    <span class="pos-label">POS</span>
+                </a>
+            </div>
             <div class="sidebar-nav">
                 <div class="sidebar-section-title">Operations</div>
                 <a href="staff-menu.html" class="sidebar-link">
@@ -101,6 +116,16 @@
                 <div
                     class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2"><i class="fas fa-user-cog me-2 text-maroon"></i>Account Settings</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button class="btn btn-outline-maroon" id="editAccountBtn">
+                                <i class="fas fa-edit me-1"></i> Edit
+                            </button>
+                            <button class="btn btn-maroon d-none" id="sendAccountRequestBtn">
+                                <i class="fas fa-paper-plane me-1"></i> Send Request
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="row">
@@ -113,16 +138,17 @@
                                         <i class="fas fa-user-tie fa-6x text-maroon"></i>
                                     </div>
                                 </div>
-                                <h4>John Doe</h4>
-                                <p class="text-maroon fw-bold mb-4">Service Staff</p>
+                                <h4 id="profFullName">Staff Member</h4>
+                                <p id="profRole" class="text-maroon fw-bold mb-4">Service Staff</p>
                                 <hr>
                                 <div class="text-start mt-4">
                                     <p class="small mb-1 text-muted">Employee ID</p>
-                                    <p class="fw-bold mb-3">STF-00124</p>
+                                    <p id="profEmployeeId" class="fw-bold mb-3">STF-00124</p>
                                     <p class="small mb-1 text-muted">Join Date</p>
-                                    <p class="fw-bold mb-3">January 15, 2023</p>
+                                    <p id="profJoinDate" class="fw-bold mb-3">January 15, 2023</p>
                                     <p class="small mb-1 text-muted">Account Status</p>
-                                    <p class="fw-bold text-success mb-0"><i class="fas fa-check-circle me-2"></i>Active
+                                    <p id="profStatus" class="fw-bold text-success mb-0"><i
+                                            class="fas fa-check-circle me-2"></i>Active
                                     </p>
                                 </div>
                             </div>
@@ -140,24 +166,20 @@
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">Full Name</label>
-                                            <input type="text" class="form-control" id="accFullName" value="John Doe">
+                                            <input type="text" class="form-control" id="accFullName"
+                                                placeholder="Loading..." disabled>
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">Username</label>
-                                            <input type="text" class="form-control" id="accUsername" value="johndoe"
+                                            <input type="text" class="form-control" id="accUsername" value="..."
                                                 readonly disabled>
                                             <div class="form-text">Username cannot be changed</div>
                                         </div>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Email Address</label>
-                                        <input type="email" class="form-control" id="accEmail"
-                                            value="john.doe@creativesolution.com">
-                                    </div>
-                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                        <button class="btn btn-maroon" type="button" id="saveAccountInfoBtn">
-                                            <i class="fas fa-save me-1"></i> Save Changes
-                                        </button>
+                                        <input type="email" class="form-control" id="accEmail" placeholder="Loading..."
+                                            disabled>
                                     </div>
                                 </form>
                             </div>
@@ -171,22 +193,18 @@
                                 <form id="changePasswordForm">
                                     <div class="mb-3">
                                         <label class="form-label">Current Password</label>
-                                        <input type="password" class="form-control" id="currentPass" required>
+                                        <input type="password" class="form-control" id="currentPass" required disabled>
                                     </div>
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">New Password</label>
-                                            <input type="password" class="form-control" id="newPass" required>
+                                            <input type="password" class="form-control" id="newPass" required disabled>
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">Confirm New Password</label>
-                                            <input type="password" class="form-control" id="confirmPass" required>
+                                            <input type="password" class="form-control" id="confirmPass" required
+                                                disabled>
                                         </div>
-                                    </div>
-                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                        <button class="btn btn-outline-maroon" type="button" id="changePassBtn">
-                                            <i class="fas fa-sync-alt me-1"></i> Update Password
-                                        </button>
                                     </div>
                                 </form>
                             </div>

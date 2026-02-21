@@ -17,8 +17,17 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="staff.css">
     <script>
-        // Simple front-end guard to prevent direct access without login
+        // Immediate Sidebar State Initialization
         (function () {
+            const html = document.documentElement;
+            html.classList.add('initializing');
+
+            const sidebarState = localStorage.getItem('sidebarActive');
+            if (sidebarState === 'true' && window.innerWidth >= 992) {
+                html.classList.add('sidebar-active');
+            }
+
+            // Auth Guard (Staff version)
             try {
                 const role = localStorage.getItem('loggedInRole');
                 if (role !== 'staff' && role !== 'cashier') {
@@ -40,13 +49,6 @@
                 <i class="fas fa-bars"></i>
             </button>
 
-            <!-- Logo -->
-            <a class="navbar-brand d-flex align-items-center" href="#">
-                <img src="resources/ethans logo.jpg" alt="Logo" height="60" class="me-2">
-                <span class="fw-bold">Restaurant POS</span>
-                <span class="badge bg-maroon ms-2">Staff</span>
-            </a>
-
             <!-- Mobile User Menu Toggle -->
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#headerNav">
                 <span class="fas fa-ellipsis-v"></span>
@@ -58,7 +60,7 @@
                     <!-- User Dropdown (Preserved in Header) -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i>John Doe
+                            <i class="fas fa-user-circle me-1"></i>Staff Member
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 animate__animated animate__fadeIn">
                             <li><a class="dropdown-item" href="#" data-page="account"><i
@@ -80,6 +82,15 @@
     <div class="dashboard-layout">
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
+            <div class="sidebar-branding">
+                <button class="sidebar-toggle in-sidebar" id="sidebarToggleInternal">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <a href="staff-dashboard.html" class="sidebar-brand-group">
+                    <img src="resources/ethans logo.jpg" alt="Logo">
+                    <span class="pos-label">POS</span>
+                </a>
+            </div>
             <div class="sidebar-nav">
                 <div class="sidebar-section-title">Operations</div>
                 <a href="#" class="sidebar-link active" data-page="menu">
@@ -349,13 +360,13 @@
                                 <form id="accountInfoForm">
                                     <div class="mb-3">
                                         <label class="form-label">Full Name</label>
-                                        <input type="text" class="form-control" id="staffFullName" value="John Doe"
-                                            required>
+                                        <input type="text" class="form-control" id="accFullName"
+                                            placeholder="Loading..." required>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Username</label>
-                                        <input type="text" class="form-control" id="staffUsername" value="johndoe"
-                                            required>
+                                        <input type="text" class="form-control" id="accUsername"
+                                            placeholder="Loading..." required readonly disabled>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Current Role</label>
@@ -444,7 +455,8 @@
                                     <i class="fas fa-list-alt me-1"></i>My Activity Log
                                 </h6>
                                 <div class="text-muted small">
-                                    <i class="fas fa-user me-1"></i>Showing actions by: John Doe
+                                    <i class="fas fa-user me-1"></i>Showing actions by: <span
+                                        id="profActivityName">Staff Member</span>
                                 </div>
                             </div>
                             <div class="card-body">
@@ -612,24 +624,6 @@
             // Load menu items
             loadMenuItems();
 
-            // Mobile sidebar toggle
-            const sidebarToggle = document.getElementById('sidebarToggle');
-            const sidebar = document.getElementById('sidebar');
-            if (sidebarToggle && sidebar) {
-                sidebarToggle.addEventListener('click', function () {
-                    sidebar.classList.toggle('show');
-                });
-            }
-
-            // Close sidebar when clicking outside on mobile
-            document.addEventListener('click', function (e) {
-                if (window.innerWidth < 992) {
-                    if (sidebar && !sidebar.contains(e.target) && sidebarToggle && !sidebarToggle.contains(e.target)) {
-                        sidebar.classList.remove('show');
-                    }
-                }
-            });
-
             // Navigation handling
             document.querySelectorAll('[data-page]').forEach(link => {
                 link.addEventListener('click', function (e) {
@@ -638,8 +632,9 @@
                     updateActivePage(page);
 
                     // Auto-close sidebar on mobile after selection
-                    if (window.innerWidth < 992 && sidebar) {
-                        sidebar.classList.remove('show');
+                    if (window.innerWidth < 992) {
+                        const layout = document.querySelector('.dashboard-layout');
+                        if (layout) layout.classList.remove('sidebar-active');
                     }
                 });
             });

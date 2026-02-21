@@ -35,18 +35,26 @@ if (!is_array($data)) {
 
 $fullName  = trim($data['full_name'] ?? '');
 $username  = trim($data['username'] ?? '');
+$email     = trim($data['email'] ?? '');
 $password  = trim($data['password'] ?? '');
 $roleId    = intval($data['requested_role_id'] ?? 0);
 
 // Validate required fields
-if (empty($fullName) || empty($username) || empty($password) || !$roleId) {
+if (empty($fullName) || empty($username) || empty($email) || empty($password) || !$roleId) {
     http_response_code(400);
     echo json_encode(["error" => "Please fill in all required fields"]);
     exit();
 }
 
+// Validate Gmail/Email format
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    http_response_code(400);
+    echo json_encode(["error" => "Invalid Gmail/Email format."]);
+    exit();
+}
+
 // Validate lengths
-if (strlen($username) > 100 || strlen($fullName) > 255) {
+if (strlen($username) > 100 || strlen($fullName) > 255 || strlen($email) > 255) {
     http_response_code(400);
     echo json_encode(["error" => "Input too long"]);
     exit();
@@ -99,9 +107,9 @@ $passwordHash = password_hash($password, PASSWORD_BCRYPT);
 
 // Insert account request
 $stmt = $pdo->prepare("
-    INSERT INTO account_requests (full_name, username, password_hash, requested_role_id, status, requested_at)
-    VALUES (?, ?, ?, ?, 'Pending', NOW())
+    INSERT INTO account_requests (full_name, username, email, password_hash, requested_role_id, status, requested_at)
+    VALUES (?, ?, ?, ?, ?, 'Pending', NOW())
 ");
-$stmt->execute([$fullName, $username, $passwordHash, $roleId]);
+$stmt->execute([$fullName, $username, $email, $passwordHash, $roleId]);
 
 echo json_encode(["success" => true, "message" => "Account request submitted successfully."]);

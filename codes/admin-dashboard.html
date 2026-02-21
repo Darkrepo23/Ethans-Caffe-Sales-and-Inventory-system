@@ -17,7 +17,17 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="admin.css">
     <script>
+        // Immediate Sidebar State Initialization
         (function () {
+            const html = document.documentElement;
+            html.classList.add('initializing');
+
+            const sidebarState = localStorage.getItem('sidebarActive');
+            if (sidebarState === 'true' && window.innerWidth >= 992) {
+                html.classList.add('sidebar-active');
+            }
+
+            // Auth Guard
             try {
                 const role = localStorage.getItem('loggedInRole');
                 if (role !== 'admin' && role !== 'owner') {
@@ -27,8 +37,6 @@
                 window.location.href = 'index.html';
             }
         })();
-
-        
     </script>
 </head>
 
@@ -39,11 +47,6 @@
             <button class="sidebar-toggle mt-1 me-2" id="sidebarToggle">
                 <i class="fas fa-bars"></i>
             </button>
-            <a class="navbar-brand d-flex align-items-center" href="admin-dashboard.html">
-                <img src="resources/ethans logo.jpg" alt="Logo" height="60" class="me-2">
-                <span class="fw-bold">Restaurant POS</span>
-                <span class="badge bg-danger ms-2">Admin</span>
-            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#headerNav">
                 <span class="fas fa-ellipsis-v"></span>
             </button>
@@ -73,13 +76,22 @@
     <div class="dashboard-layout">
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
+            <div class="sidebar-branding">
+                <button class="sidebar-toggle in-sidebar" id="sidebarToggleInternal">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <a href="admin-dashboard.html" class="sidebar-brand-group">
+                    <img src="resources/ethans logo.jpg" alt="Logo">
+                    <span class="pos-label">POS</span>
+                </a>
+            </div>
             <div class="sidebar-nav">
                 <div class="sidebar-section-title">Navigation</div>
                 <a href="admin-dashboard.html" class="sidebar-link active">
                     <i class="fas fa-tachometer-alt"></i>Dashboard
                 </a>
                 <a href="admin-menu-control.html" class="sidebar-link">
-                    <i class="fas fa-utensils"></i>Menu Items
+                    <i class="fas fa-utensils"></i>Menu Control
                 </a>
                 <a href="admin-recipe-control.html" class="sidebar-link">
                     <i class="fas fa-book"></i>Recipe Control
@@ -146,7 +158,8 @@
                                             Ingredients to Restock
                                         </div>
                                         <div class="h5 mb-0 font-weight-bold" id="ingredientsRestock"
-                                            style="color: black;">0</div>
+                                            style="color: black;">
+                                            0</div>
                                     </div>
                                     <div class="col-auto">
                                         <i class="fas fa-boxes fa-2x text-danger"></i>
@@ -164,7 +177,8 @@
                                             Active Staff Accounts
                                         </div>
                                         <div class="h5 mb-0 font-weight-bold" id="totalStaffAccounts"
-                                            style="color: black;">0</div>
+                                            style="color: black;">
+                                            0</div>
                                     </div>
                                     <div class="col-auto">
                                         <i class="fas fa-users fa-2x text-dark"></i>
@@ -180,12 +194,15 @@
                                     <div class="col mr-2">
                                         <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: black;">
                                             Total Sales Records
-                                            <button class="btn btn-link btn-sm p-0 ms-2" id="salesPrevBtn" title="Previous" tabindex="0"><i class="fas fa-chevron-up"></i></button>
-                                            <button class="btn btn-link btn-sm p-0 ms-1" id="salesNextBtn" title="Next" tabindex="0"><i class="fas fa-chevron-down"></i></button>
+                                            <button class="btn btn-link btn-sm p-0 ms-2" id="salesPrevBtn"
+                                                title="Previous" tabindex="0"><i class="fas fa-chevron-up"></i></button>
+                                            <button class="btn btn-link btn-sm p-0 ms-1" id="salesNextBtn" title="Next"
+                                                tabindex="0"><i class="fas fa-chevron-down"></i></button>
                                             <span class="badge bg-danger ms-2" id="salesPeriodLabel">This Month</span>
                                         </div>
                                         <div class="h5 mb-0 font-weight-bold" id="totalSalesRecords"
-                                            style="color: black;">0</div>
+                                            style="color: black;">0
+                                        </div>
                                     </div>
                                     <div class="col-auto">
                                         <i class="fas fa-file-invoice-dollar fa-2x text-danger"></i>
@@ -301,26 +318,26 @@
     <script src="admin.js"></script>
 
     <script>
-    // Sales period options
-    const salesPeriods = ["This Day", "This Month", "This Year"];
-    let currentPeriod = 1; // Start at "This Month"
+        // Sales period options
+        const salesPeriods = ["This Day", "This Month", "This Year"];
+        let currentPeriod = 1; // Start at "This Month"
 
-    function updateSalesPeriod() {
-        document.getElementById('salesPeriodLabel').textContent = salesPeriods[currentPeriod];
-        // TODO: Update #totalSalesRecords value via AJAX or logic for the selected period
-    }
+        function updateSalesPeriod() {
+            document.getElementById('salesPeriodLabel').textContent = salesPeriods[currentPeriod];
+            // TODO: Update #totalSalesRecords value via AJAX or logic for the selected period
+        }
 
-    document.getElementById('salesPrevBtn').onclick = function() {
-        currentPeriod = (currentPeriod - 1 + salesPeriods.length) % salesPeriods.length;
+        document.getElementById('salesPrevBtn').onclick = function () {
+            currentPeriod = (currentPeriod - 1 + salesPeriods.length) % salesPeriods.length;
+            updateSalesPeriod();
+        };
+        document.getElementById('salesNextBtn').onclick = function () {
+            currentPeriod = (currentPeriod + 1) % salesPeriods.length;
+            updateSalesPeriod();
+        };
+
+        // Initialize label
         updateSalesPeriod();
-    };
-    document.getElementById('salesNextBtn').onclick = function() {
-        currentPeriod = (currentPeriod + 1) % salesPeriods.length;
-        updateSalesPeriod();
-    };
-
-    // Initialize label
-    updateSalesPeriod();
     </script>
 </body>
 

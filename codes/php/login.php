@@ -69,27 +69,9 @@ if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
     exit();
 }
 
-// Brute force protection — track failed attempts in session
-if (!isset($_SESSION['login_attempts'])) {
-    $_SESSION['login_attempts'] = 0;
-    $_SESSION['login_last_attempt'] = time();
-}
-
-// Reset attempts after 15 minutes
-if (time() - $_SESSION['login_last_attempt'] > 900) {
-    $_SESSION['login_attempts'] = 0;
-    $_SESSION['login_last_attempt'] = time();
-}
-
-if ($_SESSION['login_attempts'] >= 5) {
-    http_response_code(429);
-    echo json_encode(["error" => "Too many login attempts. Please wait 15 minutes."]);
-    exit();
-}
-
 // Fetch user with role name via JOIN
 $stmt = $pdo->prepare("
-    SELECT u.id, u.username, u.full_name, u.password_hash, u.role_id, r.name AS role_name
+    SELECT u.id, u.username, u.full_name, u.email, u.password_hash, u.role_id, r.name AS role_name
     FROM users u
     JOIN roles r ON u.role_id = r.id
     WHERE u.username = ? AND u.deleted_at IS NULL
@@ -104,15 +86,10 @@ $hashToVerify = $user ? $user['password_hash'] : $dummyHash;
 $passwordValid = password_verify($password, $hashToVerify);
 
 if (!$user || !$passwordValid) {
-    $_SESSION['login_attempts']++;
-    $_SESSION['login_last_attempt'] = time();
     http_response_code(401);
     echo json_encode(["error" => "Invalid username or password"]);
     exit();
 }
-
-// Reset attempts on success
-$_SESSION['login_attempts'] = 0;
 
 // Regenerate session ID to prevent session fixation
 session_regenerate_id(true);
@@ -120,10 +97,21 @@ session_regenerate_id(true);
 $_SESSION['user_id'] = $user['id'];
 $_SESSION['role_id'] = $user['role_id'];
 
+// Log successful login for "My Activity"
+try {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    $logStmt = $pdo->prepare("INSERT INTO activity_logs (user_id, role_label, action, reference, status, ip_address, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+    $logStmt->execute([$user['id'], $user['role_name'], 'Logged in', 'System', 'Success', $ip]);
+} catch (Exception $e) {
+    // Silently fail logging if it errors out
+}
+
 echo json_encode([
     "success"    => true,
     "session_id" => session_id(),
-    "user_id"    => $user['id'],
+    "id"         => $user['id'],
+    "username"   => $user['username'],
+    "email"      => $user['email'],
     "role_id"    => $user['role_id'],
     "role_name"  => $user['role_name'],
     "full_name"  => htmlspecialchars($user['full_name'], ENT_QUOTES, 'UTF-8')

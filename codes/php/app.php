@@ -85,8 +85,8 @@ $data = json_decode(file_get_contents("php://input"), true) ?: [];
 // Table whitelist and columns
 $TABLES = [
 	'roles' => ['id', 'name', 'permissions'],
-	'users' => ['id', 'full_name', 'username', 'password_hash', 'role_id', 'status', 'last_login', 'created_at', 'updated_at', 'deleted_at'],
-	'account_requests' => ['id', 'full_name', 'username', 'password_hash', 'requested_role_id', 'status', 'requested_at', 'reviewed_by', 'reviewed_at', 'notes'],
+	'users' => ['id', 'full_name', 'username', 'email', 'password_hash', 'role_id', 'status', 'last_login', 'created_at', 'updated_at', 'deleted_at'],
+	'account_requests' => ['id', 'full_name', 'username', 'email', 'password_hash', 'requested_role_id', 'status', 'requested_at', 'reviewed_by', 'reviewed_at', 'notes'],
 	'menu_categories' => ['id', 'name', 'description'],
 	'menu_items' => ['id', 'name', 'category_id', 'description', 'recipe', 'price_reference', 'status', 'image_path', 'created_at', 'updated_at'],
 	'ingredient_categories' => ['id', 'name'],
@@ -113,9 +113,11 @@ $COLUMNS = $TABLES[$table];
 switch($method) {
 	case 'POST':
 		$filtered = array_intersect_key($data, array_flip($COLUMNS));
-		// Hash password for users and account_requests
+		// Hash password for users and account_requests (but only if not already hashed)
 		if (($table === 'users' || $table === 'account_requests') && isset($filtered['password_hash'])) {
-			$filtered['password_hash'] = password_hash($filtered['password_hash'], PASSWORD_DEFAULT);
+			if (strpos($filtered['password_hash'], '$2y$') !== 0) {
+				$filtered['password_hash'] = password_hash($filtered['password_hash'], PASSWORD_DEFAULT);
+			}
 		}
 		$keys = implode(', ', array_keys($filtered));
 		$placeholders = implode(', ', array_fill(0, count($filtered), '?'));
@@ -162,9 +164,11 @@ switch($method) {
 		$id = $data[$idField];
 		unset($data[$idField]);
 		$filtered = array_intersect_key($data, array_flip($COLUMNS));
-		// Hash password for users and account_requests
+		// Hash password for users and account_requests (but only if not already hashed)
 		if (($table === 'users' || $table === 'account_requests') && isset($filtered['password_hash'])) {
-			$filtered['password_hash'] = password_hash($filtered['password_hash'], PASSWORD_DEFAULT);
+			if (strpos($filtered['password_hash'], '$2y$') !== 0) {
+				$filtered['password_hash'] = password_hash($filtered['password_hash'], PASSWORD_DEFAULT);
+			}
 		}
 		$set = [];
 		foreach ($filtered as $k => $v) {

@@ -79,19 +79,23 @@ async function handleLogin() {
             text: `Welcome back, ${data.full_name}!`,
             showConfirmButton: false,
             timer: 1200,
-            timerProgressBar: true
+            timerProgressBar: true,
+            heightAuto: false
         }).then(() => {
             const role = parseInt(data.role_id);
             const roleName = (data.role_name || "").toLowerCase();
 
             if (role === 1 || roleName === "admin") {
                 localStorage.setItem('loggedInRole', 'admin');
+                localStorage.setItem('loggedInUser', JSON.stringify(data));
                 window.location.href = "admin-dashboard.html";
             } else if (role === 2 || roleName === "staff") {
                 localStorage.setItem('loggedInRole', 'staff');
+                localStorage.setItem('loggedInUser', JSON.stringify(data));
                 window.location.href = "staff-menu.html";
             } else {
                 localStorage.setItem('loggedInRole', 'user');
+                localStorage.setItem('loggedInUser', JSON.stringify(data));
                 window.location.href = "staff-menu.html";
             }
         });
@@ -135,13 +139,19 @@ function showLoginError(message) {
 function handleAccountRequest() {
     const fullName = document.getElementById('fullName').value.trim();
     const username = document.getElementById('requestUsername').value.trim();
+    const email = document.getElementById('requestEmail').value.trim();
     const password = document.getElementById('requestPassword').value.trim();
     const confirmPassword = document.getElementById('confirmPassword').value.trim();
     const requestedRole = document.getElementById('requestedRole').value;
 
     // Validation
-    if (!fullName || !username || !password || !confirmPassword) {
+    if (!fullName || !username || !email || !password || !confirmPassword) {
         showRequestError('Please fill in all required fields');
+        return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showRequestError('Please enter a valid Gmail/Email address');
         return;
     }
 
@@ -168,57 +178,49 @@ function handleAccountRequest() {
     submitBtn.innerHTML = '<span class="loading-spinner"></span> Submitting...';
     submitBtn.disabled = true;
 
-    fetch("http://localhost/Ethans%20Cafe/codes/php/register.php", {
+    fetch("http://localhost/Ethans%20Cafe/codes/php/account_request.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             full_name: fullName,
             username: username,
+            email: email,
             password: password,
-            requested_role_id: requestedRole
+            requested_role_id: requestedRole === 'Staff' ? 2 : 3 // Adjusted based on role IDs
         })
     })
-    .then(function(res) {
-        return res.json().then(function(data) {
-            return { status: res.status, data: data };
+        .then(function (res) {
+            return res.json().then(function (data) {
+                return { status: res.status, data: data };
+            });
+        })
+        .then(function (result) {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+
+            if (result.data.error) {
+                showRequestError(result.data.error);
+                return;
+            }
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Request Submitted!',
+                text: 'Your account request is now pending approval. Please wait for an administrator to activate your account.',
+                confirmButtonText: 'Great, thanks!',
+                confirmButtonColor: '#800000',
+                background: '#fff',
+                heightAuto: false
+            });
+
+            requestAccountForm.reset();
+        })
+        .catch(function (err) {
+            console.error('Request failed:', err);
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+            showRequestError('Network error. Please try again.');
         });
-    })
-    .then(function(result) {
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-
-        if (result.data.error) {
-            showRequestError(result.data.error);
-            return;
-        }
-
-        Swal.fire({
-            icon: 'success',
-            title: 'Request Submitted!',
-            text: 'Your account request is now pending approval. Please wait for an administrator to activate your account.',
-            confirmButtonText: 'Great, thanks!',
-            confirmButtonColor: '#800000',
-            background: '#fff',
-            heightAuto: false
-        });
-
-        requestAccountForm.reset();
-    })
-    .catch(function(err) {
-        console.error('Request failed:', err);
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-        showRequestError('Network error. Please try again.');
-    });
-}
-
-// Hook up form submit
-const requestAccountForm = document.getElementById('requestAccountForm');
-if (requestAccountForm) {
-    requestAccountForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        handleAccountRequest();
-    });
 }
 
 function showRequestError(message) {

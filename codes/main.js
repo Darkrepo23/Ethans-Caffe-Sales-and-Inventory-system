@@ -21,7 +21,8 @@ function showNotification(message, type = 'info') {
             title: titleMap[type] || 'Notification',
             text: message,
             timer: 2200,
-            showConfirmButton: false
+            showConfirmButton: false,
+            heightAuto: false
         });
         return;
     }
@@ -65,7 +66,8 @@ function showConfirm(message, callback) {
             confirmButtonText: 'Yes, proceed',
             cancelButtonText: 'No',
             confirmButtonColor: '#800000',
-            cancelButtonColor: '#6c757d'
+            cancelButtonColor: '#6c757d',
+            heightAuto: false
         }).then((result) => {
             if (result.isConfirmed && typeof callback === 'function') {
                 callback();
@@ -87,7 +89,8 @@ function showModalNotification(msg, type, title) {
             title: title || 'Notification',
             text: msg,
             icon: type || 'info',
-            confirmButtonColor: '#800000'
+            confirmButtonColor: '#800000',
+            heightAuto: false
         });
     } else {
         alert(`${title}: ${msg}`);
@@ -337,6 +340,62 @@ document.addEventListener('DOMContentLoaded', function () {
     setTimeout(() => {
         document.body.classList.remove('loading');
     }, 500);
+
+    // Initialize Sidebar Toggle
+    const sidebarToggles = document.querySelectorAll('.sidebar-toggle');
+    const dashboardLayout = document.querySelector('.dashboard-layout');
+    const sidebar = document.getElementById('sidebar');
+
+    if (sidebarToggles.length > 0 && (dashboardLayout || document.documentElement.classList.contains('sidebar-active'))) {
+        // State is already applied by head script if present, but we sync here just in case
+        const isMobile = window.innerWidth < 992;
+        const sidebarState = localStorage.getItem('sidebarActive');
+
+        if (sidebarState === 'true' && !isMobile) {
+            if (dashboardLayout) dashboardLayout.classList.add('sidebar-active');
+            document.documentElement.classList.add('sidebar-active');
+        }
+
+        // Remove initializing class after a tiny delay to allow the state to take effect without animation
+        setTimeout(() => {
+            document.documentElement.classList.remove('initializing');
+        }, 50);
+
+        sidebarToggles.forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Toggle both for compatibility
+                if (dashboardLayout) dashboardLayout.classList.toggle('sidebar-active');
+                document.documentElement.classList.toggle('sidebar-active');
+
+                const isActive = document.documentElement.classList.contains('sidebar-active');
+                localStorage.setItem('sidebarActive', isActive);
+            });
+        });
+
+        // Close sidebar when clicking outside (Only on mobile)
+        document.addEventListener('click', function (e) {
+            if (window.innerWidth < 992 &&
+                document.documentElement.classList.contains('sidebar-active') &&
+                sidebar && !sidebar.contains(e.target)) {
+
+                // Don't close if clicking a toggle that was already handled
+                let isToggle = false;
+                sidebarToggles.forEach(t => { if (t.contains(e.target)) isToggle = true; });
+
+                if (!isToggle) {
+                    if (dashboardLayout) dashboardLayout.classList.remove('sidebar-active');
+                    document.documentElement.classList.remove('sidebar-active');
+                    localStorage.setItem('sidebarActive', 'false');
+                }
+            }
+        });
+    } else {
+        // Fallback for pages without sidebar
+        document.documentElement.classList.remove('initializing');
+    }
 
     // Add animation classes to elements with data-animate attribute
     document.querySelectorAll('[data-animate]').forEach(element => {

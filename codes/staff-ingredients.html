@@ -17,7 +17,17 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="staff.css">
     <script>
+        // Immediate Sidebar State Initialization
         (function () {
+            const html = document.documentElement;
+            html.classList.add('initializing');
+
+            const sidebarState = localStorage.getItem('sidebarActive');
+            if (sidebarState === 'true' && window.innerWidth >= 992) {
+                html.classList.add('sidebar-active');
+            }
+
+            // Auth Guard (Staff version)
             try {
                 const role = localStorage.getItem('loggedInRole');
                 if (role !== 'staff' && role !== 'cashier') {
@@ -37,11 +47,7 @@
             <button class="sidebar-toggle mt-1 me-2" id="sidebarToggle">
                 <i class="fas fa-bars"></i>
             </button>
-            <a class="navbar-brand d-flex align-items-center" href="staff-menu.html">
-                <img src="resources/ethans logo.jpg" alt="Logo" height="60" class="me-2">
-                <span class="fw-bold">Restaurant POS</span>
-                <span class="badge bg-maroon ms-2">Staff</span>
-            </a>
+
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#headerNav">
                 <span class="fas fa-ellipsis-v"></span>
             </button>
@@ -71,6 +77,15 @@
     <div class="dashboard-layout">
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
+            <div class="sidebar-branding">
+                <button class="sidebar-toggle in-sidebar" id="sidebarToggleInternal">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <a href="staff-dashboard.html" class="sidebar-brand-group">
+                    <img src="resources/ethans logo.jpg" alt="Logo">
+                    <span class="pos-label">POS</span>
+                </a>
+            </div>
             <div class="sidebar-nav">
                 <div class="sidebar-section-title">Operations</div>
                 <a href="staff-menu.html" class="sidebar-link">

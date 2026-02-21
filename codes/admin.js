@@ -334,6 +334,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (document.getElementById('requestsTable')) initializeRequests();
     if (document.getElementById('systemSettingsForm')) initializeSystemSettings();
     updateRequestSidebarBadge();
+    startRequestBadgePolling();
     if (document.getElementById('activityLogTable')) initializeActivityLog();
     if (document.getElementById('fullActivityLogTable')) initializeFullActivityLog();
     if (document.getElementById('tempStaffTable')) initializeTempAccount();
@@ -344,15 +345,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Common features for all admin pages
 function initializeCommonAdminFeatures() {
-    // Sidebar toggle (global)
-    const sidebarToggle = document.getElementById('sidebarToggle');
-    const sidebar = document.getElementById('sidebar');
-    if (sidebarToggle && sidebar) {
-        sidebarToggle.addEventListener('click', function () {
-            sidebar.classList.toggle('show');
-        });
-    }
-
     // Logout button (global)
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
@@ -1736,7 +1728,7 @@ async function saveIngredient() {
     try {
         // Check for duplicate
         const allIngredients = await ingredientsDB.show();
-        const duplicate = allIngredients.find(function(ing) {
+        const duplicate = allIngredients.find(function (ing) {
             const sameName = ing.name.trim().toLowerCase() === name.toLowerCase();
             // If editing, exclude itself from duplicate check
             if (editingIngredientId) {
@@ -2841,7 +2833,7 @@ function initializeRequests() {
     loadRequests();
 }
 
-function loadRequests() {
+async function loadRequests() {
     const tableElem = document.getElementById('requestsTable');
     if (!tableElem) {
         updateRequestSidebarBadge();
@@ -2854,141 +2846,298 @@ function loadRequests() {
     const searchTerm = (document.getElementById('requestSearch')?.value || '').toLowerCase();
     const statusFilter = document.getElementById('requestStatusFilter')?.value || 'Pending';
 
-    let requests = getAccountRequests();
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border spinner-border-sm text-danger me-2"></div>Loading requests...</td></tr>';
 
-    // Apply filtering
-    if (statusFilter !== 'All') {
-        requests = requests.filter(r => r.status === statusFilter);
-    }
-    if (searchTerm) {
-        requests = requests.filter(r =>
-            r.fullName.toLowerCase().includes(searchTerm) ||
-            r.username.toLowerCase().includes(searchTerm) ||
-            r.requestedRole.toLowerCase().includes(searchTerm)
-        );
-    }
+    try {
+        // Fetch from both tables
+        const [regRequests, updateRequests, users, roles] = await Promise.all([
+            accountRequestsDB.show(),
+            requestsTblDB.show(),
+            usersDB.show(),
+            rolesDB.show()
+        ]);
 
-    tbody.innerHTML = '';
+        const userMap = {};
+        users.forEach(u => userMap[u.id] = u.full_name);
 
-    if (requests.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No matching requests found.</td></tr>';
-    } else {
-        requests.forEach(req => {
-            const row = tbody.insertRow();
-            row.classList.add('animate__animated', 'animate__fadeIn');
+        const roleMap = {};
+        roles.forEach(r => roleMap[r.id] = r.name);
 
-            const isPending = req.status === 'Pending';
+        let allRequests = [];
 
-            row.innerHTML = `
-                <td>${req.date}</td>
-                <td><strong>${req.fullName}</strong></td>
-                <td><span class="badge bg-secondary">Account Request</span></td>
-                <td>${req.requestedRole}</td>
-                <td class="small">${isPending ? 'New user registration' : 'Processed'}</td>
-                <td><span class="badge ${req.status === 'Pending' ? 'bg-warning' : req.status === 'Approved' ? 'bg-success' : 'bg-danger'}">${req.status}</span></td>
-                <td>
-                    ${isPending ? `
-                        <div class="table-actions">
-                            <button class="btn btn-sm btn-outline-success" onclick="approveRequest(${req.id})" title="Approve">
-                                <i class="fas fa-check"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="denyRequest(${req.id})" title="Deny">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                    ` : '<span class="text-muted small">No actions</span>'}
-                </td>
-            `;
+        // Add Account Registration Requests
+        regRequests.forEach(req => {
+            allRequests.push({
+                id: req.id,
+                source: 'account_requests',
+                date: req.requested_at,
+                name: req.full_name,
+                typeLabel: 'Account Request',
+                itemAction: roleMap[req.requested_role_id] || 'Staff',
+                note: `New user registration (${req.email || 'No email'})`,
+                status: req.status,
+                raw: req
+            });
         });
-    }
 
-    updateRequestSidebarBadge();
+        // Add Staff Update Requests
+        updateRequests.forEach(req => {
+            const payload = JSON.parse(req.payload || '{}');
+            let actionText = req.type === 'account_update' ? 'Profile Update' : 'Password Change';
+            let noteText = '';
+            if (req.type === 'account_update') {
+                noteText = `New Name: ${payload.full_name || '-'}`;
+            } else {
+                noteText = 'Security credential update';
+            }
 
-    const pageBadge = document.getElementById('pendingRequestsBadge');
-    if (pageBadge) {
-        const pendingCount = getAccountRequests().filter(r => r.status === 'Pending').length;
-        pageBadge.textContent = `${pendingCount} Pending Request${pendingCount !== 1 ? 's' : ''}`;
+            allRequests.push({
+                id: req.id,
+                source: 'requests_tbl',
+                date: req.created_at,
+                name: userMap[req.requester_id] || 'Unknown Staff',
+                typeLabel: 'Staff Request',
+                itemAction: actionText,
+                note: noteText,
+                status: req.status || 'Pending',
+                raw: req
+            });
+        });
+
+        // Sort by date descending
+        allRequests.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // Apply filters
+        if (statusFilter !== 'All') {
+            allRequests = allRequests.filter(r => r.status === statusFilter);
+        }
+        if (searchTerm) {
+            allRequests = allRequests.filter(r =>
+                r.name.toLowerCase().includes(searchTerm) ||
+                r.itemAction.toLowerCase().includes(searchTerm) ||
+                r.note.toLowerCase().includes(searchTerm)
+            );
+        }
+
+        tbody.innerHTML = '';
+
+        if (allRequests.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No matching requests found.</td></tr>';
+        } else {
+            allRequests.forEach(req => {
+                const row = tbody.insertRow();
+                row.classList.add('animate__animated', 'animate__fadeIn');
+
+                const isPending = req.status === 'Pending';
+                const statusBadge = req.status === 'Pending' ? 'bg-warning' : (req.status === 'Approved' ? 'bg-success' : 'bg-danger');
+
+                row.innerHTML = `
+                    <td>${new Date(req.date).toLocaleString()}</td>
+                    <td><strong>${req.name}</strong></td>
+                    <td><span class="badge bg-secondary">${req.typeLabel}</span></td>
+                    <td>${req.itemAction}</td>
+                    <td class="small">${req.note}</td>
+                    <td><span class="badge ${statusBadge}">${req.status}</span></td>
+                    <td>
+                        ${isPending ? `
+                            <div class="table-actions">
+                                <button class="btn btn-sm btn-outline-success" onclick="approveRequest('${req.source}', ${req.id})" title="Approve">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="denyRequest('${req.source}', ${req.id})" title="Deny">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        ` : `
+                            <button class="btn btn-sm btn-outline-secondary" onclick="deleteRequestRecord('${req.source}', ${req.id})" title="Delete Record">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        `}
+                    </td>
+                `;
+            });
+        }
+
+        const pageBadge = document.getElementById('pendingRequestsBadge');
+        if (pageBadge) {
+            const pendingCount = allRequests.filter(r => r.status === 'Pending').length;
+            pageBadge.textContent = `${pendingCount} Pending Request${pendingCount !== 1 ? 's' : ''}`;
+        }
+
+        updateRequestSidebarBadge();
+
+    } catch (err) {
+        console.error('Failed to load requests:', err);
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Error loading data.</td></tr>';
     }
 }
 
-function updateRequestSidebarBadge() {
-    const pendingCount = getAccountRequests().filter(r => r.status === 'Pending').length;
+async function updateRequestSidebarBadge() {
+    try {
+        const [regs, others] = await Promise.all([
+            accountRequestsDB.show({ status: 'Pending' }),
+            requestsTblDB.show({ status: 'Pending' })
+        ]);
 
-    // Find "Requests" sidebar link
-    const sidebarLinks = document.querySelectorAll('.sidebar-link');
-    sidebarLinks.forEach(link => {
-        if (link.textContent.includes('Requests')) {
-            // Check if badge already exists
-            let badge = link.querySelector('.sidebar-badge');
-            if (pendingCount > 0) {
-                if (!badge) {
-                    badge = document.createElement('span');
-                    badge.className = 'badge bg-danger rounded-pill ms-auto sidebar-badge animate__animated animate__bounceIn';
-                    link.appendChild(badge);
+        const pendingCount = (Array.isArray(regs) ? regs.length : 0) + (Array.isArray(others) ? others.length : 0);
+
+        // Find "Requests" sidebar link
+        const sidebarLinks = document.querySelectorAll('.sidebar-link');
+        sidebarLinks.forEach(link => {
+            if (link.textContent.includes('Requests')) {
+                let badge = link.querySelector('.sidebar-badge');
+                if (pendingCount > 0) {
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'badge bg-danger rounded-pill ms-auto sidebar-badge animate__animated animate__bounceIn';
+                        link.appendChild(badge);
+                    }
+                    badge.textContent = pendingCount;
+                } else if (badge) {
+                    badge.remove();
                 }
-                badge.textContent = pendingCount;
-            } else if (badge) {
-                badge.remove();
             }
+        });
+
+        // Also update dashboard alert count if on dashboard
+        const alertsCount = document.getElementById('systemAlerts');
+        if (alertsCount) {
+            const ingredients = await ingredientsDB.show();
+            const lowStock = ingredients.filter(ing => parseFloat(ing.current_quantity) <= parseFloat(ing.low_stock_threshold)).length;
+            alertsCount.textContent = (pendingCount > 0 || lowStock > 0) ? (pendingCount + (lowStock > 0 ? 1 : 0)) : '0';
+        }
+    } catch (e) {
+        console.error('Badge update failed:', e);
+    }
+}
+
+function startRequestBadgePolling() {
+    updateRequestSidebarBadge();
+    setInterval(updateRequestSidebarBadge, 10000); // 10 seconds
+}
+
+async function approveRequest(source, id) {
+    showConfirm(`Are you sure you want to approve this request?`, async function () {
+        try {
+            if (source === 'account_requests') {
+                const reqs = await accountRequestsDB.show({ id });
+                const req = Array.isArray(reqs) ? reqs[0] : reqs;
+                if (!req) return;
+
+                // 1. Create User
+                const newUser = {
+                    full_name: req.full_name,
+                    username: req.username,
+                    email: req.email, // Include email from request
+                    password_hash: req.password_hash, // Already hashed by backend on insertion
+                    role_id: req.requested_role_id,
+                    status: 'Active',
+                    created_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                };
+                const addUserResult = await usersDB.add(newUser);
+                if (addUserResult.error) {
+                    showModalNotification(`Failed to create user: ${addUserResult.error}`, 'danger', 'Error');
+                    return;
+                }
+
+                // 2. Update Request Status
+                const editReqResult = await accountRequestsDB.edit({
+                    id: req.id,
+                    status: 'Approved',
+                    reviewed_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                });
+
+                if (editReqResult.error) {
+                    showModalNotification(`Failed to update request status: ${editReqResult.error}`, 'danger', 'Error');
+                    return;
+                }
+
+                showModalNotification(`Account for "${req.username}" approved and created successfully.`, 'success', 'Approved');
+                logAdminActivity('Approved account registration', req.username, 'Success');
+
+            } else {
+                const reqs = await requestsTblDB.show({ id });
+                const req = Array.isArray(reqs) ? reqs[0] : reqs;
+                if (!req) return;
+
+                const payload = JSON.parse(req.payload || '{}');
+
+                if (req.type === 'account_update') {
+                    // Update user record
+                    await usersDB.edit({
+                        id: req.requester_id,
+                        full_name: payload.full_name,
+                        updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                    });
+                } else if (req.type === 'password_change') {
+                    // Update password
+                    await usersDB.edit({
+                        id: req.requester_id,
+                        password_hash: payload.new_password, // Backend handled? Actually app.php hashes on PUT if table is users
+                        updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                    });
+                }
+
+                // Update Request Status
+                await requestsTblDB.edit({
+                    id: req.id,
+                    status: 'Approved',
+                    handled_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                });
+
+                showModalNotification(`Staff update request approved.`, 'success', 'Approved');
+                logAdminActivity('Approved staff account update', `Requester ID: ${req.requester_id}`, 'Success');
+            }
+
+            loadRequests();
+
+        } catch (err) {
+            console.error('Approval failed:', err);
+            showModalNotification('Process failed.', 'danger', 'Error');
         }
     });
-
-    // Also update dashboard alert count if on dashboard
-    const alertsCount = document.getElementById('systemAlerts');
-    if (alertsCount) {
-        const lowStock = getAvailableIngredients().filter(ing => ing.quantity <= ing.threshold).length;
-        alertsCount.textContent = (pendingCount > 0 || lowStock > 0) ? (pendingCount + (lowStock > 0 ? 1 : 0)) : '0';
-    }
 }
 
-function approveRequest(id) {
-    let requests = getAccountRequests();
-    const reqIndex = requests.findIndex(r => r.id === id);
-    if (reqIndex === -1) return;
+async function denyRequest(source, id) {
+    showConfirm(`Deny this request?`, async function () {
+        try {
+            if (source === 'account_requests') {
+                await accountRequestsDB.edit({
+                    id: id,
+                    status: 'Denied',
+                    reviewed_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                });
+            } else {
+                await requestsTblDB.edit({
+                    id: id,
+                    status: 'Denied',
+                    handled_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                });
+            }
 
-    const req = requests[reqIndex];
-
-    showConfirm(`Approve account request for "${req.fullName}"?`, function () {
-        // 1. Add to users
-        let users = getUsers();
-        const maxId = users.length > 0 ? Math.max(...users.map(u => u.id)) : 0;
-
-        users.push({
-            id: maxId + 1,
-            name: req.fullName,
-            username: req.username,
-            password: req.password,
-            role: req.requestedRole,
-            status: 'Active',
-            lastLogin: 'Never',
-            isDeleted: false
-        });
-        saveUsersToStorage(users);
-
-        // 2. Mark request as approved (or remove it, but user wants realtime/functional)
-        requests[reqIndex].status = 'Approved';
-        saveAccountRequests(requests);
-
-        showModalNotification(`Account for "${req.username}" has been created and approved`, 'success', 'Request Approved');
-        logAdminActivity('Approved account request', req.username, 'Success');
-        loadRequests();
+            showModalNotification('Request denied.', 'info', 'Denied');
+            loadRequests();
+        } catch (err) {
+            console.error('Deny failed:', err);
+            showModalNotification('Process failed.', 'danger', 'Error');
+        }
     });
 }
 
-function denyRequest(id) {
-    let requests = getAccountRequests();
-    const reqIndex = requests.findIndex(r => r.id === id);
-    if (reqIndex === -1) return;
-
-    const req = requests[reqIndex];
-
-    showConfirm(`Deny account request for "${req.fullName}"?`, function () {
-        requests[reqIndex].status = 'Denied';
-        saveAccountRequests(requests);
-
-        showModalNotification(`Account request for "${req.username}" has been denied`, 'info', 'Request Denied');
-        logAdminActivity('Denied account request', req.username, 'Admin Action');
-        loadRequests();
+async function deleteRequestRecord(source, id) {
+    showConfirm(`Delete this request record permanently?`, async function () {
+        try {
+            if (source === 'account_requests') {
+                await accountRequestsDB.delete(id);
+            } else {
+                await requestsTblDB.delete(id);
+            }
+            showModalNotification('Record deleted.', 'success', 'Deleted');
+            loadRequests();
+        } catch (err) {
+            console.error('Delete failed:', err);
+            showModalNotification('Process failed.', 'danger', 'Error');
+        }
     });
 }
 
@@ -3324,7 +3473,7 @@ function loadFullActivityLog() {
     const tbody = tableElem.getElementsByTagName('tbody')[0];
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm text-danger me-2" role="status"></div>Loading activity logs...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center"><div class="spinner-border spinner-border-sm text-danger me-2" role="status"></div>Loading activity logs...</td></tr>';
 
     // Get filter values
     const categoryVal = document.getElementById('activityCategoryFilter')?.value || '';
@@ -3376,15 +3525,13 @@ function loadFullActivityLog() {
         tbody.innerHTML = '';
 
         if (pageData.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2 d-block"></i>No activity logs match your filters.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2 d-block"></i>No activity logs match your filters.</td></tr>';
         } else {
             pageData.forEach(log => {
                 const cat = log.category || getActivityCategory(log.action);
                 const row = tbody.insertRow();
                 row.classList.add('animate__animated', 'animate__fadeIn');
                 row.innerHTML = `
-                    <td><small>${log.timestamp}</small></td>
-                    <td><strong>${log.userName}</strong></td>
                     <td>${log.action}</td>
                     <td>${getCategoryBadge(cat)}</td>
                     <td><code>${log.ip || 'N/A'}</code></td>
@@ -3493,9 +3640,15 @@ function logAdminActivity(action, details, status) {
     const pad = n => String(n).padStart(2, '0');
     const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
+    let uName = 'Admin';
+    try {
+        const u = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+        uName = u.full_name || 'Admin';
+    } catch (e) { }
+
     const newLog = {
         id: Date.now(),
-        userName: localStorage.getItem('loggedInUser') || 'Admin',
+        userName: uName,
         action: action,
         reference: details,
         timestamp: ts,
