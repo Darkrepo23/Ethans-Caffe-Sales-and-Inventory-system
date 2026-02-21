@@ -4377,3 +4377,9 @@
 2026-02-21 14:30:46 | User 1 | Table temporary_account_log | Method GET
 2026-02-21 14:30:51 | User 1 | Table  | Method POST
 2026-02-21 14:30:51 | User 1 | Table  | Method POST
+2026-02-21 14:46:58 | User 1 | Table ingredients | Method GET
+2026-02-21 14:46:58 | User 1 | Table ingredient_categories | Method GET
+2026-02-21 14:46:58 | User 1 | Table users | Method GET
+2026-02-21 14:46:58 | User 1 | Table account_requests | Method GET
+2026-02-21 14:46:58 | User 1 | Table ingredients | Method GET
+2026-02-21 14:46:58 | User 1 | Table ingredients | Method GET

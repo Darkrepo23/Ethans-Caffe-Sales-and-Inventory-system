@@ -4426,3 +4426,9 @@
 2026-02-21 14:30:46 Request: GET temporary_account_log | Data: []
 2026-02-21 14:30:51 Request: POST temporary_account_log | Data: {"activated_by":null,"activated_at":"2026-02-21 13:30:51","deactivated_at":null,"note":"Entered as temp staff account","table":"temporary_account_log"}
 2026-02-21 14:30:51 Request: POST activity_logs | Data: {"user_id":null,"role_label":"staff","action":"Entered temporary account","reference":"Role: staff","status":"Success","ip_address":"192.168.1.10","created_at":"2026-02-21 13:30:51","table":"activity_logs"}
+2026-02-21 14:46:58 Request: GET ingredients | Data: []
+2026-02-21 14:46:58 Request: GET ingredient_categories | Data: []
+2026-02-21 14:46:58 Request: GET users | Data: []
+2026-02-21 14:46:58 Request: GET account_requests | Data: []
+2026-02-21 14:46:58 Request: GET ingredients | Data: []
+2026-02-21 14:46:58 Request: GET ingredients | Data: []
