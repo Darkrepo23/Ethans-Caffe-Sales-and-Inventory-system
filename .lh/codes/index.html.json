@@ -3,7 +3,7 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 15,
+            "activePatchIndex": 16,
             "patches": [
                 {
                     "date": 1769763892836,
@@ -68,6 +68,10 @@
                 {
                     "date": 1771608413628,
                     "content": "Index: \n===================================================================\n--- \n+++ \n@@ -815,9 +815,9 @@\n                                             <i class=\"fas fa-user-tag\"></i>Requested Role\r\n                                         </label>\r\n                                         <select class=\"form-select\" id=\"requestedRole\" name=\"requestedRole\">\r\n                                             <option value=\"Staff\">Staff</option>\r\n-                                            <option value=\"Cashier\">Cashier</option>\r\n+                                            <!-- <option value=\"Cashier\">Cashier</option> -->\r\n                                         </select>\r\n                                         <div class=\"form-text\">Owner/Admin roles cannot be requested</div>\r\n                                     </div>\r\n \r\n"
+                },
+                {
+                    "date": 1771646988178,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -813,12 +813,11 @@\n                                     <div class=\"mb-3\">\r\n                                         <label for=\"requestedRole\" class=\"form-label\">\r\n                                             <i class=\"fas fa-user-tag\"></i>Requested Role\r\n                                         </label>\r\n-                                        <select class=\"form-select\" id=\"requestedRole\" name=\"requestedRole\">\r\n-                                            <option value=\"Staff\">Staff</option>\r\n-                                            <!-- <option value=\"Cashier\">Cashier</option> -->\r\n-                                        </select>\r\n+<select class=\"form-select\" id=\"requestedRole\" name=\"requestedRole\">\r\n+    <option value=\"2\">Staff</option>\r\n+</select>\r\n                                         <div class=\"form-text\">Owner/Admin roles cannot be requested</div>\r\n                                     </div>\r\n \r\n                                     <div class=\"d-grid\">\r\n"
                 }
             ],
             "date": 1769763892836,

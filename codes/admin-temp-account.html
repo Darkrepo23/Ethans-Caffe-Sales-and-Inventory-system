@@ -117,69 +117,65 @@
 
         <!-- Main Content Area -->
         <main class="main-content">
-            <!-- Temporary Staff Account Content -->
             <div id="temp-staff-account" class="page-content">
                 <div
                     class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2"><i class="fas fa-user-clock me-2 text-danger"></i>Temporary Staff Accounts</h1>
-                    <div class="btn-toolbar mb-2 mb-md-0">
-                        <button class="btn btn-danger" id="createTempAccountBtn">
-                            <i class="fas fa-plus-circle me-1"></i> New Temp Account
-                        </button>
-                    </div>
+                    <h1 class="h2"><i class="fas fa-user-clock me-2 text-danger"></i>Temporary Staff Account</h1>
                 </div>
 
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-circle me-2"></i>
-                    <strong>Security Notice:</strong> Temporary accounts automatically expire and become inactive after
-                    their set duration.
+                    <strong>Security Notice:</strong> Temporary account uses fixed credentials (username:
+                    <strong>temp</strong>, password: <strong>123</strong>). All activity is logged.
                 </div>
 
                 <div class="row">
-                    <!-- Active Temp Accounts -->
-                    <div class="col-lg-8">
-                        <div class="card shadow mb-4">
+                    <!-- Enter Temp Account -->
+                    <div class="col-lg-4 mb-4">
+                        <div class="card shadow">
                             <div class="card-header bg-black text-white">
-                                <h6 class="m-0 font-weight-bold">Active Temporary Accounts</h6>
+                                <h6 class="m-0 font-weight-bold">Enter Temporary Account</h6>
                             </div>
                             <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-hover align-middle" id="tempAccountsTable">
-                                        <thead>
-                                            <tr>
-                                                <th>Staff Name</th>
-                                                <th>Temp Username</th>
-                                                <th>Created Date</th>
-                                                <th>Expires In</th>
-                                                <th>Status</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td colspan="6" class="text-center">No active temporary accounts</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                <div class="mb-3">
+                                    <label class="form-label">Select Role</label>
+                                    <select class="form-select" id="tempRoleSelect">
+                                        <option value="">Select Role...</option>
+                                    </select>
                                 </div>
+                                <button class="btn btn-danger w-100" id="enterTempAccountBtn">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Enter Temporary Account
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Temp Account Info -->
-                    <div class="col-lg-4">
-                        <div class="card shadow border-left-danger">
+                    <!-- Temp Account History -->
+                    <div class="col-lg-8 mb-4">
+                        <div class="card shadow">
+                            <div class="card-header bg-black text-white">
+                                <h6 class="m-0 font-weight-bold">Temporary Account History</h6>
+                            </div>
                             <div class="card-body">
-                                <h6 class="font-weight-bold text-danger mb-3">About Temp Accounts</h6>
-                                <p class="small text-muted">Use temporary accounts for:</p>
-                                <ul class="small text-muted ps-3">
-                                    <li>Onboarding new trainees</li>
-                                    <li>Part-time weekend staff</li>
-                                    <li>Emergency coverage</li>
-                                    <li>Guest service providers</li>
-                                </ul>
-                                <p class="small text-muted mt-3">All temp actions are logged and linked to the creator's
-                                    admin ID for accountability.</p>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle" id="tempStaffTable">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Activated By</th>
+                                                <th>Activated At</th>
+                                                <th>Deactivated At</th>
+                                                <th>Note</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted py-3">No history found.
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>

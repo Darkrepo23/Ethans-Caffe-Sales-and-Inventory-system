@@ -207,6 +207,22 @@
 
     <script>
         // Centralized logic handles these features
+        // Add this in the logout handler of staff.html / cashier.html
+        const isTempAccount = localStorage.getItem('isTempAccount');
+        if (isTempAccount === 'true') {
+            const logId = localStorage.getItem('tempAccountLogId');
+            if (logId) {
+                const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+                temporaryAccountLogDB.edit({
+                    id: parseInt(logId),
+                    deactivated_at: now,
+                    note: `Temp account session ended`
+                });
+            }
+            localStorage.removeItem('isTempAccount');
+            localStorage.removeItem('tempAccountLogId');
+            localStorage.removeItem('tempAccountRole');
+        }
     </script>
 </body>
 

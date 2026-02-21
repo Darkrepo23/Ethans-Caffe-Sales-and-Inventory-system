@@ -34,11 +34,16 @@ function createDB(table) {
         show: async (filters = {}) => {
             console.log(`[${table}DB.show] Filters:`, filters);
             try {
-                const params = new URLSearchParams({ ...filters, table }).toString();
+                const params = new URLSearchParams({
+                    ...filters,
+                    table,
+                    _: Date.now() // cache buster
+                }).toString();
                 const res = await fetch(`${API_URL}?${params}`, {
                     headers: {
                         "Accept": "application/json",
-                        "X-Requested-With": "XMLHttpRequest"
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Cache-Control": "no-cache"
                     }
                 });
                 console.log(`[${table}DB.show] Response status:`, res.status);
@@ -137,6 +142,7 @@ const requestsTblDB = createDB('requests_tbl');
 const backupsDB = createDB('backups');
 const systemSettingsDB = createDB('system_settings');
 const temporaryAccountLogDB = createDB('temporary_account_log');
+
 
 // Global variables
 let tempAccountActive = false;
@@ -549,6 +555,19 @@ function initializeMenuControl() {
         });
     }
 
+    // After the search/filter listeners, add:
+    menuCategoriesDB.show().then(function (categories) {
+        const menuControlCategory = document.getElementById('menuControlCategory');
+        if (!menuControlCategory) return;
+        menuControlCategory.innerHTML = '<option value="">All Categories</option>';
+        categories.forEach(function (cat) {
+            const opt = document.createElement('option');
+            opt.value = cat.id;
+            opt.textContent = cat.name;
+            menuControlCategory.appendChild(opt);
+        });
+    });
+
     // Initial Load
     loadMenuControl();
 }
@@ -560,7 +579,7 @@ function loadMenuControl() {
     const menuControlTable = tableElement.getElementsByTagName('tbody')[0];
     if (!menuControlTable) return;
 
-    const showInactive = document.getElementById('showInactiveItems') ? document.getElementById('showInactiveItems').checked : false;
+    const showInactive = document.getElementById('showInactiveItems')?.checked || false;
     const searchQuery = (document.getElementById('menuControlSearch')?.value || '').toLowerCase().trim();
     const categoryFilter = document.getElementById('menuControlCategory')?.value || '';
 
@@ -589,8 +608,7 @@ function loadMenuControl() {
         if (searchQuery) {
             menuItems = menuItems.filter(function (item) {
                 const catName = (categoryMap[item.category_id] || '').toLowerCase();
-                return item.name.toLowerCase().includes(searchQuery) ||
-                    catName.includes(searchQuery);
+                return item.name.toLowerCase().includes(searchQuery) || catName.includes(searchQuery);
             });
         }
 
@@ -643,8 +661,11 @@ function loadMenuControl() {
         menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load menu items.</td></tr>';
     });
 }
+
+let currentImageFilename = null;
+const UPLOAD_URL = "http://localhost/Ethans%20Cafe/codes/php/upload-file.php";
+
 function showAddMenuItemModal() {
-    // Clear form
     const form = document.getElementById('addMenuItemForm');
     if (form) form.reset();
 
@@ -654,17 +675,62 @@ function showAddMenuItemModal() {
         recipeContainer.innerHTML = '<p class="text-muted text-center py-2">No ingredients assigned yet</p>';
     }
 
+    // Reset image state
+    currentImageFilename = null;
+    const imageInput = document.getElementById('menuItemImage');
+    const imagePreview = document.getElementById('imagePreview');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+    if (imageInput) imageInput.value = '';
+    if (imagePreview) imagePreview.src = '';
+    if (imagePreviewContainer) imagePreviewContainer.classList.add('d-none');
+
+    // Image preview listener
+    if (imageInput) {
+        const newImageInput = imageInput.cloneNode(true);
+        imageInput.parentNode.replaceChild(newImageInput, imageInput);
+        newImageInput.addEventListener('change', function () {
+            const file = this.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (ev) {
+                document.getElementById('imagePreview').src = ev.target.result;
+                document.getElementById('imagePreviewContainer').classList.remove('d-none');
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Remove image button listener
+    const removeImageBtn = document.getElementById('removeImageBtn');
+    if (removeImageBtn) {
+        const newRemoveBtn = removeImageBtn.cloneNode(true);
+        removeImageBtn.parentNode.replaceChild(newRemoveBtn, removeImageBtn);
+        newRemoveBtn.addEventListener('click', function () {
+            if (currentImageFilename) {
+                fetch(UPLOAD_URL, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: currentImageFilename })
+                }).catch(function (err) {
+                    console.error('Failed to delete image:', err);
+                });
+                currentImageFilename = null;
+            }
+            document.getElementById('menuItemImage').value = '';
+            document.getElementById('imagePreview').src = '';
+            document.getElementById('imagePreviewContainer').classList.add('d-none');
+        });
+    }
+
     // Update modal title
     const modalTitle = document.querySelector('#addMenuItemModal .modal-title');
     if (modalTitle) {
-        if (editingMenuItemId) {
-            modalTitle.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Menu Item';
-        } else {
-            modalTitle.innerHTML = '<i class="fas fa-plus-circle me-2"></i>Add Menu Item';
-        }
+        modalTitle.innerHTML = editingMenuItemId
+            ? '<i class="fas fa-edit me-2"></i>Edit Menu Item'
+            : '<i class="fas fa-plus-circle me-2"></i>Add Menu Item';
     }
 
-    // Load categories into dropdown
+    // Populate menuItemCategory from DB
     menuCategoriesDB.show().then(function (categories) {
         const select = document.getElementById('menuItemCategory');
         if (!select) return;
@@ -676,7 +742,7 @@ function showAddMenuItemModal() {
             select.appendChild(opt);
         });
 
-        // If editing, fetch item from DB and pre-fill after categories are loaded
+        // Pre-fill if editing
         if (editingMenuItemId) {
             menuItemsDB.show({ id: editingMenuItemId }).then(function (items) {
                 const item = Array.isArray(items) ? items[0] : items;
@@ -692,6 +758,23 @@ function showAddMenuItemModal() {
                 if (priceEl) priceEl.value = item.price_reference || '';
                 if (statusEl) statusEl.value = item.status || 'Active';
 
+                if (item.image_path) {
+                    const imgPreview = document.getElementById('imagePreview');
+                    const imgContainer = document.getElementById('imagePreviewContainer');
+                    if (imgPreview) imgPreview.src = 'http://localhost/Ethans%20Cafe/' + item.image_path;
+                    if (imgContainer) imgContainer.classList.remove('d-none');
+                    currentImageFilename = item.image_path.split('/').pop();
+                }
+
+                recipesDB.show().then(function (allRecipes) {
+                    const itemRecipes = allRecipes.filter(function (r) {
+                        return r.menu_item_id == editingMenuItemId;
+                    });
+                    itemRecipes.forEach(function (r) {
+                        addIngredientToRecipeForm(r.ingredient_id, r.qty_per_sale);
+                    });
+                });
+
             }).catch(function (err) {
                 console.error('Failed to load menu item for editing:', err);
             });
@@ -704,11 +787,10 @@ function showAddMenuItemModal() {
     // Show modal
     const modalElem = document.getElementById('addMenuItemModal');
     if (!modalElem) return;
-
     const modal = new bootstrap.Modal(modalElem);
     modal.show();
 
-    // Add ingredient button — clone to remove old listeners
+    // Add ingredient button
     const addIngBtn = document.getElementById('addIngredientToRecipe');
     if (addIngBtn) {
         const newBtn = addIngBtn.cloneNode(true);
@@ -718,7 +800,7 @@ function showAddMenuItemModal() {
         });
     }
 
-    // Save button — clone to remove old listeners
+    // Save button
     const saveBtn = document.getElementById('saveMenuItemBtn');
     if (saveBtn) {
         const newSaveBtn = saveBtn.cloneNode(true);
@@ -728,8 +810,7 @@ function showAddMenuItemModal() {
         });
     }
 }
-
-function addIngredientToRecipeForm() {
+function addIngredientToRecipeForm(selectedIngredientId = null, selectedQuantity = null) {
     const container = document.getElementById('recipeIngredientsContainer');
     if (!container) return;
 
@@ -738,41 +819,28 @@ function addIngredientToRecipeForm() {
         container.innerHTML = '';
     }
 
-    // Get available ingredients from localStorage or default list
-    let ingredients = [];
-    try {
-        const stored = localStorage.getItem('ingredients');
-        if (stored) {
-            ingredients = JSON.parse(stored).map(i => ({ id: i.id, name: i.name }));
-        }
-    } catch (e) { }
-    if (ingredients.length === 0) {
-        ingredients = [
-            { id: 1, name: 'Beef' }, { id: 2, name: 'Chicken' }, { id: 3, name: 'Rice' },
-            { id: 4, name: 'Tomatoes' }, { id: 5, name: 'Onions' }, { id: 6, name: 'Garlic' },
-            { id: 7, name: 'Salt' }, { id: 8, name: 'Flour' }, { id: 9, name: 'Cheese' },
-            { id: 10, name: 'Butter' }, { id: 11, name: 'Potatoes' }, { id: 12, name: 'Lettuce' }
-        ];
-    }
-
-    // Create ingredient row
+    // Create row with loading state
     const row = document.createElement('div');
-    row.className = 'row g-3 mb-3 align-items-center';
+    row.className = 'row g-3 mb-3 align-items-center recipe-ingredient-row';
     row.innerHTML = `
-        <div class="col-md-6">
-            <select class="form-select ingredient-select">
-                <option value="">Select Ingredient</option>
-                ${ingredients.map(ing => `<option value="${ing.id}">${ing.name}</option>`).join('')}
+        <div class="col-md-5">
+            <select class="form-select ingredient-select" required>
+                <option value="">Loading ingredients...</option>
             </select>
         </div>
         <div class="col-md-4">
             <div class="input-group">
-                <input type="number" class="form-control ingredient-quantity" placeholder="Quantity" min="0.01" step="0.01">
-                <span class="input-group-text">kg</span>
+                <input type="number" class="form-control ingredient-quantity" 
+                       placeholder="Quantity" min="0.01" step="0.01" 
+                       value="${selectedQuantity || ''}" required>
+                <span class="input-group-text ingredient-unit">unit</span>
             </div>
         </div>
         <div class="col-md-2">
-            <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-ingredient">
+            <input type="hidden" class="ingredient-unit-id">
+        </div>
+        <div class="col-md-1">
+            <button type="button" class="btn btn-sm btn-outline-danger remove-ingredient">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -780,85 +848,281 @@ function addIngredientToRecipeForm() {
 
     container.appendChild(row);
 
+    const selectEl = row.querySelector('.ingredient-select');
+    const qtyInput = row.querySelector('.ingredient-quantity');
+    const unitSpan = row.querySelector('.ingredient-unit');
+    const unitIdHidden = row.querySelector('.ingredient-unit-id');
+
+    // Load ingredients with their units from database
+    Promise.all([
+        ingredientsDB.show(),
+        unitsDB.show()
+    ]).then(function (results) {
+        const ingredients = results[0];
+        const units = results[1];
+
+        // Create unit lookup map
+        const unitMap = {};
+        units.forEach(function (unit) {
+            unitMap[unit.id] = {
+                name: unit.name,
+                id: unit.id
+            };
+        });
+
+        // Build ingredient options
+        let options = '<option value="">Select Ingredient</option>';
+
+        if (!ingredients || ingredients.length === 0) {
+            options = '<option value="">No ingredients found</option>';
+            selectEl.disabled = true;
+        } else {
+            ingredients.forEach(function (ing) {
+                const unitInfo = unitMap[ing.unit_id] || { name: 'kg', id: 1 };
+                const selected = (selectedIngredientId && ing.id == selectedIngredientId) ? 'selected' : '';
+                options += `<option value="${ing.id}" 
+                                   data-unit-id="${unitInfo.id}" 
+                                   data-unit-name="${unitInfo.name}"
+                                   ${selected}>
+                            ${ing.name} (${unitInfo.name})
+                           </option>`;
+            });
+        }
+
+        selectEl.innerHTML = options;
+        selectEl.disabled = false;
+
+        // If we have a pre-selected value, set the unit
+        if (selectedIngredientId) {
+            const selectedOption = selectEl.options[selectEl.selectedIndex];
+            const unitId = selectedOption.dataset.unitId;
+            const unitName = selectedOption.dataset.unitName;
+
+            if (unitId) {
+                unitIdHidden.value = unitId;
+                unitSpan.textContent = unitName;
+            }
+        }
+
+        // Update unit display when selection changes
+        selectEl.addEventListener('change', function () {
+            const selected = this.options[this.selectedIndex];
+            const unitId = selected.dataset.unitId;
+            const unitName = selected.dataset.unitName || 'unit';
+
+            if (unitId) {
+                unitIdHidden.value = unitId;
+                unitSpan.textContent = unitName;
+            } else {
+                unitIdHidden.value = '';
+                unitSpan.textContent = 'unit';
+            }
+
+            // Clear quantity when ingredient changes
+            qtyInput.value = '';
+
+            // Update recipe summary if function exists
+            if (typeof updateRecipeSummary === 'function') {
+                updateRecipeSummary();
+            }
+        });
+
+        // Trigger change event to set initial unit
+        if (selectedIngredientId) {
+            selectEl.dispatchEvent(new Event('change'));
+        }
+
+    }).catch(function (err) {
+        console.error('Failed to load ingredients:', err);
+        selectEl.innerHTML = '<option value="">Error loading ingredients</option>';
+        selectEl.disabled = false;
+    });
+
+    // Add input event for quantity to update summary
+    qtyInput.addEventListener('input', function () {
+        if (typeof updateRecipeSummary === 'function') {
+            updateRecipeSummary();
+        }
+    });
+
     // Add remove event listener
     row.querySelector('.remove-ingredient').addEventListener('click', function () {
         row.remove();
-        if (container.querySelectorAll('.row').length === 0) {
+
+        // Check if container is now empty
+        if (container.querySelectorAll('.recipe-ingredient-row').length === 0) {
             container.innerHTML = '<p class="text-muted text-center py-2">No ingredients assigned yet</p>';
+        } else {
+            // Update recipe summary
+            if (typeof updateRecipeSummary === 'function') {
+                updateRecipeSummary();
+            }
         }
     });
 }
 
-function saveMenuItem() {
-    const nameElem = document.getElementById('menuItemName');
-    const categoryElem = document.getElementById('menuItemCategory');
-    const priceElem = document.getElementById('menuItemPrice');
-    const statusElem = document.getElementById('menuItemStatus');
-    if (!nameElem || !categoryElem) return;
 
-    const name = nameElem.value.trim();
-    const category = categoryElem.value;
-    const price = parseFloat(priceElem?.value) || 0;
-    const status = statusElem?.value || 'Active';
 
-    // Validation
-    if (!name || !category) {
+
+
+async function saveMenuItem() {
+    const name = document.getElementById('menuItemName')?.value.trim();
+    const category_id = document.getElementById('menuItemCategory')?.value;
+    const price = parseFloat(document.getElementById('menuItemPrice')?.value) || 0;
+    const status = document.getElementById('menuItemStatus')?.value || 'Active';
+
+    if (!name || !category_id) {
         showModalNotification('Please fill in all required fields', 'warning', 'Validation Error');
         return;
     }
 
-    // Count recipe ingredients assigned
-    const ingredientRows = document.querySelectorAll('#recipeIngredientsContainer .ingredient-select');
-    let recipesCount = 0;
-    ingredientRows.forEach(sel => { if (sel.value) recipesCount++; });
+    const ingredientSelects = document.querySelectorAll('#recipeIngredientsContainer .ingredient-select');
+    const ingredientQuantities = document.querySelectorAll('#recipeIngredientsContainer .ingredient-quantity');
 
-    let items = getMenuItems();
-
-    if (editingMenuItemId) {
-        // --- EDIT existing item ---
-        const idx = items.findIndex(i => i.id === editingMenuItemId);
-        if (idx !== -1) {
-            items[idx].name = name;
-            items[idx].category = category;
-            items[idx].price = price;
-            items[idx].status = status;
-            if (recipesCount > 0) items[idx].recipes = recipesCount;
+    const ingredients = [];
+    ingredientSelects.forEach(function (select, index) {
+        const ingredientId = select.value;
+        const quantity = ingredientQuantities[index]?.value;
+        if (ingredientId && quantity && parseFloat(quantity) > 0) {
+            ingredients.push({
+                ingredient_id: parseInt(ingredientId),
+                qty_per_sale: parseFloat(quantity)
+            });
         }
-        saveMenuItemsToStorage(items);
+    });
 
-        // Close modal
-        const modalElem = document.getElementById('addMenuItemModal');
-        const modal = bootstrap.Modal.getInstance(modalElem);
-        if (modal) modal.hide();
-
-        showModalNotification(`Menu item "${name}" updated successfully`, 'success', 'Menu Item Updated');
-        logAdminActivity('Updated menu item', name, 'Success');
-        editingMenuItemId = null;
-    } else {
-        // --- ADD new item ---
-        const maxId = items.length > 0 ? Math.max(...items.map(i => i.id)) : 0;
-        const newItem = {
-            id: maxId + 1,
-            name: name,
-            category: category,
-            price: price,
-            status: status,
-            recipes: recipesCount
-        };
-        items.push(newItem);
-        saveMenuItemsToStorage(items);
-
-        // Close modal
-        const modalElem = document.getElementById('addMenuItemModal');
-        const modal = bootstrap.Modal.getInstance(modalElem);
-        if (modal) modal.hide();
-
-        showModalNotification(`Menu item "${name}" added successfully`, 'success', 'Menu Item Added');
-        logAdminActivity('Added menu item', name, 'Success');
+    if (ingredients.length === 0) {
+        showModalNotification('Please add at least one ingredient with quantity', 'warning', 'Validation Error');
+        return;
     }
 
-    // Refresh menu control immediately
-    loadMenuControl();
+    // Upload image if new one selected
+    let imagePath = null;
+    const imageInput = document.getElementById('menuItemImage');
+    if (imageInput && imageInput.files[0]) {
+        const formData = new FormData();
+        formData.append('image', imageInput.files[0]);
+        try {
+            const res = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            currentImageFilename = data.filename;
+            imagePath = data.path;
+        } catch (err) {
+            showModalNotification('Image upload failed: ' + err.message, 'danger', 'Upload Error');
+            logAdminActivity('Failed to upload menu item image', name, 'Failed');
+            return;
+        }
+    } else if (currentImageFilename) {
+        imagePath = 'uploads/menu_items/' + currentImageFilename;
+    }
+
+    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+    if (editingMenuItemId) {
+        menuItemsDB.edit({
+            id: editingMenuItemId,
+            name: name,
+            category_id: category_id, // string now, no parseInt
+            price_reference: price,
+            status: status,
+            image_path: imagePath,
+            updated_at: now
+        }).then(function (result) {
+            if (result.error) throw new Error(result.error);
+            return recipesDB.show();
+
+        }).then(function (allRecipes) {
+            const existing = allRecipes.filter(function (r) {
+                return r.menu_item_id == editingMenuItemId;
+            });
+            return Promise.all(existing.map(function (r) {
+                return recipesDB.delete(r.id);
+            }));
+
+        }).then(function () {
+            return Promise.all(ingredients.map(function (ing) {
+                return recipesDB.add({
+                    menu_item_id: editingMenuItemId,
+                    ingredient_id: ing.ingredient_id,
+                    qty_per_sale: ing.qty_per_sale
+                });
+            }));
+
+        }).then(function () {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addMenuItemModal'));
+            if (modal) modal.hide();
+            showModalNotification(`"${name}" updated successfully`, 'success', 'Menu Item Updated');
+            logAdminActivity('Updated menu item', name, 'Success');
+            editingMenuItemId = null;
+            loadMenuControl();
+
+        }).catch(function (err) {
+            console.error('Failed to update menu item:', err);
+            logAdminActivity('Failed to update menu item', name, 'Failed');
+            showModalNotification('Failed to update menu item: ' + err.message, 'danger', 'Error');
+        });
+
+    } else {
+        menuItemsDB.add({
+            name: name,
+            category_id: category_id, // string now, no parseInt
+            price_reference: price,
+            status: status,
+            image_path: imagePath,
+            created_at: now,
+            updated_at: now
+        }).then(function (result) {
+            if (result.error) throw new Error(result.error);
+
+            return menuItemsDB.show().then(function (allItems) {
+                const newItem = allItems.filter(function (i) {
+                    return i.name === name && i.category_id == parseInt(category_id); // == instead of ===
+                }).pop();
+
+                if (!newItem || !newItem.id) throw new Error('Could not find new menu item ID');
+
+                return Promise.all(ingredients.map(function (ing) {
+                    return recipesDB.add({
+                        menu_item_id: newItem.id,
+                        ingredient_id: ing.ingredient_id,
+                        qty_per_sale: ing.qty_per_sale
+                    });
+                }));
+            });
+        }).then(function () {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addMenuItemModal'));
+            if (modal) modal.hide();
+            showModalNotification(`"${name}" added successfully`, 'success', 'Menu Item Added');
+            logAdminActivity('Added menu item', name, 'Success');
+            loadMenuControl();
+
+        }).catch(function (err) {
+            console.error('Failed to add menu item:', err);
+            logAdminActivity('Failed to add menu item', name, 'Failed');
+            showModalNotification('Failed to add menu item: ' + err.message, 'danger', 'Error');
+        });
+    }
+}
+
+// const allData = {};
+
+// Object.keys(localStorage).forEach(key => {
+//     allData[key] = localStorage.getItem(key);
+// });
+// localStorage.removeItem("autoSavedSql_ethans_cafe.menu_categories");
+
+// console.table(allData);
+function closeMenuItemModal() {
+    const modalElem = document.getElementById('addMenuItemModal');
+    if (modalElem) {
+        const modal = bootstrap.Modal.getInstance(modalElem);
+        if (modal) modal.hide();
+    }
+
+    // Re-enable save button
+    const saveBtn = document.getElementById('saveMenuItemBtn');
+    if (saveBtn) saveBtn.disabled = false;
 }
 
 function editMenuItem(id) {
@@ -901,12 +1165,37 @@ function deleteMenuItem(id) {
         if (!item) return;
 
         showConfirm(`Are you sure you want to delete "${item.name}"? This action cannot be undone.`, function () {
-            menuItemsDB.delete(id).then(function (result) {
+
+            // Delete image if exists
+            if (item.image_path) {
+                const filename = item.image_path.split('/').pop();
+                fetch(UPLOAD_URL, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: filename })
+                }).catch(function (err) {
+                    console.error('Failed to delete image:', err);
+                });
+            }
+
+            // First delete related recipes, then delete menu item
+            recipesDB.show().then(function (allRecipes) {
+                const related = allRecipes.filter(function (r) {
+                    return r.menu_item_id == id;
+                });
+
+                return Promise.all(related.map(function (r) {
+                    return recipesDB.delete(r.id);
+                }));
+
+            }).then(function () {
+                return menuItemsDB.delete(id);
+
+            }).then(function (result) {
                 if (result.error) {
                     Swal.fire('Error', result.error, 'error');
                     return;
                 }
-
                 showModalNotification(`"${item.name}" has been deleted`, 'success', 'Item Deleted');
                 logAdminActivity('Deleted menu item', item.name, 'Success');
                 loadMenuControl();
@@ -1132,6 +1421,7 @@ function loadRecipeControl() {
         recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load recipes.</td></tr>';
     });
 }
+
 function showAssignRecipeModal() {
     const form = document.getElementById('assignRecipeForm');
     if (form) form.reset();
@@ -1156,11 +1446,18 @@ function showAssignRecipeModal() {
     Promise.all([
         menuItemsDB.show(),
         ingredientsDB.show(),
+        menuCategoriesDB.show(),
         unitsDB.show()
     ]).then(function (results) {
         const menuItems = results[0];
         const ingredients = results[1];
+        const categories = results[1];
         const units = results[2];
+
+        const categoryMap = {};
+        categories.forEach(function (cat) {
+            categoryMap[cat.id] = cat.name;
+        });
 
         // Populate menu item dropdown
         const menuSelect = document.getElementById('recipeMenuItem');
@@ -1320,20 +1617,26 @@ function addRecipeIngredientRow(ingredients, selectedIngredientId, qty) {
     updateRecipeSummary();
 }
 function updateRecipeSummary() {
-    const rows = document.querySelectorAll('.recipe-ingredient-row');
+    const rows = document.querySelectorAll('#recipeIngredientsContainer .recipe-ingredient-row');
     const countEl = document.getElementById('recipeIngredientCount');
     const totalQtyEl = document.getElementById('recipeTotalQty');
 
     let totalQty = 0;
+    let validCount = 0;
+
     rows.forEach(function (row) {
-        const qty = parseFloat(row.querySelector('.ingredient-qty')?.value) || 0;
-        totalQty += qty;
+        const select = row.querySelector('.ingredient-select');
+        const qty = parseFloat(row.querySelector('.ingredient-quantity')?.value) || 0;
+
+        if (select?.value && qty > 0) {
+            totalQty += qty;
+            validCount++;
+        }
     });
 
-    if (countEl) countEl.textContent = rows.length;
+    if (countEl) countEl.textContent = validCount;
     if (totalQtyEl) totalQtyEl.textContent = totalQty.toFixed(2);
 }
-
 function saveRecipe() {
     const menuItemId = document.getElementById('recipeMenuItem')?.value;
     if (!menuItemId) {
@@ -1736,7 +2039,7 @@ async function saveIngredient() {
     try {
         // Check for duplicate
         const allIngredients = await ingredientsDB.show();
-        const duplicate = allIngredients.find(function(ing) {
+        const duplicate = allIngredients.find(function (ing) {
             const sameName = ing.name.trim().toLowerCase() === name.toLowerCase();
             // If editing, exclude itself from duplicate check
             if (editingIngredientId) {
@@ -1765,8 +2068,10 @@ async function saveIngredient() {
             ingredientData.id = editingIngredientId;
             await ingredientsDB.edit(ingredientData);
             editingIngredientId = null;
+            logAdminActivity('Updated ingredient', name, 'Success'); // ADD
         } else {
             await ingredientsDB.add(ingredientData);
+            logAdminActivity('Added ingredient', name, 'Success'); // ADD
         }
 
         const modalElem = document.getElementById('addIngredientModal');
@@ -2811,35 +3116,21 @@ function restoreBackup() {
 // Requests Functions
 // ===== Request Management Functions =====
 
-function getAccountRequests() {
-    try {
-        const stored = localStorage.getItem('accountRequests');
-        return stored ? JSON.parse(stored) : [];
-    } catch (e) {
-        return [];
-    }
-}
-
-function saveAccountRequests(requests) {
-    localStorage.setItem('accountRequests', JSON.stringify(requests));
-}
 
 function initializeRequests() {
-    // Search listener
     const searchInput = document.getElementById('requestSearch');
     if (searchInput) {
-        searchInput.addEventListener('input', () => loadRequests());
+        searchInput.addEventListener('input', function () { loadRequests(); });
     }
 
-    // Filter listener
     const statusFilter = document.getElementById('requestStatusFilter');
     if (statusFilter) {
-        statusFilter.addEventListener('change', () => loadRequests());
+        statusFilter.addEventListener('change', function () { loadRequests(); });
     }
 
-    // Initial load
     loadRequests();
 }
+
 
 function loadRequests() {
     const tableElem = document.getElementById('requestsTable');
@@ -2854,40 +3145,53 @@ function loadRequests() {
     const searchTerm = (document.getElementById('requestSearch')?.value || '').toLowerCase();
     const statusFilter = document.getElementById('requestStatusFilter')?.value || 'Pending';
 
-    let requests = getAccountRequests();
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
 
-    // Apply filtering
-    if (statusFilter !== 'All') {
-        requests = requests.filter(r => r.status === statusFilter);
-    }
-    if (searchTerm) {
-        requests = requests.filter(r =>
-            r.fullName.toLowerCase().includes(searchTerm) ||
-            r.username.toLowerCase().includes(searchTerm) ||
-            r.requestedRole.toLowerCase().includes(searchTerm)
-        );
-    }
+    Promise.all([
+        accountRequestsDB.show(),
+        rolesDB.show()
+    ]).then(function (results) {
+        let requests = results[0];
+        const roles = results[1];
 
-    tbody.innerHTML = '';
+        const roleMap = {};
+        roles.forEach(function (r) {
+            roleMap[r.id] = r.name;
+        });
 
-    if (requests.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No matching requests found.</td></tr>';
-    } else {
-        requests.forEach(req => {
-            const row = tbody.insertRow();
-            row.classList.add('animate__animated', 'animate__fadeIn');
+        if (statusFilter !== 'All') {
+            requests = requests.filter(function (r) {
+                return (r.status || '').trim() === statusFilter;
+            });
+        }
 
-            const isPending = req.status === 'Pending';
+        if (searchTerm) {
+            requests = requests.filter(function (r) {
+                return (r.full_name || '').toLowerCase().includes(searchTerm) ||
+                    (r.username || '').toLowerCase().includes(searchTerm) ||
+                    (roleMap[r.requested_role_id] || '').toLowerCase().includes(searchTerm);
+            });
+        }
 
-            row.innerHTML = `
-                <td>${req.date}</td>
-                <td><strong>${req.fullName}</strong></td>
-                <td><span class="badge bg-secondary">Account Request</span></td>
-                <td>${req.requestedRole}</td>
-                <td class="small">${isPending ? 'New user registration' : 'Processed'}</td>
-                <td><span class="badge ${req.status === 'Pending' ? 'bg-warning' : req.status === 'Approved' ? 'bg-success' : 'bg-danger'}">${req.status}</span></td>
-                <td>
-                    ${isPending ? `
+        tbody.innerHTML = '';
+
+        if (requests.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No matching requests found.</td></tr>';
+        } else {
+            requests.forEach(function (req) {
+                const row = tbody.insertRow();
+                row.classList.add('animate__animated', 'animate__fadeIn');
+
+                const isPending = (req.status || '').trim() === 'Pending';
+                const isDenied = (req.status || '').trim() === 'Denied';
+                const statusBadge = isPending ? 'bg-warning' : req.status === 'Approved' ? 'bg-success' : 'bg-danger';
+                const roleName = roleMap[req.requested_role_id] || '—';
+                const requestedAt = req.requested_at ? new Date(req.requested_at).toLocaleDateString() : '—';
+
+                let actionButtons = '<span class="text-muted small">No actions</span>';
+
+                if (isPending) {
+                    actionButtons = `
                         <div class="table-actions">
                             <button class="btn btn-sm btn-outline-success" onclick="approveRequest(${req.id})" title="Approve">
                                 <i class="fas fa-check"></i>
@@ -2896,102 +3200,210 @@ function loadRequests() {
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                    ` : '<span class="text-muted small">No actions</span>'}
-                </td>
-            `;
-        });
-    }
-
-    updateRequestSidebarBadge();
-
-    const pageBadge = document.getElementById('pendingRequestsBadge');
-    if (pageBadge) {
-        const pendingCount = getAccountRequests().filter(r => r.status === 'Pending').length;
-        pageBadge.textContent = `${pendingCount} Pending Request${pendingCount !== 1 ? 's' : ''}`;
-    }
-}
-
-function updateRequestSidebarBadge() {
-    const pendingCount = getAccountRequests().filter(r => r.status === 'Pending').length;
-
-    // Find "Requests" sidebar link
-    const sidebarLinks = document.querySelectorAll('.sidebar-link');
-    sidebarLinks.forEach(link => {
-        if (link.textContent.includes('Requests')) {
-            // Check if badge already exists
-            let badge = link.querySelector('.sidebar-badge');
-            if (pendingCount > 0) {
-                if (!badge) {
-                    badge = document.createElement('span');
-                    badge.className = 'badge bg-danger rounded-pill ms-auto sidebar-badge animate__animated animate__bounceIn';
-                    link.appendChild(badge);
+                    `;
+                } else if (isDenied) {
+                    actionButtons = `
+                        <div class="table-actions">
+                            <button class="btn btn-sm btn-outline-success" onclick="restoreRequest(${req.id})" title="Restore to Pending">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="permanentlyDeleteRequest(${req.id})" title="Delete Permanently">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
                 }
-                badge.textContent = pendingCount;
-            } else if (badge) {
-                badge.remove();
-            }
-        }
-    });
 
-    // Also update dashboard alert count if on dashboard
-    const alertsCount = document.getElementById('systemAlerts');
-    if (alertsCount) {
-        const lowStock = getAvailableIngredients().filter(ing => ing.quantity <= ing.threshold).length;
-        alertsCount.textContent = (pendingCount > 0 || lowStock > 0) ? (pendingCount + (lowStock > 0 ? 1 : 0)) : '0';
-    }
+                row.innerHTML = `
+                    <td>${requestedAt}</td>
+                    <td><strong>${req.full_name}</strong></td>
+                    <td><span class="badge bg-secondary">Account Request</span></td>
+                    <td>${roleName}</td>
+                    <td class="small">${isPending ? 'New user registration' : 'Processed'}</td>
+                    <td><span class="badge ${statusBadge}">${req.status}</span></td>
+                    <td>${actionButtons}</td>
+                `;
+            });
+        }
+
+        const allPending = results[0].filter(function (r) {
+            return (r.status || '').trim() === 'Pending';
+        }).length;
+
+        const pageBadge = document.getElementById('pendingRequestsBadge');
+        if (pageBadge) pageBadge.textContent = `${allPending} Pending Request${allPending !== 1 ? 's' : ''}`;
+
+        updateRequestSidebarBadge();
+
+    }).catch(function (err) {
+        console.error('Failed to load requests:', err);
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load requests.</td></tr>';
+    });
 }
 
-function approveRequest(id) {
-    let requests = getAccountRequests();
-    const reqIndex = requests.findIndex(r => r.id === id);
-    if (reqIndex === -1) return;
+function restoreRequest(id) {
+    accountRequestsDB.show().then(function (allRequests) {
+        const req = allRequests.find(function (r) { return r.id == id; });
+        if (!req) return;
 
-    const req = requests[reqIndex];
-
-    showConfirm(`Approve account request for "${req.fullName}"?`, function () {
-        // 1. Add to users
-        let users = getUsers();
-        const maxId = users.length > 0 ? Math.max(...users.map(u => u.id)) : 0;
-
-        users.push({
-            id: maxId + 1,
-            name: req.fullName,
-            username: req.username,
-            password: req.password,
-            role: req.requestedRole,
-            status: 'Active',
-            lastLogin: 'Never',
-            isDeleted: false
+        showConfirm(`Restore request for "${req.full_name}" back to Pending?`, function () {
+            accountRequestsDB.edit({
+                id: req.id,
+                status: 'Pending',
+                reviewed_at: null
+            }).then(function () {
+                showModalNotification(`Request for "${req.full_name}" restored to Pending`, 'success', 'Request Restored');
+                logAdminActivity('Restored denied request', req.username, 'Success');
+                loadRequests();
+            }).catch(function (err) {
+                console.error('Failed to restore request:', err);
+                Swal.fire('Error', 'Failed to restore request.', 'error');
+            });
         });
-        saveUsersToStorage(users);
+    });
+}
 
-        // 2. Mark request as approved (or remove it, but user wants realtime/functional)
-        requests[reqIndex].status = 'Approved';
-        saveAccountRequests(requests);
+function permanentlyDeleteRequest(id) {
+    accountRequestsDB.show().then(function (allRequests) {
+        const req = allRequests.find(function (r) { return r.id == id; });
+        if (!req) return;
 
-        showModalNotification(`Account for "${req.username}" has been created and approved`, 'success', 'Request Approved');
-        logAdminActivity('Approved account request', req.username, 'Success');
-        loadRequests();
+        showConfirm(`Permanently delete request for "${req.full_name}"? This cannot be undone.`, function () {
+            accountRequestsDB.delete(req.id).then(function () {
+                showModalNotification(`Request for "${req.full_name}" permanently deleted`, 'success', 'Request Deleted');
+                logAdminActivity('Permanently deleted request', req.username, 'Success');
+                loadRequests();
+            }).catch(function (err) {
+                console.error('Failed to delete request:', err);
+                Swal.fire('Error', 'Failed to delete request.', 'error');
+            });
+        });
+    });
+}
+function updateRequestSidebarBadge() {
+    accountRequestsDB.show().then(function (allRequests) {
+        const pendingCount = allRequests.filter(function (r) {
+            return (r.status || '').trim() === 'Pending';
+        }).length;
+
+        // Update sidebar badge
+        const sidebarLinks = document.querySelectorAll('.sidebar-link');
+        sidebarLinks.forEach(function (link) {
+            if (link.textContent.includes('Requests')) {
+                let badge = link.querySelector('.sidebar-badge');
+                if (pendingCount > 0) {
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'badge bg-danger rounded-pill ms-auto sidebar-badge animate__animated animate__bounceIn';
+                        link.appendChild(badge);
+                    }
+                    badge.textContent = pendingCount;
+                } else if (badge) {
+                    badge.remove();
+                }
+            }
+        });
+
+        // Update dashboard alert count
+        const alertsCount = document.getElementById('systemAlerts');
+        if (alertsCount) {
+            ingredientsDB.show().then(function (ingredients) {
+                const lowStock = ingredients.filter(function (ing) {
+                    return parseFloat(ing.current_quantity) <= parseFloat(ing.low_stock_threshold);
+                }).length;
+                alertsCount.textContent = (pendingCount + lowStock) > 0 ? (pendingCount + (lowStock > 0 ? 1 : 0)) : '0';
+            });
+        }
+
+    }).catch(function (err) {
+        console.error('Failed to update sidebar badge:', err);
+    });
+}
+
+
+
+localStorage.removeItem('accountRequests');
+localStorage.removeItem('adminMenuItems');
+localStorage.removeItem('adminRecipes');
+localStorage.removeItem('ingredients');
+function approveRequest(id) {
+    accountRequestsDB.show().then(function (allRequests) {
+        const req = allRequests.find(function (r) { return r.id == id; });
+        if (!req) {
+            console.error('Request not found:', id, allRequests);
+            return;
+        }
+
+        showConfirm(`Approve account request for "${req.full_name}"?`, function () {
+            usersDB.add({
+                full_name: req.full_name,
+                username: req.username,
+                password_hash: req.password_hash,
+                role_id: req.requested_role_id,
+                status: 'active',
+                created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+            }).then(function (result) {
+                if (result.error) {
+                    Swal.fire('Error', result.error, 'error');
+                    return Promise.reject(result.error);
+                }
+
+                return accountRequestsDB.edit({
+                    id: req.id,
+                    status: 'Approved',
+                    reviewed_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                });
+
+            }).then(function () {
+                showModalNotification(`Account for "${req.username}" has been approved`, 'success', 'Request Approved');
+                logAdminActivity('Approved account request', req.username, 'Success');
+                loadRequests();
+
+            }).catch(function (err) {
+                console.error('Failed to approve request:', err);
+                Swal.fire('Error', 'Failed to approve request.', 'error');
+            });
+        });
+
+    }).catch(function (err) {
+        console.error('Failed to fetch requests:', err);
     });
 }
 
 function denyRequest(id) {
-    let requests = getAccountRequests();
-    const reqIndex = requests.findIndex(r => r.id === id);
-    if (reqIndex === -1) return;
+    accountRequestsDB.show().then(function (allRequests) {
+        const req = allRequests.find(function (r) { return r.id == id; });
+        if (!req) {
+            console.error('Request not found:', id, allRequests);
+            return;
+        }
 
-    const req = requests[reqIndex];
+        showConfirm(`Deny account request for "${req.full_name}"?`, function () {
+            accountRequestsDB.edit({
+                id: req.id,
+                status: 'Denied',
+                reviewed_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+            }).then(function (result) {
+                if (result.error) {
+                    Swal.fire('Error', result.error, 'error');
+                    return;
+                }
 
-    showConfirm(`Deny account request for "${req.fullName}"?`, function () {
-        requests[reqIndex].status = 'Denied';
-        saveAccountRequests(requests);
+                showModalNotification(`Account request for "${req.username}" has been denied`, 'info', 'Request Denied');
+                logAdminActivity('Denied account request', req.username, 'Admin Action');
+                loadRequests();
 
-        showModalNotification(`Account request for "${req.username}" has been denied`, 'info', 'Request Denied');
-        logAdminActivity('Denied account request', req.username, 'Admin Action');
-        loadRequests();
+            }).catch(function (err) {
+                console.error('Failed to deny request:', err);
+                Swal.fire('Error', 'Failed to deny request.', 'error');
+            });
+        });
+
+    }).catch(function (err) {
+        console.error('Failed to fetch requests:', err);
     });
 }
-
 
 // System Settings Functions
 function initializeSystemSettings() {
@@ -3321,52 +3733,58 @@ function loadFullActivityLog() {
     const tableElem = document.getElementById('fullActivityLogTable');
     if (!tableElem) return;
 
-    const tbody = tableElem.getElementsByTagName('tbody')[0];
+    const tbody = tableElem.querySelector('tbody');
     if (!tbody) return;
 
     tbody.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm text-danger me-2" role="status"></div>Loading activity logs...</td></tr>';
 
-    // Get filter values
     const categoryVal = document.getElementById('activityCategoryFilter')?.value || '';
     const userVal = document.getElementById('activityUserFilter')?.value || '';
     const fromDate = document.getElementById('activityFromDate')?.value || '';
     const toDate = document.getElementById('activityToDate')?.value || '';
 
-    setTimeout(() => {
-        let logs = getAllActivityLogs();
+    activityLogsDB.show().then(function (allLogs) {
+        let logs = allLogs;
 
-        // Apply category filter
+        // Sort newest first
+        logs.sort(function (a, b) {
+            return new Date(b.created_at) - new Date(a.created_at);
+        });
+
+        // Apply filters
         if (categoryVal) {
-            logs = logs.filter(log => {
-                const cat = log.category || getActivityCategory(log.action);
-                return cat === categoryVal;
+            logs = logs.filter(function (log) {
+                return getActivityCategory(log.action) === categoryVal;
             });
         }
 
-        // Apply user filter
         if (userVal) {
-            logs = logs.filter(log => log.userName === userVal);
+            logs = logs.filter(function (log) {
+                return (log.role_label || '').toLowerCase().includes(userVal.toLowerCase());
+            });
         }
 
-        // Apply date filters
         if (fromDate) {
             const from = new Date(fromDate);
             from.setHours(0, 0, 0, 0);
-            logs = logs.filter(log => new Date(log.timestamp) >= from);
+            logs = logs.filter(function (log) {
+                return new Date(log.created_at) >= from;
+            });
         }
+
         if (toDate) {
             const to = new Date(toDate);
             to.setHours(23, 59, 59, 999);
-            logs = logs.filter(log => new Date(log.timestamp) <= to);
+            logs = logs.filter(function (log) {
+                return new Date(log.created_at) <= to;
+            });
         }
 
         fullLogFilteredData = logs;
 
-        // Update entry count
         const countBadge = document.getElementById('logEntryCount');
         if (countBadge) countBadge.textContent = `${logs.length} Entries`;
 
-        // Paginate
         const totalPages = Math.max(1, Math.ceil(logs.length / FULL_LOG_PAGE_SIZE));
         if (fullLogCurrentPage > totalPages) fullLogCurrentPage = totalPages;
 
@@ -3378,24 +3796,27 @@ function loadFullActivityLog() {
         if (pageData.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2 d-block"></i>No activity logs match your filters.</td></tr>';
         } else {
-            pageData.forEach(log => {
-                const cat = log.category || getActivityCategory(log.action);
+            pageData.forEach(function (log) {
+                const cat = getActivityCategory(log.action);
                 const row = tbody.insertRow();
                 row.classList.add('animate__animated', 'animate__fadeIn');
                 row.innerHTML = `
-                    <td><small>${log.timestamp}</small></td>
-                    <td><strong>${log.userName}</strong></td>
-                    <td>${log.action}</td>
+                    <td><small>${log.created_at || '—'}</small></td>
+                    <td><strong>${log.role_label || 'Admin'}</strong></td>
+                    <td>${log.action || '—'}</td>
                     <td>${getCategoryBadge(cat)}</td>
-                    <td><code>${log.ip || 'N/A'}</code></td>
+                    <td><code>${log.ip_address || 'N/A'}</code></td>
                     <td><small class="text-muted">${log.reference || '-'}</small></td>
                 `;
             });
         }
 
-        // Render pagination
         renderActivityPagination(totalPages);
-    }, 400);
+
+    }).catch(function (err) {
+        console.error('Failed to load activity logs:', err);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load activity logs.</td></tr>';
+    });
 }
 
 function renderActivityPagination(totalPages) {
@@ -3458,10 +3879,70 @@ function renderActivityPagination(totalPages) {
 
 // Temp Account Functions
 function initializeTempAccount() {
-    const createBtn = document.getElementById('createTempAccountBtn');
-    if (createBtn) {
-        createBtn.addEventListener('click', function () {
-            showModalNotification('Temporary account created', 'success', 'Created');
+    // Populate role select from DB
+    rolesDB.show().then(function(roles) {
+        const select = document.getElementById('tempRoleSelect');
+        if (!select) return;
+        select.innerHTML = '<option value="">Select Role...</option>';
+        roles.forEach(function(role) {
+            // skip admin role
+            if (role.name.toLowerCase() === 'admin') return;
+            const opt = document.createElement('option');
+            opt.value = role.id;
+            opt.dataset.roleName = role.name.toLowerCase();
+            opt.textContent = role.name;
+            select.appendChild(opt);
+        });
+    });
+
+    // Enter Temp Account button
+    const enterBtn = document.getElementById('enterTempAccountBtn');
+    if (enterBtn) {
+        enterBtn.addEventListener('click', function() {
+            const select = document.getElementById('tempRoleSelect');
+            const selectedOption = select?.options[select.selectedIndex];
+            const roleId = select?.value;
+            const roleName = selectedOption?.dataset.roleName || '';
+
+            if (!roleId) {
+                showModalNotification('Please select a role first', 'warning', 'Validation Error');
+                return;
+            }
+
+            // Log activation in temporary_account_log
+            const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            const adminId = parseInt(localStorage.getItem('loggedInUserId')) || null;
+
+            temporaryAccountLogDB.add({
+                activated_by: adminId,
+                activated_at: now,
+                deactivated_at: null,
+                note: `Entered as temp ${roleName} account`
+            }).then(function(result) {
+                // Store log ID so we can update deactivated_at on logout
+                localStorage.setItem('tempAccountLogId', result.id);
+                localStorage.setItem('tempAccountRole', roleName);
+
+                // Set temp session
+                localStorage.setItem('loggedInRole', roleName);
+                localStorage.setItem('loggedInUser', 'Temp Account');
+                localStorage.setItem('isTempAccount', 'true');
+
+                logAdminActivity('Entered temporary account', `Role: ${roleName}`, 'Success');
+
+                // Redirect based on role
+                if (roleName === 'staff') {
+                    window.location.href = 'staff-menu.html';
+                } else if (roleName === 'cashier') {
+                    window.location.href = 'cashier.html';
+                } else {
+                    window.location.href = 'staff.html'; // default fallback
+                }
+
+            }).catch(function(err) {
+                console.error('Failed to log temp account activation:', err);
+                showModalNotification('Failed to enter temporary account', 'danger', 'Error');
+            });
         });
     }
 
@@ -3475,40 +3956,56 @@ function loadTempAccounts() {
     const tbody = tableElem.getElementsByTagName('tbody')[0];
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center">No active temporary accounts</td></tr>';
-}
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
 
+    temporaryAccountLogDB.show().then(function(logs) {
+        tbody.innerHTML = '';
+
+        if (!logs || logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No history found.</td></tr>';
+            return;
+        }
+
+        // Sort newest first
+        logs.sort(function(a, b) {
+            return new Date(b.activated_at) - new Date(a.activated_at);
+        });
+
+        logs.forEach(function(log) {
+            const row = tbody.insertRow();
+            row.classList.add('animate__animated', 'animate__fadeIn');
+            row.innerHTML = `
+                <td>${log.id}</td>
+                <td>${log.activated_by || 'Admin'}</td>
+                <td>${log.activated_at || '—'}</td>
+                <td>${log.deactivated_at || '<span class="badge bg-success">Active</span>'}</td>
+                <td><small class="text-muted">${log.note || '—'}</small></td>
+            `;
+        });
+
+    }).catch(function(err) {
+        console.error('Failed to load temp account history:', err);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">Failed to load history.</td></tr>';
+    });
+}
 // ===== Helper Functions =====
 function logAdminActivity(action, details, status) {
     console.log(`Activity: ${action} | Details: ${details} | Status: ${status}`);
 
-    // Persist to localStorage
-    let logs = [];
-    try {
-        const stored = localStorage.getItem('systemActivityLogs');
-        if (stored) logs = JSON.parse(stored);
-    } catch (e) { logs = []; }
-
     const now = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const created_at = now.toISOString().slice(0, 19).replace('T', ' ');
 
-    const newLog = {
-        id: Date.now(),
-        userName: localStorage.getItem('loggedInUser') || 'Admin',
+    activityLogsDB.add({
+        user_id: parseInt(localStorage.getItem('loggedInUserId')) || null,
+        role_label: localStorage.getItem('loggedInRole') || 'Admin',
         action: action,
         reference: details,
-        timestamp: ts,
-        category: getActivityCategory(action),
-        ip: '192.168.1.10'
-    };
-
-    logs.unshift(newLog);
-
-    // Keep max 500 entries
-    if (logs.length > 500) logs = logs.slice(0, 500);
-
-    localStorage.setItem('systemActivityLogs', JSON.stringify(logs));
+        status: status || 'Success',
+        ip_address: '192.168.1.10',
+        created_at: created_at
+    }).catch(function (err) {
+        console.error('Failed to log activity:', err);
+    });
 
     // Refresh dashboard recent activities if on dashboard
     if (document.getElementById('recentActivities')) {
@@ -3520,5 +4017,4 @@ function logAdminActivity(action, details, status) {
         loadFullActivityLog();
     }
 }
-
 // showModalNotification and showConfirm are defined in main.js — not duplicated here

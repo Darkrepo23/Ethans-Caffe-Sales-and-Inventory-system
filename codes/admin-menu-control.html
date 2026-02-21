@@ -143,11 +143,6 @@
                             <div class="col-md-3 mb-3 mb-md-0">
                                 <select class="form-select" id="menuControlCategory">
                                     <option value="">All Categories</option>
-                                    <option value="Main Course">Main Course</option>
-                                    <option value="Appetizer">Appetizer</option>
-                                    <option value="Side Dish">Side Dish</option>
-                                    <option value="Dessert">Dessert</option>
-                                    <option value="Beverage">Beverage</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -212,12 +207,7 @@
                                 <label class="form-label">Category</label>
                                 <select class="form-select" id="menuItemCategory" required>
                                     <option value="">Select Category</option>
-                                    <option value="Main Course">Main Course</option>
-                                    <option value="Appetizer">Appetizer</option>
-                                    <option value="Side Dish">Side Dish</option>
-                                    <option value="Dessert">Dessert</option>
-                                    <option value="Beverage">Beverage</option>
-                                </select>
+                                    </select>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Price (Reference Only)</label>
@@ -247,6 +237,18 @@
                                             <i class="fas fa-plus me-1"></i> Add Ingredient
                                         </button>
                                     </div>
+                                    <div class="col-12 mb-3">
+                                        <label class="form-label">Menu Item Image</label>
+                                        <input type="file" class="form-control" id="menuItemImage" accept="image/*">
+                                        <div id="imagePreviewContainer" class="mt-2 d-none">
+                                            <img id="imagePreview" src="" alt="Preview" class="img-thumbnail"
+                                                style="max-height: 150px;">
+                                            <button type="button" class="btn btn-sm btn-outline-danger mt-1 d-block"
+                                                id="removeImageBtn">
+                                                <i class="fas fa-times me-1"></i> Remove Image
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -269,7 +271,7 @@
     <script type="module" src="admin-feature.js"></script>
     <script src="main.js"></script>
     <script src="admin.js"></script>
-    
+
 
     <script>
         // Menu Control specific scripts if needed
