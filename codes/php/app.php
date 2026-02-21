@@ -1,4 +1,9 @@
 <?php
+header("Access-Control-Allow-Origin: *");
+header("Content-Type: application/json");
+header("Access-Control-Allow-Methods: POST, GET, PUT, DELETE");
+header("Access-Control-Allow-Headers: Content-Type");
+header("Cache-Control: no-store, no-cache, must-revalidate");
 session_start();
 
 // ---------------------------
@@ -40,10 +45,7 @@ if (basename($_SERVER['PHP_SELF']) === 'app.php' && empty($_SERVER['HTTP_X_REQUE
 	exit();
 }
 // CORS Headers
-header("Access-Control-Allow-Origin: *");
-header("Content-Type: application/json");
-header("Access-Control-Allow-Methods: POST, GET, PUT, DELETE");
-header("Access-Control-Allow-Headers: Content-Type");
+
 
 $host = '127.0.0.1';
 $db   = 'ethans_cafe';

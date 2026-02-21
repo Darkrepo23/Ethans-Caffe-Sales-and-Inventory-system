@@ -85,6 +85,15 @@ async function handleLogin() {
             const role = parseInt(data.role_id);
             const roleName = (data.role_name || "").toLowerCase();
 
+            // Save current user info
+            localStorage.setItem('loggedInUserId', data.user_id);
+            localStorage.setItem('loggedInUser', data.full_name);
+            localStorage.setItem('currentUser', JSON.stringify({
+                id: data.user_id,
+                name: data.full_name,
+                role: roleName
+            }));
+
             if (role === 1 || roleName === "admin") {
                 localStorage.setItem('loggedInRole', 'admin');
                 localStorage.setItem('loggedInUser', JSON.stringify(data));
@@ -135,17 +144,24 @@ function showLoginError(message) {
     }
 }
 
-// Handle account request
+let isSubmittingRequest = false;
+
 function handleAccountRequest() {
+    if (isSubmittingRequest) return; // block duplicate calls
+
     const fullName = document.getElementById('fullName').value.trim();
     const username = document.getElementById('requestUsername').value.trim();
     const email = document.getElementById('requestEmail').value.trim();
     const password = document.getElementById('requestPassword').value.trim();
     const confirmPassword = document.getElementById('confirmPassword').value.trim();
-    const requestedRole = document.getElementById('requestedRole').value;
+    const requestedRoleId = parseInt(document.getElementById('requestedRole').value);
 
+<<<<<<< HEAD
     // Validation
     if (!fullName || !username || !email || !password || !confirmPassword) {
+=======
+    if (!fullName || !username || !password || !confirmPassword) {
+>>>>>>> ad407d41e51db7f0766816b310b66e453e24c5b8
         showRequestError('Please fill in all required fields');
         return;
     }
@@ -170,14 +186,23 @@ function handleAccountRequest() {
         return;
     }
 
-    const requestAccountForm = document.getElementById('requestAccountForm');
-    if (!requestAccountForm) return;
+    if (!requestedRoleId) {
+        showRequestError('Please select a role');
+        return;
+    }
 
-    const submitBtn = requestAccountForm.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<span class="loading-spinner"></span> Submitting...';
+    const submitBtn = document.querySelector('#requestAccountForm button[type="submit"]');
+    if (!submitBtn) return;
+
+    isSubmittingRequest = true;
     submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="loading-spinner"></span> Submitting...';
 
+<<<<<<< HEAD
+=======
+    const originalText = '<i class="fas fa-paper-plane me-2"></i>Submit Request';
+
+>>>>>>> ad407d41e51db7f0766816b310b66e453e24c5b8
     fetch("http://localhost/Ethans%20Cafe/codes/php/account_request.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -186,7 +211,11 @@ function handleAccountRequest() {
             username: username,
             email: email,
             password: password,
+<<<<<<< HEAD
             requested_role_id: requestedRole === 'Staff' ? 2 : 3 // Adjusted based on role IDs
+=======
+            requested_role_id: requestedRoleId
+>>>>>>> ad407d41e51db7f0766816b310b66e453e24c5b8
         })
     })
         .then(function (res) {
@@ -195,6 +224,10 @@ function handleAccountRequest() {
             });
         })
         .then(function (result) {
+<<<<<<< HEAD
+=======
+            isSubmittingRequest = false;
+>>>>>>> ad407d41e51db7f0766816b310b66e453e24c5b8
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
 
@@ -213,15 +246,31 @@ function handleAccountRequest() {
                 heightAuto: false
             });
 
+<<<<<<< HEAD
             requestAccountForm.reset();
         })
         .catch(function (err) {
             console.error('Request failed:', err);
+=======
+            document.getElementById('requestAccountForm').reset();
+
+        })
+        .catch(function (err) {
+            console.error('Request failed:', err);
+            isSubmittingRequest = false;
+>>>>>>> ad407d41e51db7f0766816b310b66e453e24c5b8
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
             showRequestError('Network error. Please try again.');
         });
 }
+<<<<<<< HEAD
+=======
+
+
+
+
+>>>>>>> ad407d41e51db7f0766816b310b66e453e24c5b8
 
 function showRequestError(message) {
     if (window.Swal) {

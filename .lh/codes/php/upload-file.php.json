@@ -1,0 +1,18 @@
+{
+    "sourceFile": "codes/php/upload-file.php",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1771663483359,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1771663483359,
+            "name": "Commit-0",
+            "content": "<?php\r\nheader(\"Access-Control-Allow-Origin: *\");\r\nheader(\"Content-Type: application/json\");\r\n\r\n$uploadDir = __DIR__ . '/../uploads/menu_items/';\r\n\r\n// Create folder if it doesn't exist\r\nif (!is_dir($uploadDir)) {\r\n    mkdir($uploadDir, 0755, true);\r\n}\r\n\r\nif ($_SERVER['REQUEST_METHOD'] === 'POST') {\r\n    if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {\r\n        http_response_code(400);\r\n        echo json_encode(['error' => 'No image uploaded or upload error']);\r\n        exit();\r\n    }\r\n\r\n    $file = $_FILES['image'];\r\n    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];\r\n\r\n    if (!in_array($file['type'], $allowedTypes)) {\r\n        http_response_code(400);\r\n        echo json_encode(['error' => 'Invalid image type. Only JPG, PNG, GIF, WEBP allowed.']);\r\n        exit();\r\n    }\r\n\r\n    if ($file['size'] > 2 * 1024 * 1024) {\r\n        http_response_code(400);\r\n        echo json_encode(['error' => 'Image too large. Max 2MB.']);\r\n        exit();\r\n    }\r\n\r\n    $ext = pathinfo($file['name'], PATHINFO_EXTENSION);\r\n    $filename = uniqid('menu_', true) . '.' . $ext;\r\n    $destination = $uploadDir . $filename;\r\n\r\n    if (!move_uploaded_file($file['tmp_name'], $destination)) {\r\n        http_response_code(500);\r\n        echo json_encode(['error' => 'Failed to save image']);\r\n        exit();\r\n    }\r\n\r\n    echo json_encode([\r\n        'success' => true,\r\n        'filename' => $filename,\r\n        'path' => 'uploads/menu_items/' . $filename\r\n    ]);\r\n    exit();\r\n}\r\n\r\n// DELETE image\r\nif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {\r\n    $data = json_decode(file_get_contents('php://input'), true);\r\n    $filename = basename($data['filename'] ?? '');\r\n\r\n    if (!$filename) {\r\n        http_response_code(400);\r\n        echo json_encode(['error' => 'No filename provided']);\r\n        exit();\r\n    }\r\n\r\n    $filePath = $uploadDir . $filename;\r\n\r\n    if (file_exists($filePath)) {\r\n        unlink($filePath);\r\n        echo json_encode(['success' => true, 'message' => 'Image deleted']);\r\n    } else {\r\n        echo json_encode(['success' => true, 'message' => 'File not found, nothing deleted']);\r\n    }\r\n    exit();\r\n}\r\n\r\nhttp_response_code(405);\r\necho json_encode(['error' => 'Method not allowed']);\r\n?>"
+        }
+    ]
+}

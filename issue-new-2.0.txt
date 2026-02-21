@@ -1,1 +1,15 @@
-render the menu
+Menu Sales Page
+
+Database Connection: Connect to your database.
+
+Tables Used:
+
+menu_items → Contains all menu items.
+
+menu_categories → Used to populate the <select> element with id="menuCategoryFilter".
+
+sales_items → Stores the current sale items displayed in the sales table.
+
+Ingredients Page
+
+Ingredients Inventory Table: Use the ingredients table to display and manage inventory.
