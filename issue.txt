@@ -30,20 +30,49 @@ remember that admin have all the control.
 in staff:
 if the menu is unavailable it will not be show in menu sales.
 
-
+	
 
 =========New Issue=========
 Need to have an output example:
 
 Admin Role:
-Recent activity system included full log
--Menu items masterlist the action edit
--Recipe control assign new recipe need to have an input
--Ingredients page Set thresholds button
--Add new Users need input modal
--the request is empty need atleast an example output design
--Owners ReportPage Overview graph need atleast sample output design
--Backup & restore page need atleast output ui in create manual backup button
+
+Dashborad
+-Recent System Activity ✅
+
+Menu items
+-Masterlist the action edit ✅
+-Add Menu Items ✅
+
+Recipe control
+-Assign new recipe need to have an input ✅
+-Actions Buttons ✅
+
+Ingredients
+-Page Set thresholds button ✅
+-Add Ingredients ✅
+-Action Buttons ✅
+
+Users 
+-Add Users (Modal) ✅
+-Action Buttons ✅
+
+Login Page
+-Rqst Fix ✅
+
+
+Request 
+-the request is empty need atleast an example output design ✅
+
+Owners Report 
+-Page Overview graph need atleast sample output design✅
+-Buttons (Generate, Print, Excel)✅
+-Summary Metrics✅
+-Detailed Transaction Log✅
+
+
+Backup & restore 
+-page need atleast output ui in create manual backup button
 backup history log atleast some example output design
 -Full activity log page, comprehensive logs table atleast show some output
 design example. and truncate the  details  because its long possible
