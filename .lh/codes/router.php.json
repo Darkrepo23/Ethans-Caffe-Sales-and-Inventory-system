@@ -1,0 +1,18 @@
+{
+    "sourceFile": "codes/router.php",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1771856401122,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1771856401122,
+            "name": "Commit-0",
+            "content": "<?php\r\n// Router for PHP development server\r\n// Prioritizes static files and PHP requests, only routes HTML to index.html\r\n\r\n// Get the requested path without query string\r\n$url_path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);\r\n// Decode URL-encoded characters (like %20 for spaces)\r\n$url_path = urldecode($url_path);\r\n$file_path = __DIR__ . $url_path;\r\n\r\n// 0. Handle favicon.ico - serve logo image without 404\r\nif (strpos($url_path, '/favicon.ico') !== false) {\r\n    // Serve the logo as favicon\r\n    $logo_path = __DIR__ . '/resources/ethans logo.jpg';\r\n    if (file_exists($logo_path)) {\r\n        header('Content-Type: image/jpeg');\r\n        header('Cache-Control: public, max-age=604800');\r\n        readfile($logo_path);\r\n        return true;\r\n    }\r\n    // If logo doesn't exist, return empty 200 to prevent 404\r\n    http_response_code(200);\r\n    return true;\r\n}\r\n\r\n// 1. Serve static files directly (don't intercept them)\r\nif (file_exists($file_path) && is_file($file_path)) {\r\n    // Let PHP dev server handle the static file with correct MIME type\r\n    return false;\r\n}\r\n\r\n// 2. If requesting a directory with index.html, serve that\r\nif (is_dir($file_path)) {\r\n    if (file_exists($file_path . '/index.html')) {\r\n        require $file_path . '/index.html';\r\n        return true;\r\n    }\r\n}\r\n\r\n// 3. For non-existent files in /codes, route to index.html (SPA routing)\r\n// But NOT for API requests (anything in /php directory)\r\nif (strpos($url_path, '/codes/php/') !== 0 && \r\n    strpos($url_path, '/codes/') === 0 && \r\n    !preg_match('/\\.[a-z0-9]+$/i', $url_path)) {\r\n    // It's a route, not a static file\r\n    require __DIR__ . '/index.html';\r\n    return true;\r\n}\r\n\r\n// 4. Root requests (/) should serve index.html\r\nif ($url_path === '/' || $url_path === '/index.html') {\r\n    $index_path = __DIR__ . '/index.html';\r\n    if (file_exists($index_path)) {\r\n        require $index_path;\r\n        return true;\r\n    }\r\n}\r\n\r\n// 5. Otherwise, let the server handle it or return 404\r\nif (!file_exists($file_path)) {\r\n    http_response_code(404);\r\n    return true;\r\n}\r\n\r\nreturn false;\r\n?>\r\n"
+        }
+    ]
+}

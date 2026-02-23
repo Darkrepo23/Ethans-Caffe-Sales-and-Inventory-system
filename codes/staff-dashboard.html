@@ -639,25 +639,7 @@
                 });
             });
 
-            // Logout buttons
-            document.getElementById('logoutBtn').addEventListener('click', function (e) {
-                e.preventDefault();
-                showConfirm('Are you sure you want to logout?', function () {
-                    try {
-                        localStorage.removeItem('loggedInRole');
-                    } catch (e) { }
-                    window.location.href = 'index.html';
-                });
-            });
-
-            document.getElementById('logoutBtnAccount').addEventListener('click', function () {
-                showConfirm('Are you sure you want to logout?', function () {
-                    try {
-                        localStorage.removeItem('loggedInRole');
-                    } catch (e) { }
-                    window.location.href = 'index.html';
-                });
-            });
+            // Logout buttons are now handled in staff.js with proper activity logging
 
             // Start new sale from receipts logic is handled in staff.js
 

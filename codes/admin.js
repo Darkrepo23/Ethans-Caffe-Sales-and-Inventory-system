@@ -1,5 +1,5 @@
 // Admin Dashboard JavaScript - Updated with User Management and Multi-page fixes
-const API_URL = "http://localhost/Ethans%20Cafe/codes/php/app.php";
+const API_URL = "/php/app.php";
 
 function createDB(table) {
     return {
@@ -350,9 +350,31 @@ function initializeCommonAdminFeatures() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', function (e) {
             e.preventDefault();
+            e.stopPropagation();
+            console.log('🔄 Admin logout initiated - showing confirmation dialog');
+            
             showConfirm('Are you sure you want to logout?', function () {
-                localStorage.removeItem('loggedInRole');
-                window.location.href = 'index.html';
+                console.log('✅ Admin logout confirmed by user');
+                
+                // Get user info before clearing
+                const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+                
+                // Log the logout activity
+                logAdminActivity('Logged out', 'Admin session terminated', 'Success');
+                
+                // Mark user as inactive
+                updateUserStatus(user.id, 'inactive').then(() => {
+                    console.log('✅ Admin user marked as inactive');
+                    localStorage.removeItem('loggedInRole');
+                    localStorage.removeItem('loggedInUser');
+                    console.log('🔐 Session cleared, redirecting to login...');
+                    window.location.href = 'index.html';
+                }).catch(err => {
+                    console.error('❌ Failed to update status, but proceeding with logout:', err);
+                    localStorage.removeItem('loggedInRole');
+                    localStorage.removeItem('loggedInUser');
+                    window.location.href = 'index.html';
+                });
             });
         });
     }
@@ -415,56 +437,71 @@ function exportDashboardData() {
     }, 1000);
 }
 
-function loadLowStockData() {
+async function loadLowStockData() {
     const tableElement = document.getElementById('lowStockTable');
     if (!tableElement) return;
 
     const lowStockTable = tableElement.getElementsByTagName('tbody')[0];
     if (!lowStockTable) return;
 
-    const allIngredients = getAvailableIngredients();
-    const lowStockData = allIngredients.filter(ing => ing.quantity <= ing.threshold);
+    try {
+        const allIngredients = await ingredientsDB.show();
+        if (!allIngredients || !Array.isArray(allIngredients)) {
+            lowStockTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Unable to load ingredient data.</td></tr>';
+            return;
+        }
+        const lowStockData = allIngredients.filter(ing => ing.current_quantity <= ing.low_stock_threshold);
 
-    lowStockTable.innerHTML = '';
+        lowStockTable.innerHTML = '';
 
-    if (lowStockData.length === 0) {
-        lowStockTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">All ingredients are well-stocked.</td></tr>';
-        return;
+        if (lowStockData.length === 0) {
+            lowStockTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">All ingredients are well-stocked.</td></tr>';
+            return;
+        }
+
+        lowStockData.forEach(item => {
+            const row = lowStockTable.insertRow();
+            row.innerHTML = `
+                <td><strong>${item.name}</strong></td>
+                <td><span class="badge bg-secondary">${item.category_id || 'N/A'}</span></td>
+                <td>${item.current_quantity} ${item.unit_id || 'unit'}</td>
+                <td>${item.low_stock_threshold} ${item.unit_id || 'unit'}</td>
+                <td><span class="badge bg-warning">Low</span></td>
+            `;
+        });
+    } catch (error) {
+        console.error('Error loading low stock data:', error);
+        lowStockTable.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">Error loading data.</td></tr>';
     }
-
-    lowStockData.forEach(item => {
-        const row = lowStockTable.insertRow();
-        row.innerHTML = `
-            <td><strong>${item.name}</strong></td>
-            <td><span class="badge bg-secondary">${item.category}</span></td>
-            <td>${item.quantity} ${item.unit}</td>
-            <td>${item.threshold} ${item.unit}</td>
-            <td><span class="badge bg-warning">Low</span></td>
-        `;
-    });
 }
 
 // Global variable for dashboard interval
 let dashboardRefreshInterval;
 
 function loadAdminDashboardData() {
-    loadLowStockData();
+    loadLowStockData().catch(err => console.error('Error loading low stock data:', err));
 
-    const allIngredients = getAvailableIngredients();
-    const restockItems = allIngredients.filter(ing => ing.quantity <= ing.threshold);
+    ingredientsDB.show().then(allIngredients => {
+        if (allIngredients && Array.isArray(allIngredients)) {
+            const restockItems = allIngredients.filter(ing => ing.current_quantity <= ing.low_stock_threshold);
+            const restockCount = document.getElementById('ingredientsRestock');
+            if (restockCount) restockCount.textContent = restockItems.length;
+            
+            const alertsCount = document.getElementById('systemAlerts');
+            if (alertsCount) alertsCount.textContent = restockItems.length > 0 ? '1' : '0';
+        }
+    }).catch(err => console.error('Error loading ingredients:', err));
 
-    const restockCount = document.getElementById('ingredientsRestock');
-    if (restockCount) restockCount.textContent = restockItems.length;
-
-    const activeUsers = getUsers().filter(u => !u.isDeleted);
-    const staffCount = document.getElementById('totalStaffAccounts');
-    if (staffCount) staffCount.textContent = activeUsers.length;
+    getUsers().then(users => {
+        if (users && Array.isArray(users)) {
+            const activeUsers = users.filter(u => !u.isDeleted);
+            const staffCount = document.getElementById('totalStaffAccounts');
+            if (staffCount) staffCount.textContent = activeUsers.length;
+        }
+    }).catch(err => console.error('Error loading users:', err));
 
     const salesCount = document.getElementById('totalSalesRecords');
     if (salesCount) salesCount.textContent = '85';
-
-    const alertsCount = document.getElementById('systemAlerts');
-    if (alertsCount) alertsCount.textContent = restockItems.length > 0 ? '1' : '0';
 
     // Set up auto-refresh if not already set (every 30 seconds)
     if (!dashboardRefreshInterval) {
@@ -595,16 +632,20 @@ function loadMenuControl() {
         menuControlTable.innerHTML = '';
 
         if (menuItems.length === 0) {
-            menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-utensils fa-2x mb-2 d-block"></i>No menu items found.</td></tr>';
+            menuControlTable.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-utensils fa-2x mb-2 d-block"></i>No menu items found.</td></tr>';
         } else {
             menuItems.forEach(function (item) {
                 const catName = categoryMap[item.category_id] || '—';
                 const itemStatus = (item.status || '').trim();
                 const isActive = itemStatus.toLowerCase() === 'active';
+                const imageHtml = item.image_path 
+                    ? `<img src="${item.image_path}" alt="${item.name}" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">`
+                    : '<span class="text-muted"><i class="fas fa-image fa-2x"></i></span>';
                 const row = menuControlTable.insertRow();
                 row.classList.add('animate__animated', 'animate__fadeIn');
                 row.innerHTML = `
                     <td>${item.id}</td>
+                    <td class="text-center">${imageHtml}</td>
                     <td><strong>${item.name}</strong></td>
                     <td><span class="badge bg-secondary">${catName}</span></td>
                     <td>₱${parseFloat(item.price_reference || 0).toFixed(2)}</td>
@@ -678,11 +719,23 @@ function showAddMenuItemModal() {
                 const catEl = document.getElementById('menuItemCategory');
                 const priceEl = document.getElementById('menuItemPrice');
                 const statusEl = document.getElementById('menuItemStatus');
+                const imagePathEl = document.getElementById('menuItemImagePath');
+                const previewContainer = document.getElementById('imagePreviewContainer');
+                const previewImg = document.getElementById('menuItemImagePreview');
 
                 if (nameEl) nameEl.value = item.name || '';
                 if (catEl) catEl.value = item.category_id || '';
                 if (priceEl) priceEl.value = item.price_reference || '';
                 if (statusEl) statusEl.value = item.status || 'Active';
+
+                // Load existing image preview if available
+                if (item.image_path) {
+                    if (imagePathEl) imagePathEl.value = item.image_path;
+                    if (previewImg) previewImg.src = item.image_path;
+                    if (previewContainer) previewContainer.style.display = 'block';
+                } else {
+                    resetImagePreview();
+                }
 
             }).catch(function (err) {
                 console.error('Failed to load menu item for editing:', err);
@@ -718,6 +771,119 @@ function showAddMenuItemModal() {
         newSaveBtn.addEventListener('click', function () {
             saveMenuItem();
         });
+    }
+
+    // Image preview functionality
+    initializeImageUpload();
+
+    // Reset image preview on new item
+    if (!editingMenuItemId) {
+        resetImagePreview();
+    }
+}
+
+/**
+ * Initialize image upload preview and handlers
+ */
+function initializeImageUpload() {
+    const imageInput = document.getElementById('menuItemImage');
+    const previewContainer = document.getElementById('imagePreviewContainer');
+    const previewImg = document.getElementById('menuItemImagePreview');
+    const removeBtn = document.getElementById('removeImageBtn');
+    const hiddenPath = document.getElementById('menuItemImagePath');
+
+    if (!imageInput) return;
+
+    // Clone to remove old listeners
+    const newImageInput = imageInput.cloneNode(true);
+    imageInput.parentNode.replaceChild(newImageInput, imageInput);
+
+    // File selection preview
+    newImageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                showModalNotification('Invalid file type. Allowed: JPEG, PNG, GIF, WebP', 'warning', 'Invalid File');
+                e.target.value = '';
+                return;
+            }
+
+            // Validate file size (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showModalNotification('File too large. Maximum size is 5MB', 'warning', 'File Too Large');
+                e.target.value = '';
+                return;
+            }
+
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                if (previewImg) previewImg.src = event.target.result;
+                if (previewContainer) previewContainer.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Remove image button
+    if (removeBtn) {
+        const newRemoveBtn = removeBtn.cloneNode(true);
+        removeBtn.parentNode.replaceChild(newRemoveBtn, removeBtn);
+        newRemoveBtn.addEventListener('click', function() {
+            resetImagePreview();
+        });
+    }
+}
+
+/**
+ * Reset image preview to default state
+ */
+function resetImagePreview() {
+    const imageInput = document.getElementById('menuItemImage');
+    const previewContainer = document.getElementById('imagePreviewContainer');
+    const previewImg = document.getElementById('menuItemImagePreview');
+    const hiddenPath = document.getElementById('menuItemImagePath');
+
+    if (imageInput) imageInput.value = '';
+    if (previewImg) previewImg.src = '';
+    if (previewContainer) previewContainer.style.display = 'none';
+    if (hiddenPath) hiddenPath.value = '';
+}
+
+/**
+ * Upload image file to server
+ * @returns {Promise<string|null>} - Returns uploaded image URL or null
+ */
+async function uploadMenuItemImage() {
+    const imageInput = document.getElementById('menuItemImage');
+    if (!imageInput || !imageInput.files || !imageInput.files[0]) {
+        return null; // No image selected
+    }
+
+    const file = imageInput.files[0];
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+        const response = await fetch('/php/upload_file.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            console.log('Image uploaded:', result.url);
+            return result.url;
+        } else {
+            throw new Error(result.error || 'Upload failed');
+        }
+    } catch (error) {
+        console.error('Image upload error:', error);
+        showModalNotification('Failed to upload image: ' + error.message, 'error', 'Upload Error');
+        return null;
     }
 }
 
@@ -781,7 +947,7 @@ function addIngredientToRecipeForm() {
     });
 }
 
-function saveMenuItem() {
+async function saveMenuItem() {
     const nameElem = document.getElementById('menuItemName');
     const categoryElem = document.getElementById('menuItemCategory');
     const priceElem = document.getElementById('menuItemPrice');
@@ -789,12 +955,12 @@ function saveMenuItem() {
     if (!nameElem || !categoryElem) return;
 
     const name = nameElem.value.trim();
-    const category = categoryElem.value;
+    const categoryId = categoryElem.value;
     const price = parseFloat(priceElem?.value) || 0;
     const status = statusElem?.value || 'Active';
 
     // Validation
-    if (!name || !category) {
+    if (!name || !categoryId) {
         showModalNotification('Please fill in all required fields', 'warning', 'Validation Error');
         return;
     }
@@ -804,53 +970,91 @@ function saveMenuItem() {
     let recipesCount = 0;
     ingredientRows.forEach(sel => { if (sel.value) recipesCount++; });
 
-    let items = getMenuItems();
-
-    if (editingMenuItemId) {
-        // --- EDIT existing item ---
-        const idx = items.findIndex(i => i.id === editingMenuItemId);
-        if (idx !== -1) {
-            items[idx].name = name;
-            items[idx].category = category;
-            items[idx].price = price;
-            items[idx].status = status;
-            if (recipesCount > 0) items[idx].recipes = recipesCount;
-        }
-        saveMenuItemsToStorage(items);
-
-        // Close modal
-        const modalElem = document.getElementById('addMenuItemModal');
-        const modal = bootstrap.Modal.getInstance(modalElem);
-        if (modal) modal.hide();
-
-        showModalNotification(`Menu item "${name}" updated successfully`, 'success', 'Menu Item Updated');
-        logAdminActivity('Updated menu item', name, 'Success');
-        editingMenuItemId = null;
-    } else {
-        // --- ADD new item ---
-        const maxId = items.length > 0 ? Math.max(...items.map(i => i.id)) : 0;
-        const newItem = {
-            id: maxId + 1,
-            name: name,
-            category: category,
-            price: price,
-            status: status,
-            recipes: recipesCount
-        };
-        items.push(newItem);
-        saveMenuItemsToStorage(items);
-
-        // Close modal
-        const modalElem = document.getElementById('addMenuItemModal');
-        const modal = bootstrap.Modal.getInstance(modalElem);
-        if (modal) modal.hide();
-
-        showModalNotification(`Menu item "${name}" added successfully`, 'success', 'Menu Item Added');
-        logAdminActivity('Added menu item', name, 'Success');
+    // Show loading state
+    const saveBtn = document.getElementById('saveMenuItemBtn');
+    const originalText = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
     }
 
-    // Refresh menu control immediately
-    loadMenuControl();
+    try {
+        // Upload image if selected
+        let imagePath = document.getElementById('menuItemImagePath')?.value || null;
+        const imageInput = document.getElementById('menuItemImage');
+        if (imageInput && imageInput.files && imageInput.files[0]) {
+            const uploadedUrl = await uploadMenuItemImage();
+            if (uploadedUrl) {
+                imagePath = uploadedUrl;
+            }
+        }
+
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+        if (editingMenuItemId) {
+            // --- EDIT existing item in DB ---
+            const updateData = {
+                id: editingMenuItemId,
+                name: name,
+                category_id: parseInt(categoryId),
+                price_reference: price,
+                status: status,
+                recipe: recipesCount,
+                updated_at: now
+            };
+
+            // Only update image if a new one was uploaded
+            if (imagePath) {
+                updateData.image_path = imagePath;
+            }
+
+            await menuItemsDB.edit(updateData);
+
+            // Close modal
+            const modalElem = document.getElementById('addMenuItemModal');
+            const modal = bootstrap.Modal.getInstance(modalElem);
+            if (modal) modal.hide();
+
+            showModalNotification(`Menu item "${name}" updated successfully`, 'success', 'Menu Item Updated');
+            logAdminActivity('Updated menu item', name, 'Success');
+            editingMenuItemId = null;
+        } else {
+            // --- ADD new item to DB ---
+            const newItem = {
+                name: name,
+                category_id: parseInt(categoryId),
+                price_reference: price,
+                status: status,
+                recipe: recipesCount,
+                image_path: imagePath,
+                created_at: now,
+                updated_at: now
+            };
+
+            await menuItemsDB.add(newItem);
+
+            // Close modal
+            const modalElem = document.getElementById('addMenuItemModal');
+            const modal = bootstrap.Modal.getInstance(modalElem);
+            if (modal) modal.hide();
+
+            showModalNotification(`Menu item "${name}" added successfully`, 'success', 'Menu Item Added');
+            logAdminActivity('Added menu item', name, 'Success');
+        }
+
+        // Refresh menu control immediately
+        loadMenuControl();
+
+    } catch (error) {
+        console.error('Error saving menu item:', error);
+        showModalNotification('Failed to save menu item: ' + error.message, 'error', 'Save Error');
+    } finally {
+        // Restore button state
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText || 'Save Item';
+        }
+    }
 }
 
 function editMenuItem(id) {
@@ -3650,7 +3854,7 @@ function logAdminActivity(action, details, status) {
         id: Date.now(),
         userName: uName,
         action: action,
-        reference: details,
+        reference: details ? `${details} [${ts}]` : ts,
         timestamp: ts,
         category: getActivityCategory(action),
         ip: '192.168.1.10'
@@ -3671,6 +3875,279 @@ function logAdminActivity(action, details, status) {
     // Refresh full log if on activity log page
     if (document.getElementById('fullActivityLogTable')) {
         loadFullActivityLog();
+    }
+}
+
+// ===== User Timestamp & Deletion Helper Functions =====
+
+/**
+ * Get current timestamp in database format (YYYY-MM-DD HH:MM:SS)
+ */
+function getCurrentTimestamp() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
+/**
+ * Mark a user as deleted (soft delete) by setting deleted_at timestamp
+ * @param {number} userId - User ID to delete
+ * @param {string} deletedBy - Name/ID of user performing the deletion
+ */
+async function markUserDeleted(userId, deletedBy = 'Admin') {
+    try {
+        const deleteTime = getCurrentTimestamp();
+        const result = await usersDB.edit({
+            id: userId,
+            deleted_at: deleteTime
+        });
+        
+        if (result && !result.error) {
+            console.log(`✅ User ${userId} marked as deleted at ${deleteTime}`);
+            return { success: true, timestamp: deleteTime };
+        } else {
+            console.error('❌ Failed to mark user as deleted:', result);
+            return { success: false, error: result?.error };
+        }
+    } catch (err) {
+        console.error('❌ Error marking user deleted:', err);
+        return { success: false, error: err.message };
+    }
+}
+
+/**
+ * Restore a deleted user by clearing deleted_at timestamp
+ * @param {number} userId - User ID to restore
+ */
+async function restoreUserRecord(userId) {
+    try {
+        const result = await usersDB.edit({
+            id: userId,
+            deleted_at: null
+        });
+        
+        if (result && !result.error) {
+            console.log(`✅ User ${userId} restored (deleted_at cleared)`);
+            return { success: true };
+        } else {
+            console.error('❌ Failed to restore user:', result);
+            return { success: false, error: result?.error };
+        }
+    } catch (err) {
+        console.error('❌ Error restoring user:', err);
+        return { success: false, error: err.message };
+    }
+}
+
+/**
+ * Update the updated_at timestamp for a user (call when modifying user data)
+ * @param {number} userId - User ID
+ */
+async function updateUserTimestamp(userId) {
+    try {
+        const updateTime = getCurrentTimestamp();
+        const result = await usersDB.edit({
+            id: userId,
+            updated_at: updateTime
+        });
+        
+        if (result && !result.error) {
+            console.log(`✅ User ${userId} updated_at set to ${updateTime}`);
+            return { success: true, timestamp: updateTime };
+        } else {
+            console.error('❌ Failed to update user timestamp:', result);
+            return { success: false };
+        }
+    } catch (err) {
+        console.error('❌ Error updating user timestamp:', err);
+        return { success: false };
+    }
+}
+
+/**
+ * Check if a user is marked as deleted
+ * @param {object} user - User object from DB
+ * @returns {boolean} - True if user is deleted
+ */
+function isUserDeleted(user) {
+    return user && (user.deleted_at !== null && user.deleted_at !== undefined && user.deleted_at !== '');
+}
+
+/**
+ * Get deletion information for a user
+ * @param {object} user - User object from DB
+ * @returns {object} - Deletion info { isDeleted, deletedAt, status }
+ */
+function getUserDeletionInfo(user) {
+    const isDeleted = isUserDeleted(user);
+    return {
+        isDeleted: isDeleted,
+        deletedAt: user.deleted_at || null,
+        status: isDeleted ? 'Deleted' : 'Active',
+        deletedDaysAgo: isDeleted ? Math.floor((Date.now() - new Date(user.deleted_at).getTime()) / (1000 * 60 * 60 * 24)) : null
+    };
+}
+
+/**
+ * Get user update history info
+ * @param {object} user - User object from DB
+ * @returns {object} - Update info { updatedAt, createdAt, lastModified }
+ */
+function getUserUpdateInfo(user) {
+    const updated = user.updated_at ? new Date(user.updated_at).toLocaleString() : 'Never';
+    const created = user.created_at ? new Date(user.created_at).toLocaleString() : 'Unknown';
+    
+    return {
+        updatedAt: user.updated_at || null,
+        createdAt: user.created_at || null,
+        updatedAtDisplay: updated,
+        createdAtDisplay: created,
+        lastModified: user.updated_at || user.created_at || null
+    };
+}
+
+/**
+ * Update the last_login timestamp for a user (call when user logs in)
+ * @param {number} userId - User ID
+ */
+async function updateUserLastLogin(userId) {
+    try {
+        const loginTime = getCurrentTimestamp();
+        const result = await usersDB.edit({
+            id: userId,
+            last_login: loginTime
+        });
+        
+        if (result && !result.error) {
+            console.log(`✅ User ${userId} last_login updated to ${loginTime}`);
+            return { success: true, timestamp: loginTime };
+        } else {
+            console.error('❌ Failed to update last_login:', result);
+            return { success: false };
+        }
+    } catch (err) {
+        console.error('❌ Error updating last_login:', err);
+        return { success: false };
+    }
+}
+
+/**
+ * Get last login information for a user
+ * @param {object} user - User object from DB
+ * @returns {object} - Login info { lastLogin, lastLoginDisplay, timeSinceLastLogin, daysAgo }
+ */
+function getUserLastLoginInfo(user) {
+    if (!user.last_login) {
+        return {
+            lastLogin: null,
+            lastLoginDisplay: 'Never',
+            timeSinceLastLogin: null,
+            daysAgo: null,
+            status: 'Never logged in'
+        };
+    }
+    
+    const lastLoginDate = new Date(user.last_login);
+    const lastLoginDisplay = lastLoginDate.toLocaleString();
+    const now = new Date();
+    const diffMs = now.getTime() - lastLoginDate.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    
+    let timeSinceText = '';
+    if (diffDays > 0) {
+        timeSinceText = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    } else if (diffHours > 0) {
+        timeSinceText = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    } else {
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        timeSinceText = `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+    }
+    
+    return {
+        lastLogin: user.last_login,
+        lastLoginDisplay: lastLoginDisplay,
+        timeSinceLastLogin: timeSinceText,
+        daysAgo: diffDays,
+        hoursAgo: diffHours,
+        status: `Last login: ${timeSinceText}`
+    };
+}
+
+/**
+ * Check if user is active (logged in recently)
+ * @param {object} user - User object from DB
+ * @param {number} daysThreshold - Threshold in days (default 30)
+ * @returns {boolean} - True if user logged in within threshold
+ */
+function isUserActive(user, daysThreshold = 30) {
+    if (!user.last_login) return false;
+    
+    const lastLoginDate = new Date(user.last_login);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - lastLoginDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return diffDays <= daysThreshold;
+}
+
+/**
+ * Get user login statistics
+ * @param {array} users - Array of user objects from DB
+ * @returns {object} - Statistics { totalUsers, activeUsers, inactiveUsers, neverLoggedIn }
+ */
+function getUserLoginStats(users) {
+    if (!Array.isArray(users)) return { totalUsers: 0, activeUsers: 0, inactiveUsers: 0, neverLoggedIn: 0 };
+    
+    let activeUsers = 0;
+    let inactiveUsers = 0;
+    let neverLoggedIn = 0;
+    
+    users.forEach(user => {
+        if (!user.last_login) {
+            neverLoggedIn++;
+        } else if (isUserActive(user, 30)) {
+            activeUsers++;
+        } else {
+            inactiveUsers++;
+        }
+    });
+    
+    return {
+        totalUsers: users.length,
+        activeUsers: activeUsers,
+        inactiveUsers: inactiveUsers,
+        neverLoggedIn: neverLoggedIn,
+        activePercentage: users.length > 0 ? Math.round((activeUsers / users.length) * 100) : 0
+    };
+}
+
+/**
+ * Update user status (active/inactive) in database
+ * @param {number} userId - User ID
+ * @param {string} status - 'active' or 'inactive'
+ * @returns {Promise} - Resolves when status is updated
+ */
+async function updateUserStatus(userId, status) {
+    try {
+        const response = await fetch('/php/user_status.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: userId,
+                status: status
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log(`✅ User ${userId} marked as ${status}:`, data);
+        return data;
+    } catch (error) {
+        console.error(`❌ Failed to update user status:`, error);
+        throw error;
     }
 }
 

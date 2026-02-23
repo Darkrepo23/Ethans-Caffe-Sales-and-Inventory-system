@@ -1,4 +1,4 @@
-const API_URL = "http://localhost/Ethans%20Cafe/codes/php/app.php";
+const API_URL = "/php/app.php";
 
 export function createDB(table) {
 	 return {

@@ -186,6 +186,7 @@
                                 <thead>
                                     <tr>
                                         <th>ID</th>
+                                        <th class="text-center">Image</th>
                                         <th>Item Name</th>
                                         <th>Category</th>
                                         <th>Price (Ref)</th>
@@ -196,7 +197,7 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td colspan="7" class="text-center">Loading menu items...</td>
+                                        <td colspan="8" class="text-center">Loading menu items...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -246,6 +247,22 @@
                                     <option value="Active">Active</option>
                                     <option value="Inactive">Inactive</option>
                                 </select>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="form-label">Menu Item Image</label>
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="flex-grow-1">
+                                        <input type="file" class="form-control" id="menuItemImage" accept="image/jpeg,image/png,image/gif,image/webp">
+                                        <small class="text-muted">Accepted formats: JPEG, PNG, GIF, WebP. Max size: 5MB</small>
+                                    </div>
+                                    <div id="imagePreviewContainer" style="display: none;">
+                                        <img id="menuItemImagePreview" src="" alt="Preview" class="rounded border" style="max-width: 100px; max-height: 100px; object-fit: cover;">
+                                        <button type="button" class="btn btn-sm btn-outline-danger mt-1 w-100" id="removeImageBtn">
+                                            <i class="fas fa-times"></i> Remove
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="menuItemImagePath" value="">
                             </div>
                             <div class="col-12">
                                 <div class="card">

@@ -53,7 +53,7 @@ async function handleLogin() {
     try {
         console.log("Sending login request...", { username, password: "[HIDDEN]" });
 
-        const res = await fetch("http://localhost/Ethans%20Cafe/codes/php/login.php", {
+        const res = await fetch("/php/login.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password })
@@ -85,19 +85,27 @@ async function handleLogin() {
             const role = parseInt(data.role_id);
             const roleName = (data.role_name || "").toLowerCase();
 
-            if (role === 1 || roleName === "admin") {
-                localStorage.setItem('loggedInRole', 'admin');
-                localStorage.setItem('loggedInUser', JSON.stringify(data));
-                window.location.href = "admin-dashboard.html";
-            } else if (role === 2 || roleName === "staff") {
-                localStorage.setItem('loggedInRole', 'staff');
-                localStorage.setItem('loggedInUser', JSON.stringify(data));
-                window.location.href = "staff-menu.html";
-            } else {
-                localStorage.setItem('loggedInRole', 'user');
-                localStorage.setItem('loggedInUser', JSON.stringify(data));
-                window.location.href = "staff-menu.html";
-            }
+            localStorage.setItem('loggedInRole', role === 1 ? 'admin' : 'staff');
+            localStorage.setItem('loggedInUser', JSON.stringify(data));
+
+            // Mark user as active in database
+            updateUserStatus(data.id, 'active').then(() => {
+                if (role === 1 || roleName === "admin") {
+                    window.location.href = "admin-dashboard.html";
+                } else if (role === 2 || roleName === "staff") {
+                    window.location.href = "staff-menu.html";
+                } else {
+                    window.location.href = "staff-menu.html";
+                }
+            }).catch(err => {
+                console.error('Failed to update user status:', err);
+                // Still redirect even if status update fails
+                if (role === 1 || roleName === "admin") {
+                    window.location.href = "admin-dashboard.html";
+                } else {
+                    window.location.href = "staff-menu.html";
+                }
+            });
         });
 
     } catch (err) {
@@ -178,7 +186,7 @@ function handleAccountRequest() {
     submitBtn.innerHTML = '<span class="loading-spinner"></span> Submitting...';
     submitBtn.disabled = true;
 
-    fetch("http://localhost/Ethans%20Cafe/codes/php/account_request.php", {
+    fetch("/php/account_request.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -246,6 +254,36 @@ function showRequestError(message) {
                 requestError.classList.add('d-none');
             }, 5000);
         }
+    }
+}
+
+/**
+ * Update user status (active/inactive) in database
+ * @param {number} userId - User ID
+ * @param {string} status - 'active' or 'inactive'
+ * @returns {Promise} - Resolves when status is updated
+ */
+async function updateUserStatus(userId, status) {
+    try {
+        const response = await fetch('/php/user_status.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: userId,
+                status: status
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log(`✅ User ${userId} marked as ${status}:`, data);
+        return data;
+    } catch (error) {
+        console.error(`❌ Failed to update user status:`, error);
+        throw error;
     }
 }
 
