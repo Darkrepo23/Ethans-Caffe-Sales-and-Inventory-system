@@ -1,0 +1,18 @@
+{
+    "sourceFile": "sql/account_lockout_tables.sql",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1771919551683,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1771919551683,
+            "name": "Commit-0",
+            "content": "-- =============================================\r\n-- LOGIN ATTEMPTS TABLE\r\n-- Tracks failed login attempts per username (unique)\r\n-- Gets cleared on successful login\r\n-- =============================================\r\n\r\n-- Drop if exists (for clean install)\r\nDROP TABLE IF EXISTS login_attempts;\r\n\r\nCREATE TABLE login_attempts (\r\n    id BIGSERIAL PRIMARY KEY,\r\n    username VARCHAR(100) NOT NULL UNIQUE,\r\n    attempt_count INTEGER DEFAULT 1,\r\n    last_attempt_at TIMESTAMPTZ DEFAULT NOW()\r\n);\r\n\r\n-- Comment\r\nCOMMENT ON TABLE login_attempts IS 'Tracks failed login attempts per username for brute force protection';\r\n\r\n-- =============================================\r\n-- ACCOUNT LOCKOUT TABLE  \r\n-- Stores locked users who need admin approval\r\n-- =============================================\r\n\r\n-- Drop if exists (for clean install)\r\nDROP TABLE IF EXISTS account_lockout;\r\n\r\nCREATE TABLE account_lockout (\r\n    id BIGSERIAL PRIMARY KEY,\r\n    user_id BIGINT NOT NULL UNIQUE,\r\n    lockout_at TIMESTAMPTZ DEFAULT NOW()\r\n);\r\n\r\n-- Comment\r\nCOMMENT ON TABLE account_lockout IS 'Stores users locked out due to too many failed login attempts';\r\n\r\n-- =============================================\r\n-- DISABLE ROW LEVEL SECURITY (allow API access)\r\n-- =============================================\r\nALTER TABLE login_attempts DISABLE ROW LEVEL SECURITY;\r\nALTER TABLE account_lockout DISABLE ROW LEVEL SECURITY;\r\n\r\n-- =============================================\r\n-- GRANT PERMISSIONS\r\n-- =============================================\r\nGRANT ALL ON login_attempts TO anon;\r\nGRANT ALL ON login_attempts TO authenticated;\r\nGRANT USAGE, SELECT ON SEQUENCE login_attempts_id_seq TO anon;\r\nGRANT USAGE, SELECT ON SEQUENCE login_attempts_id_seq TO authenticated;\r\n\r\nGRANT ALL ON account_lockout TO anon;\r\nGRANT ALL ON account_lockout TO authenticated;\r\nGRANT USAGE, SELECT ON SEQUENCE account_lockout_id_seq TO anon;\r\nGRANT USAGE, SELECT ON SEQUENCE account_lockout_id_seq TO authenticated;\r\n"
+        }
+    ]
+}

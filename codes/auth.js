@@ -9,6 +9,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Reset login UI when username changes (so different users can try to login)
+    const usernameInput = document.getElementById('username');
+    if (usernameInput) {
+        usernameInput.addEventListener('input', function () {
+            resetLoginUI();
+        });
+    }
+
     // Request account form submission
     const requestAccountForm = document.getElementById('requestAccountForm');
     if (requestAccountForm) {
@@ -24,6 +32,9 @@ async function handleLogin() {
     const usernameInput = document.getElementById('username');
     const passwordInput = document.getElementById('password');
     const loginBtn = document.querySelector('#loginForm button[type="submit"]');
+
+    // Reset UI state before each login attempt (so different users can try to login)
+    resetLoginUI();
 
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
@@ -65,7 +76,46 @@ async function handleLogin() {
         loginBtn.disabled = false;
 
         if (!res.ok || data.error) {
-            showLoginError(data.error || "Login failed");
+            // Handle account lockout
+            if (data.locked) {
+                showAccountLockedUI();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Account Locked',
+                    html: `<p>${data.message}</p><p class="text-muted small mt-2">Contact your administrator to unlock your account.</p>`,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#800000',
+                    heightAuto: false
+                });
+                return;
+            }
+            
+            // Handle cooldown (rate limiting)
+            if (data.cooldown) {
+                let seconds = data.remaining_seconds;
+                showCooldownUI(seconds);
+                return;
+            }
+            
+            // Handle regular login errors with attempts remaining
+            if (data.attempts_remaining !== undefined && data.attempts_remaining > 0) {
+                // Show cooldown UI if there's a cooldown
+                if (data.cooldown_seconds && data.cooldown_seconds > 0) {
+                    showCooldownUI(data.cooldown_seconds);
+                }
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Login Failed',
+                    html: `<p>${data.error || 'Invalid credentials'}</p><p class="text-warning small mt-2"><i class="fas fa-exclamation-triangle me-1"></i>${data.attempts_remaining} attempt(s) remaining before lockout</p>`,
+                    confirmButtonText: 'Try Again',
+                    confirmButtonColor: '#800000',
+                    heightAuto: false
+                });
+                return;
+            }
+            
+            showLoginError(data.error || data.message || "Login failed");
             return;
         }
 
@@ -140,6 +190,88 @@ function showLoginError(message) {
                 loginError.classList.add('d-none');
             }, 5000);
         }
+    }
+}
+
+// Show cooldown timer UI
+function showCooldownUI(seconds) {
+    const cooldownAlert = document.getElementById('loginCooldownAlert');
+    const cooldownSeconds = document.getElementById('cooldownSeconds');
+    const cooldownProgress = document.getElementById('cooldownProgress');
+    const loginBtn = document.querySelector('#loginForm button[type="submit"]');
+    const accountLockedAlert = document.getElementById('accountLockedAlert');
+    
+    if (!cooldownAlert || !cooldownSeconds || !cooldownProgress) return;
+    
+    // Hide account locked alert if showing
+    if (accountLockedAlert) accountLockedAlert.classList.add('d-none');
+    
+    const totalSeconds = seconds;
+    cooldownAlert.classList.remove('d-none');
+    cooldownSeconds.textContent = seconds;
+    cooldownProgress.style.width = '100%';
+    
+    // Disable login button
+    if (loginBtn) {
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = '<i class="fas fa-clock me-2"></i>Please Wait...';
+    }
+    
+    const interval = setInterval(() => {
+        seconds--;
+        cooldownSeconds.textContent = seconds;
+        
+        // Update progress bar
+        const progressPercent = (seconds / totalSeconds) * 100;
+        cooldownProgress.style.width = progressPercent + '%';
+        
+        if (seconds <= 0) {
+            clearInterval(interval);
+            cooldownAlert.classList.add('d-none');
+            
+            // Re-enable login button
+            if (loginBtn) {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Login';
+            }
+        }
+    }, 1000);
+}
+
+// Reset login UI state (clear alerts and re-enable form)
+function resetLoginUI() {
+    const accountLockedAlert = document.getElementById('accountLockedAlert');
+    const cooldownAlert = document.getElementById('loginCooldownAlert');
+    const loginBtn = document.querySelector('#loginForm button[type="submit"]');
+    
+    // Hide all alerts
+    if (accountLockedAlert) accountLockedAlert.classList.add('d-none');
+    if (cooldownAlert) cooldownAlert.classList.add('d-none');
+    
+    // Re-enable login button with default state
+    if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Login';
+    }
+}
+
+// Show account locked UI
+function showAccountLockedUI() {
+    const accountLockedAlert = document.getElementById('accountLockedAlert');
+    const cooldownAlert = document.getElementById('loginCooldownAlert');
+    const loginBtn = document.querySelector('#loginForm button[type="submit"]');
+    
+    // Hide cooldown alert if showing
+    if (cooldownAlert) cooldownAlert.classList.add('d-none');
+    
+    if (accountLockedAlert) {
+        accountLockedAlert.classList.remove('d-none');
+    }
+    
+    // Disable login button
+    if (loginBtn) {
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = '<i class="fas fa-lock me-2"></i>Account Locked';
     }
 }
 

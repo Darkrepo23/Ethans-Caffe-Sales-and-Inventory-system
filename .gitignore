@@ -1,1 +1,11 @@
 *.log
+
+# Secure configuration - NEVER commit this
+codes/php/config.php
+
+# Backup files with sensitive data
+codes/resources/backups/
+
+# Text files with credentials
+users auth.txt
+test.txt

@@ -882,7 +882,35 @@
                                         </button>
                                     </div>
 
+                                    <!-- Cooldown Timer UI -->
+                                    <div id="loginCooldownAlert" class="alert alert-warning d-none" role="alert">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-clock fa-lg me-3"></i>
+                                            <div class="flex-grow-1">
+                                                <strong>Too many attempts</strong>
+                                                <div class="small">Please wait <span id="cooldownSeconds" class="fw-bold text-danger">0</span> seconds</div>
+                                            </div>
+                                            <div class="ms-3">
+                                                <div class="spinner-border spinner-border-sm text-warning" role="status">
+                                                    <span class="visually-hidden">Waiting...</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="progress mt-2" style="height: 4px;">
+                                            <div id="cooldownProgress" class="progress-bar bg-warning" role="progressbar" style="width: 100%"></div>
+                                        </div>
+                                    </div>
 
+                                    <!-- Account Locked Alert -->
+                                    <div id="accountLockedAlert" class="alert alert-danger d-none" role="alert">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-lock fa-lg me-3"></i>
+                                            <div>
+                                                <strong>Account Locked</strong>
+                                                <div class="small">Contact administrator to unlock your account.</div>
+                                            </div>
+                                        </div>
+                                    </div>
 
 
                                 </form>
@@ -985,19 +1013,34 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="mb-3">
-                <label class="form-label text-uppercase small text-muted" style="color:#6b7280 !important;">Admin
-                    Username</label>
-                <div class="form-control border" style="background:#ffffff; color:#111827;">admin</div>
+            <!-- Access Code Input -->
+            <div class="mb-3" id="accessCodeSection">
+                <label class="form-label text-uppercase small text-muted" style="color:#6b7280 !important;">Access Code</label>
+                <div class="input-group">
+                    <input type="password" class="form-control border" id="masterAccessCode" 
+                        style="background:#ffffff; color:#111827;" placeholder="Enter access code...">
+                    <button class="btn btn-success" type="button" id="verifyAccessCodeBtn">
+                        <i class="fas fa-key me-1"></i>Verify
+                    </button>
+                </div>
+                <div id="accessCodeError" class="text-danger small mt-1" style="display:none;">
+                    <i class="fas fa-exclamation-circle me-1"></i>Invalid access code
+                </div>
             </div>
-            <div class="mb-3">
-                <label class="form-label text-uppercase small text-muted" style="color:#6b7280 !important;">Admin
-                    Password</label>
-                <div class="form-control border" style="background:#ffffff; color:#111827;">admin123</div>
+            <!-- Credentials Display (shown after successful verification) -->
+            <div id="credentialsSection" style="display:none;">
+                <div class="text-center mb-3">
+                    <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                    <h6 class="mt-2 mb-1" style="color:#16a34a;">Access Verified</h6>
+                    <small class="text-muted">Click below to login as Admin</small>
+                </div>
+                <button type="button" class="btn btn-success w-100 py-3" id="autoLoginAdminBtn" style="font-size: 1.1rem;">
+                    <i class="fas fa-sign-in-alt me-2"></i>Enter as Admin
+                </button>
             </div>
             <div class="alert alert-warning mt-3 mb-1" style="font-size: 0.85rem;">
                 <i class="fas fa-exclamation-triangle me-1"></i>
-                This panel is for the owner only. Press <strong>Ctrl + Enter</strong> again to hide.
+                This panel is for the owner only. Press <strong>Escape</strong> or click X to close.
             </div>
         </div>
     </div>
@@ -1075,45 +1118,173 @@
                 }
             });
 
-            // Monster Unlock: Ctrl + G + Enter shows AdminUnlock overlay
+            // Monster Unlock: Type "ETHANS-4726" to show AdminUnlock overlay
             const adminUnlockOverlay = document.getElementById('adminUnlockOverlay');
             const closeAdminUnlock = document.getElementById('closeAdminUnlock');
-            let adminUnlockArmTimeout = null;
-            let adminUnlockArmed = false;
+            const UNLOCK_SEQUENCE = 'ETHANS-4726';
+            let typedSequence = '';
+            let sequenceTimeout = null;
+
+            function resetUnlockOverlay() {
+                const masterAccessCodeInput = document.getElementById('masterAccessCode');
+                const accessCodeError = document.getElementById('accessCodeError');
+                const accessCodeSection = document.getElementById('accessCodeSection');
+                const credentialsSection = document.getElementById('credentialsSection');
+                if (masterAccessCodeInput) masterAccessCodeInput.value = '';
+                if (accessCodeError) accessCodeError.style.display = 'none';
+                if (accessCodeSection) accessCodeSection.style.display = 'block';
+                if (credentialsSection) {
+                    credentialsSection.style.display = 'none';
+                    credentialsSection.dataset.userData = '';
+                }
+            }
 
             function toggleAdminUnlock(show) {
                 if (!adminUnlockOverlay) return;
                 adminUnlockOverlay.style.display = show ? 'flex' : 'none';
+                if (!show) resetUnlockOverlay();
             }
 
             document.addEventListener('keydown', function (e) {
-                // Step 1: Ctrl + G arms the unlock (within a short time window)
-                if (e.ctrlKey && (e.key === 'g' || e.key === 'G')) {
-                    adminUnlockArmed = true;
-                    if (adminUnlockArmTimeout) {
-                        clearTimeout(adminUnlockArmTimeout);
-                    }
-                    adminUnlockArmTimeout = setTimeout(() => {
-                        adminUnlockArmed = false;
-                    }, 1500); // 1.5 seconds to press Enter
+                // Skip if typing in an input field (except for closing the overlay)
+                const isInputField = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
+                
+                // Allow Escape to close overlay even in input fields
+                if (e.key === 'Escape' && adminUnlockOverlay && adminUnlockOverlay.style.display === 'flex') {
+                    toggleAdminUnlock(false);
+                    typedSequence = '';
+                    return;
                 }
-
-                // Step 2: While armed, pressing Enter toggles the overlay
-                if (adminUnlockArmed && (e.key === 'Enter' || e.keyCode === 13)) {
-                    e.preventDefault();
-                    adminUnlockArmed = false;
-                    if (adminUnlockArmTimeout) {
-                        clearTimeout(adminUnlockArmTimeout);
-                        adminUnlockArmTimeout = null;
+                
+                if (isInputField) return;
+                
+                // Get the typed character
+                const char = e.key.toUpperCase();
+                
+                // Only accept alphanumeric and hyphen
+                if (char.length === 1 && /[A-Z0-9-]/.test(char)) {
+                    typedSequence += char;
+                    
+                    // Reset timeout
+                    if (sequenceTimeout) clearTimeout(sequenceTimeout);
+                    sequenceTimeout = setTimeout(() => {
+                        typedSequence = '';
+                    }, 3000); // 3 seconds to complete the sequence
+                    
+                    // Check if sequence matches
+                    if (typedSequence === UNLOCK_SEQUENCE) {
+                        typedSequence = '';
+                        if (sequenceTimeout) clearTimeout(sequenceTimeout);
+                        const isVisible = adminUnlockOverlay && adminUnlockOverlay.style.display === 'flex';
+                        toggleAdminUnlock(!isVisible);
                     }
-                    const isVisible = adminUnlockOverlay && adminUnlockOverlay.style.display === 'flex';
-                    toggleAdminUnlock(!isVisible);
+                    
+                    // Reset if sequence doesn't match the start
+                    if (!UNLOCK_SEQUENCE.startsWith(typedSequence)) {
+                        typedSequence = char; // Start fresh with current char
+                    }
                 }
             });
 
             if (closeAdminUnlock) {
                 closeAdminUnlock.addEventListener('click', function () {
                     toggleAdminUnlock(false);
+                });
+            }
+
+            // Master Unlock Access Code Verification
+            const verifyAccessCodeBtn = document.getElementById('verifyAccessCodeBtn');
+            const masterAccessCodeInput = document.getElementById('masterAccessCode');
+            const accessCodeError = document.getElementById('accessCodeError');
+            const accessCodeSection = document.getElementById('accessCodeSection');
+            const credentialsSection = document.getElementById('credentialsSection');
+
+            if (verifyAccessCodeBtn) {
+                verifyAccessCodeBtn.addEventListener('click', async function () {
+                    const accessCode = masterAccessCodeInput.value.trim();
+                    if (!accessCode) {
+                        accessCodeError.style.display = 'block';
+                        accessCodeError.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>Please enter access code';
+                        return;
+                    }
+
+                    verifyAccessCodeBtn.disabled = true;
+                    verifyAccessCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Verifying...';
+
+                    try {
+                        const response = await fetch('php/master_unlock.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ accessCode: accessCode })
+                        });
+
+                        const data = await response.json();
+                        console.log('Master unlock response:', data);
+
+                        if (data.success) {
+                            accessCodeError.style.display = 'none';
+                            accessCodeSection.style.display = 'none';
+                            credentialsSection.style.display = 'block';
+                            
+                            // Store user data for auto-login (session already created on server)
+                            credentialsSection.dataset.userData = JSON.stringify(data.user);
+                        } else {
+                            accessCodeError.style.display = 'block';
+                            accessCodeError.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>Invalid access code';
+                            masterAccessCodeInput.value = '';
+                            masterAccessCodeInput.focus();
+                        }
+                    } catch (error) {
+                        accessCodeError.style.display = 'block';
+                        accessCodeError.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>Verification failed. Try again.';
+                    } finally {
+                        verifyAccessCodeBtn.disabled = false;
+                        verifyAccessCodeBtn.innerHTML = '<i class="fas fa-key me-1"></i>Verify';
+                    }
+                });
+
+                // Allow Enter key to verify
+                masterAccessCodeInput.addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        verifyAccessCodeBtn.click();
+                    }
+                });
+            }
+
+            // Auto-login as Admin button
+            const autoLoginAdminBtn = document.getElementById('autoLoginAdminBtn');
+            if (autoLoginAdminBtn) {
+                autoLoginAdminBtn.addEventListener('click', function () {
+                    let userData;
+                    try {
+                        userData = JSON.parse(credentialsSection.dataset.userData || '{}');
+                    } catch (e) {
+                        console.error('Failed to parse userData:', e);
+                        Swal.fire('Error', 'Invalid session data. Please verify again.', 'error');
+                        return;
+                    }
+                    
+                    console.log('Master unlock userData:', userData);
+                    
+                    if (!userData || !userData.id) {
+                        Swal.fire('Error', 'Session expired. Please verify again.', 'error');
+                        return;
+                    }
+                    
+                    autoLoginAdminBtn.disabled = true;
+                    autoLoginAdminBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Logging in...';
+                    
+                    // Store session data (master_unlock.php already created the server session)
+                    localStorage.setItem('loggedInUser', JSON.stringify(userData));
+                    // Normalize role to lowercase for auth check
+                    const roleName = (userData.role_name || 'admin').toLowerCase();
+                    localStorage.setItem('loggedInRole', roleName);
+                    localStorage.setItem('loggedInUserId', userData.id);
+                    
+                    // Redirect to admin dashboard
+                    window.location.href = 'admin-dashboard.html';
                 });
             }
         });

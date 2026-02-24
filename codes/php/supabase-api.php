@@ -4,9 +4,18 @@
  * Provides functions to interact with Supabase without direct PostgreSQL
  */
 
+// Load secure configuration
+require_once __DIR__ . '/config.php';
+
 class SupabaseAPI {
-    private $projectUrl = 'https://kpuyiaadnirvnvzjugqz.supabase.co';
-    private $anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwdXlpYWFkbmlydm52emp1Z3F6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MjU1NzAsImV4cCI6MjA4NzQwMTU3MH0.BdeFCxm3m4s_EgIJ8GVbBMzGIM8sWIy6FZwprA87aUc';
+    private $projectUrl;
+    private $anonKey;
+    
+    public function __construct() {
+        $this->projectUrl = SUPABASE_URL;
+        // Use service key if available for RLS bypass, otherwise anon key
+        $this->anonKey = defined('SUPABASE_SERVICE_KEY') ? SUPABASE_SERVICE_KEY : SUPABASE_ANON_KEY;
+    }
 
     /**
      * Make a REST API request to Supabase
@@ -115,6 +124,134 @@ class SupabaseAPI {
             return $user;
         }
         return null;
+    }
+
+    /**
+     * Get admin or owner user for master unlock
+     */
+    public function getAdminOrOwnerUser() {
+        // First get the role IDs for admin and owner
+        $roles = $this->select('roles', ['name' => 'in.(admin,owner)']);
+        
+        if (!is_array($roles) || count($roles) === 0) {
+            // Fallback: try to get by common role names
+            $roles = $this->select('roles');
+            if (!is_array($roles)) return null;
+        }
+        
+        $adminRoleIds = [];
+        foreach ($roles as $role) {
+            $roleName = strtolower($role['name'] ?? '');
+            if ($roleName === 'admin' || $roleName === 'owner') {
+                $adminRoleIds[] = $role['id'];
+            }
+        }
+        
+        if (empty($adminRoleIds)) return null;
+        
+        // Get a user with admin or owner role
+        foreach ($adminRoleIds as $roleId) {
+            $users = $this->select('users', ['role_id' => 'eq.' . $roleId, 'status' => 'eq.active']);
+            if (is_array($users) && count($users) > 0) {
+                $user = $users[0];
+                // Add role name
+                foreach ($roles as $role) {
+                    if ($role['id'] == $user['role_id']) {
+                        $user['role_name'] = $role['name'];
+                        break;
+                    }
+                }
+                return $user;
+            }
+        }
+        
+        // If no active admin found, try without status filter
+        foreach ($adminRoleIds as $roleId) {
+            $users = $this->select('users', ['role_id' => 'eq.' . $roleId]);
+            if (is_array($users) && count($users) > 0) {
+                $user = $users[0];
+                foreach ($roles as $role) {
+                    if ($role['id'] == $user['role_id']) {
+                        $user['role_name'] = $role['name'];
+                        break;
+                    }
+                }
+                return $user;
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Check if user is locked out
+     */
+    public function isUserLockedOut($userId) {
+        $result = $this->select('account_lockout', ['user_id' => 'eq.' . $userId]);
+        return is_array($result) && count($result) > 0;
+    }
+
+    /**
+     * Lock out a user
+     */
+    public function lockoutUser($userId) {
+        // Check if already locked out
+        if ($this->isUserLockedOut($userId)) {
+            return true;
+        }
+        
+        $data = [
+            'user_id' => $userId,
+            'lockout_at' => date('c') // ISO 8601 format
+        ];
+        
+        $result = $this->insert('account_lockout', $data);
+        return !isset($result['error']);
+    }
+
+    /**
+     * Remove user from lockout
+     */
+    public function removeLockout($userId) {
+        return $this->delete('account_lockout', ['user_id' => 'eq.' . $userId]);
+    }
+
+    /**
+     * Get failed login attempts for a user (from session or temporary storage)
+     * Returns count of failed attempts
+     */
+    public function getFailedAttempts($username) {
+        $result = $this->select('login_attempts', ['username' => 'eq.' . $username]);
+        if (is_array($result) && count($result) > 0) {
+            return $result[0];
+        }
+        return null;
+    }
+
+    /**
+     * Record/update failed login attempt
+     */
+    public function recordFailedAttempt($username, $attemptCount, $lastAttemptAt) {
+        $existing = $this->getFailedAttempts($username);
+        
+        $data = [
+            'username' => $username,
+            'attempt_count' => $attemptCount,
+            'last_attempt_at' => $lastAttemptAt
+        ];
+        
+        if ($existing) {
+            return $this->update('login_attempts', $data, ['username' => 'eq.' . $username]);
+        } else {
+            return $this->insert('login_attempts', $data);
+        }
+    }
+
+    /**
+     * Clear failed attempts for a user
+     */
+    public function clearFailedAttempts($username) {
+        return $this->delete('login_attempts', ['username' => 'eq.' . $username]);
     }
 }
 

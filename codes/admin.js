@@ -150,6 +150,28 @@ let tempAccountActive = false;
 let currentRequestType = null;
 let currentRequestId = null;
 
+// ─── Loading Modal Helper Functions ────────────────────────────────────────────
+function showLoadingModal(message = 'Loading data...') {
+    if (window.Swal) {
+        Swal.fire({
+            title: message,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            heightAuto: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+    }
+}
+
+function hideLoadingModal() {
+    if (window.Swal) {
+        Swal.close();
+    }
+}
+
 
 function loadDashboardStats() {
     // Ingredients to Restock + Low Stock Table
@@ -451,6 +473,8 @@ async function loadLowStockData() {
     const lowStockTable = tableElement.getElementsByTagName('tbody')[0];
     if (!lowStockTable) return;
 
+    showLoadingModal('Loading stock data...');
+
     try {
         const allIngredients = await ingredientsDB.show();
         if (!allIngredients || !Array.isArray(allIngredients)) {
@@ -479,6 +503,8 @@ async function loadLowStockData() {
     } catch (error) {
         console.error('Error loading low stock data:', error);
         lowStockTable.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">Error loading data.</td></tr>';
+    } finally {
+        hideLoadingModal();
     }
 }
 
@@ -1743,14 +1769,17 @@ async function loadIngredientsMasterlist() {
 
     ingredientsMasterTable.innerHTML = '<tr><td colspan="9" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
 
-    const results = await Promise.all([
-        ingredientsDB.show(),
-        ingredientCategoriesDB.show(),
-        unitsDB.show(),
-        recipesDB.show()
-    ]);
+    showLoadingModal('Loading ingredients...');
 
-    let ingredients = results[0];
+    try {
+        const results = await Promise.all([
+            ingredientsDB.show(),
+            ingredientCategoriesDB.show(),
+            unitsDB.show(),
+            recipesDB.show()
+        ]);
+
+        let ingredients = results[0];
     const categories = results[1];
     const units = results[2];
     const recipes = results[3];
@@ -1828,6 +1857,9 @@ async function loadIngredientsMasterlist() {
         </td>
     `;
     });
+    } finally {
+        hideLoadingModal();
+    }
 }
 
 
@@ -2139,8 +2171,13 @@ function initializeUserManagement() {
 }
 
 async function loadUserManagement() {
-    await loadActiveUsers();
-    await loadDeletedUsers();
+    showLoadingModal('Loading users...');
+    try {
+        await loadActiveUsers();
+        await loadDeletedUsers();
+    } finally {
+        hideLoadingModal();
+    }
 }
 
 async function loadActiveUsers() {
@@ -2150,8 +2187,11 @@ async function loadActiveUsers() {
     const tbody = tableElem.querySelector('tbody');
     if (!tbody) return;
 
-    // 1️⃣ Get all users
-    const users = (await getUsers()).filter(u => !u.isDeleted);
+    showLoadingModal('Loading users...');
+
+    try {
+        // 1️⃣ Get all users
+        const users = (await getUsers()).filter(u => !u.isDeleted);
 
     // 2️⃣ Get all roles from roleDB
     let roles = [];
@@ -2191,6 +2231,9 @@ async function loadActiveUsers() {
             </td>
         `;
     });
+    } finally {
+        hideLoadingModal();
+    }
 }
 
 // Populate ingredient select with unit_id as attribute
@@ -2255,7 +2298,10 @@ async function loadDeletedUsers() {
     const badge = document.getElementById('deletedUsersCount');
     if (!tbody) return;
 
-    const users = (await getUsers()).filter(u => u.isDeleted);
+    showLoadingModal('Loading deleted users...');
+
+    try {
+        const users = (await getUsers()).filter(u => u.isDeleted);
 
     if (badge) badge.textContent = users.length;
 
@@ -2286,6 +2332,9 @@ async function loadDeletedUsers() {
             </td>
         `;
     });
+    } finally {
+        hideLoadingModal();
+    }
 }
 function showAddUserModal() {
     const form = document.getElementById('addUserForm');
@@ -2914,9 +2963,21 @@ function exportToExcel() {
     logAdminActivity('Exported reports', 'CSV Export', 'Success');
 }
 
-// Backup Functions
+// Backup Functions - Connected to PHP Backend
+const BACKUP_API = 'php/backup.php';
+
 function initializeBackup() {
-    // Create backup button
+    // Create manual backup button
+    const createManualBackup = document.getElementById('createManualBackup');
+    if (createManualBackup) {
+        createManualBackup.addEventListener('click', function () {
+            showConfirm('Are you sure you want to create a full system backup?', function () {
+                createFullBackup();
+            });
+        });
+    }
+
+    // Legacy button support
     const createBackupBtn = document.getElementById('createBackupBtn');
     if (createBackupBtn) {
         createBackupBtn.addEventListener('click', function () {
@@ -2934,83 +2995,297 @@ function initializeBackup() {
         });
     });
 
-    // Restore backup button
-    const restoreBackupBtn = document.getElementById('restoreBackupBtn');
-    if (restoreBackupBtn) {
-        restoreBackupBtn.addEventListener('click', function () {
-            showConfirm('Are you sure you want to restore from this backup? Current data will be overwritten.', function () {
-                restoreBackup();
+    // Save backup settings button
+    const saveBackupSettings = document.getElementById('saveBackupSettings');
+    if (saveBackupSettings) {
+        saveBackupSettings.addEventListener('click', function () {
+            saveBackupConfigurations();
+        });
+    }
+
+    // Prune old backups button
+    const pruneBackupsBtn = document.getElementById('pruneBackupsBtn');
+    if (pruneBackupsBtn) {
+        pruneBackupsBtn.addEventListener('click', function () {
+            showConfirm('Delete old backups based on retention policy?', function () {
+                pruneOldBackups();
             });
         });
     }
 
-    // Backup file input
-    const backupFileInput = document.getElementById('backupFile');
-    if (backupFileInput) {
-        backupFileInput.addEventListener('change', function () {
-            const btn = document.getElementById('restoreBackupBtn');
-            if (btn) btn.disabled = !this.files.length;
-        });
-    }
-
-    // Load backup data
+    // Load backup settings and data
+    loadBackupSettings();
     loadBackupData();
 }
 
-function loadBackupData() {
-    const tableElem = document.getElementById('backupsTable');
+async function loadBackupData() {
+    // Support both table IDs
+    const tableElem = document.getElementById('backupHistoryTable') || document.getElementById('backupsTable');
     if (!tableElem) return;
 
     const backupsTable = tableElem.getElementsByTagName('tbody')[0];
     if (!backupsTable) return;
 
-    backupsTable.innerHTML = '<tr><td colspan="5" class="text-center"><div class="loading-spinner"></div><p class="mt-2">Loading backup data...</p></td></tr>';
+    backupsTable.innerHTML = '<tr><td colspan="5" class="text-center"><div class="spinner-border spinner-border-sm text-danger" role="status"></div><span class="ms-2">Loading backup data...</span></td></tr>';
 
-    setTimeout(() => {
-        const backups = [
-            { name: 'full-backup-2023-10-01.json', type: 'Full System', date: '2023-10-01', size: '45 KB' },
-            { name: 'inventory-backup-2023-09-30.json', type: 'Inventory', date: '2023-09-30', size: '18 KB' }
-        ];
+    try {
+        const response = await fetch(`${BACKUP_API}?action=list`);
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to load backups');
+        }
 
         backupsTable.innerHTML = '';
 
-        backups.forEach(backup => {
+        if (!data.backups || data.backups.length === 0) {
+            backupsTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No backups found. Create your first backup!</td></tr>';
+            return;
+        }
+
+        data.backups.forEach(backup => {
             const row = backupsTable.insertRow();
+            const createdAt = new Date(backup.created_at).toLocaleString();
+            const badgeClass = backup.backup_type === 'Manual' ? 'bg-primary' : 'bg-success';
+            
             row.innerHTML = `
-                <td>${backup.name}</td>
-                <td><span class="badge bg-secondary">${backup.type}</span></td>
-                <td>${backup.date}</td>
-                <td>${backup.size}</td>
-                <td><button class="btn btn-sm btn-outline-success">Download</button></td>
+                <td>${createdAt}</td>
+                <td>${backup.filename}</td>
+                <td>${backup.file_size || 'N/A'}</td>
+                <td><span class="badge ${badgeClass}">${backup.backup_type}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-success me-1" onclick="downloadBackup('${backup.filename}')" title="Download">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteBackup(${backup.id}, '${backup.filename}')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
             `;
         });
-    }, 800);
+    } catch (error) {
+        console.error('Error loading backups:', error);
+        backupsTable.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load backup history</td></tr>';
+    }
 }
 
-function createFullBackup() {
-    showModalNotification('Creating full system backup...', 'info', 'Creating Backup');
-    setTimeout(() => {
-        showModalNotification('Full system backup created successfully', 'success', 'Backup Complete');
-        logAdminActivity('Created full system backup', 'Full backup', 'Success');
-        loadBackupData();
-    }, 1500);
+async function loadBackupSettings() {
+    try {
+        const response = await fetch(`${BACKUP_API}?action=get_settings`);
+        const data = await response.json();
+
+        if (data.success && data.settings) {
+            const settings = data.settings;
+            
+            const scheduleSelect = document.getElementById('autoBackupSchedule');
+            if (scheduleSelect) {
+                scheduleSelect.value = settings.schedule || 'Weekly';
+            }
+            
+            const retentionSelect = document.getElementById('backupRetention');
+            if (retentionSelect) {
+                retentionSelect.value = settings.retention_count || '10';
+            }
+            
+            const mediaCheckbox = document.getElementById('backupMedia');
+            if (mediaCheckbox) {
+                mediaCheckbox.checked = settings.include_media !== false;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading backup settings:', error);
+    }
 }
 
-function createBackup(type) {
+async function saveBackupConfigurations() {
+    const schedule = document.getElementById('autoBackupSchedule')?.value || 'Weekly';
+    const retention = document.getElementById('backupRetention')?.value || '10';
+    const includeMedia = document.getElementById('backupMedia')?.checked ?? true;
+
+    try {
+        const response = await fetch(`${BACKUP_API}?action=save_settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                schedule: schedule,
+                retention_count: parseInt(retention),
+                include_media: includeMedia
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showModalNotification('Backup settings saved successfully', 'success', 'Settings Saved');
+            logAdminActivity('Updated backup settings', 'Backup Config', 'Success');
+        } else {
+            throw new Error(data.error || 'Failed to save settings');
+        }
+    } catch (error) {
+        console.error('Error saving backup settings:', error);
+        showModalNotification('Failed to save backup settings', 'error', 'Error');
+    }
+}
+
+async function createFullBackup() {
+    const backupFormat = document.getElementById('backupFormat')?.value || 'json';
+    const includeMedia = document.getElementById('backupMedia')?.checked ?? false;
+    const userId = localStorage.getItem('loggedInUserId');
+
+    const formatLabels = { json: 'JSON', sql: 'SQL', zip: 'ZIP' };
+    showModalNotification(`Creating ${formatLabels[backupFormat]} backup...`, 'info', 'Creating Backup');
+
+    try {
+        const response = await fetch(`${BACKUP_API}?action=create`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                backup_type: 'Manual',
+                format: backupFormat,
+                include_media: backupFormat === 'zip' ? includeMedia : false,
+                created_by: userId ? parseInt(userId) : null
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showModalNotification(`Backup created: ${data.filename} (${data.file_size})`, 'success', 'Backup Complete');
+            logAdminActivity(`Created ${formatLabels[backupFormat]} backup`, 'Full backup', 'Success');
+            loadBackupData();
+        } else {
+            throw new Error(data.error || 'Failed to create backup');
+        }
+    } catch (error) {
+        console.error('Error creating backup:', error);
+        showModalNotification('Failed to create backup: ' + error.message, 'error', 'Backup Failed');
+    }
+}
+
+async function createBackup(type) {
+    const backupFormat = document.getElementById('backupFormat')?.value || 'json';
+    const includeMedia = type === 'Full System' && backupFormat === 'zip';
+    const userId = localStorage.getItem('loggedInUserId');
+
     showModalNotification(`Creating ${type} backup...`, 'info', 'Creating Backup');
-    setTimeout(() => {
-        showModalNotification(`${type} backup created successfully`, 'success', 'Backup Complete');
-        logAdminActivity(`Created ${type} backup`, type, 'Success');
-        loadBackupData();
-    }, 1000);
+
+    try {
+        const response = await fetch(`${BACKUP_API}?action=create`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                backup_type: type,
+                format: backupFormat,
+                include_media: includeMedia,
+                created_by: userId ? parseInt(userId) : null
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showModalNotification(`${type} backup created successfully`, 'success', 'Backup Complete');
+            logAdminActivity(`Created ${type} backup`, type, 'Success');
+            loadBackupData();
+        } else {
+            throw new Error(data.error || 'Failed to create backup');
+        }
+    } catch (error) {
+        console.error('Error creating backup:', error);
+        showModalNotification(`Failed to create ${type} backup`, 'error', 'Backup Failed');
+    }
 }
 
-function restoreBackup() {
-    showModalNotification('Restoring from backup...', 'info', 'Restoring Backup');
-    setTimeout(() => {
-        showModalNotification('Data restored successfully', 'success', 'Restore Complete');
-        logAdminActivity('Restored system from backup', 'System Restore', 'Success');
-    }, 2000);
+function downloadBackup(filename) {
+    // Trigger file download
+    window.location.href = `${BACKUP_API}?action=download&file=${encodeURIComponent(filename)}`;
+    logAdminActivity(`Downloaded backup: ${filename}`, 'Backup Download', 'Success');
+}
+
+async function deleteBackup(id, filename) {
+    showConfirm(`Are you sure you want to delete backup "${filename}"?`, async function () {
+        try {
+            const response = await fetch(`${BACKUP_API}?action=delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id, filename: filename })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showModalNotification('Backup deleted successfully', 'success', 'Deleted');
+                logAdminActivity(`Deleted backup: ${filename}`, 'Backup Delete', 'Success');
+                loadBackupData();
+            } else {
+                throw new Error(data.error || 'Failed to delete backup');
+            }
+        } catch (error) {
+            console.error('Error deleting backup:', error);
+            showModalNotification('Failed to delete backup', 'error', 'Error');
+        }
+    });
+}
+
+async function pruneOldBackups() {
+    showModalNotification('Pruning old backups...', 'info', 'Pruning');
+
+    try {
+        const response = await fetch(`${BACKUP_API}?action=prune`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showModalNotification(data.message, 'success', 'Prune Complete');
+            logAdminActivity('Pruned old backups', 'Backup Prune', 'Success');
+            loadBackupData();
+        } else {
+            throw new Error(data.error || 'Failed to prune backups');
+        }
+    } catch (error) {
+        console.error('Error pruning backups:', error);
+        showModalNotification('Failed to prune backups', 'error', 'Error');
+    }
+}
+
+async function restoreBackup() {
+    const fileInput = document.getElementById('restoreFile');
+    if (!fileInput || !fileInput.files.length) {
+        showModalNotification('Please select a backup file first', 'warning', 'No File');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    showModalNotification('Restoring from backup...', 'info', 'Restoring');
+
+    try {
+        const formData = new FormData();
+        formData.append('backup_file', file);
+
+        const response = await fetch(`${BACKUP_API}?action=restore`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showModalNotification(data.message || 'Data restored successfully', 'success', 'Restore Complete');
+            logAdminActivity('Restored system from backup', 'System Restore', 'Success');
+            
+            // Reload page after restore
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            throw new Error(data.error || 'Failed to restore backup');
+        }
+    } catch (error) {
+        console.error('Error restoring backup:', error);
+        showModalNotification('Failed to restore: ' + error.message, 'error', 'Restore Failed');
+    }
 }
 
 // Requests Functions
@@ -3059,7 +3334,7 @@ async function loadRequests() {
     const searchTerm = (document.getElementById('requestSearch')?.value || '').toLowerCase();
     const statusFilter = document.getElementById('requestStatusFilter')?.value || 'Pending';
 
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border spinner-border-sm text-danger me-2"></div>Loading requests...</td></tr>';
+    showLoadingModal('Loading requests...');
 
     try {
         // Fetch from both tables
@@ -3182,6 +3457,8 @@ async function loadRequests() {
     } catch (err) {
         console.error('Failed to load requests:', err);
         tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Error loading data.</td></tr>';
+    } finally {
+        hideLoadingModal();
     }
 }
 

@@ -3,6 +3,22 @@
 // API URL for database operations (relative path works on any server)
 const API_URL = "php/app.php";
 
+// Loading modal helper functions
+function showLoadingModal(message = 'Loading data...') {
+    if (window.Swal) {
+        Swal.fire({
+            title: message,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+    }
+}
+
+function hideLoadingModal() {
+    if (window.Swal) Swal.close();
+}
+
 // Database helper function
 function createDB(table) {
     return {
@@ -349,6 +365,8 @@ async function loadMenuItems() {
 
     menuGrid.innerHTML = '<div class="col-12 text-center py-5"><div class="loading-spinner"></div><p class="mt-2">Fetching menu from system...</p></div>';
 
+    showLoadingModal('Loading menu items...');
+
     try {
         const [menuItems, categories] = await Promise.all([
             menuItemsDB.show(),
@@ -386,6 +404,8 @@ async function loadMenuItems() {
     } catch (err) {
         console.error('Failed to load menu items:', err);
         menuGrid.innerHTML = '<div class="col-12 text-center py-5"><i class="fas fa-exclamation-circle fa-3x text-danger mb-3"></i><p class="text-muted">Failed to load menu items</p></div>';
+    } finally {
+        hideLoadingModal();
     }
 }
 
@@ -607,6 +627,8 @@ async function loadIngredients() {
 
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading ingredients...</td></tr>';
 
+    showLoadingModal('Loading ingredients...');
+
     try {
         // Fetch ingredients, categories, and units from database
         const [ingredients, categories, units] = await Promise.all([
@@ -647,6 +669,8 @@ async function loadIngredients() {
     } catch (error) {
         console.error('Failed to load ingredients:', error);
         tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load ingredients</td></tr>';
+    } finally {
+        hideLoadingModal();
     }
 }
 

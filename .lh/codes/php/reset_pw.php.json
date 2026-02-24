@@ -1,0 +1,18 @@
+{
+    "sourceFile": "codes/php/reset_pw.php",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1771907198335,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1771907198335,
+            "name": "Commit-0",
+            "content": "<?php\r\nheader(\"Content-Type: text/html\");\r\nrequire_once 'supabase-api.php';\r\n\r\n$newPassword = '123';\r\n$hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);\r\n\r\n$result = $supabase->update('users', \r\n    ['password_hash' => $hashedPassword],\r\n    ['username' => 'eq.admin']\r\n);\r\n\r\nif (isset($result[0])) {\r\n    echo \"✅ Admin password reset to: <strong>123</strong><br>\";\r\n    echo \"Username: <strong>admin</strong><br>\";\r\n    echo \"<br><a href='../index.html'>Go to Login</a>\";\r\n} else {\r\n    echo \"❌ Failed to reset password<br>\";\r\n    print_r($result);\r\n}\r\n?>\r\n"
+        }
+    ]
+}
