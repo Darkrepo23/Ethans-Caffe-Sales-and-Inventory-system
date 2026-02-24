@@ -232,53 +232,71 @@
     </div>
 
     <!-- Modals -->
-    <div class="modal fade" id="addIngredientModal" tabindex="-1">
+    <div class="modal fade premium-modal" id="addIngredientModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Add Ingredient</h5>
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-boxes me-2"></i>Ingredient Details</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-info py-2 mb-4"
+                        style="font-size: 0.85rem; border-radius: 12px; border: none; background: rgba(128,0,0,0.05); color: var(--maroon);">
+                        <i class="fas fa-info-circle me-2"></i> Configure ingredient details and inventory alerts below.
+                    </div>
                     <form id="addIngredientForm">
-                        <div class="mb-3">
-                            <label class="form-label">Ingredient Name</label>
-                            <input type="text" class="form-control" id="ingredientName" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Category</label>
-                            <select class="form-select" id="ingredientCategory" required>
-                                <option value="">Loading categories...</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Initial Quantity</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" id="ingredientQuantity" min="0" step="0.01"
-                                    value="0">
-                                <span class="input-group-text" id="quantityUnit"></span>
+                        <div class="row g-3">
+                            <div class="col-12 mb-2">
+                                <label class="form-label">Ingredient Name</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0"><i
+                                            class="fas fa-tag text-muted"></i></span>
+                                    <input type="text" class="form-control border-start-0 ps-0" id="ingredientName"
+                                        placeholder="e.g. Fresh Milk" required>
+                                </div>
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Unit</label>
-                                <select class="form-select" id="ingredientUnit" required>
-                                    <option value="">Loading units...</option>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Category</label>
+                                <select class="form-select" id="ingredientCategory" required>
+                                    <option value="">Select Category</option>
                                 </select>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Threshold</label>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Measurement Unit</label>
+                                <select class="form-select" id="ingredientUnit" required>
+                                    <option value="">Select Unit</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Current Stock</label>
                                 <div class="input-group">
-                                    <input type="number" class="form-control" id="lowStockThreshold" min="1" value="5">
-                                    <span class="input-group-text" id="thresholdUnit">kg</span>
+                                    <input type="number" class="form-control" id="ingredientQuantity" min="0"
+                                        step="0.01" value="0">
+                                    <span class="input-group-text quantity-unit-label">unit</span>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Low Stock Alert</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="lowStockThreshold" min="0" step="0.01"
+                                        value="5">
+                                    <span class="input-group-text threshold-unit-label">unit</span>
                                 </div>
                             </div>
                         </div>
                     </form>
+                    <div class="mt-4 p-3" style="background: #fdfdfd; border-radius: 12px; border: 1px dashed #ddd;">
+                        <p class="small text-muted mb-0"><i class="fas fa-shield-alt me-1"></i> This ingredient will be
+                            tracked in real-time across all associated recipes.</p>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger" id="saveIngredientBtn">Save Ingredient</button>
+                    <button type="button" class="btn btn-premium-cancel" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-premium-save" id="saveIngredientBtn">Save Changes</button>
                 </div>
             </div>
         </div>

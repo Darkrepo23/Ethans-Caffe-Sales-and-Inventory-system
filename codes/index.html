@@ -995,9 +995,26 @@
                     Password</label>
                 <div class="form-control border" style="background:#ffffff; color:#111827;">admin123</div>
             </div>
+
+            <!-- Reset Admin Cooldown Section -->
+            <div class="border-top pt-3 mt-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div>
+                        <h6 class="mb-0" style="color:#dc3545;"><i class="fas fa-unlock-alt me-1"></i>Admin Cooldown
+                            Reset</h6>
+                        <small class="text-muted" style="color:#6b7280 !important;">Reset login lockout for admin
+                            account</small>
+                    </div>
+                </div>
+                <div id="adminCooldownStatus" class="mb-2 small" style="color:#6b7280;"></div>
+                <button type="button" id="resetAdminCooldownBtn" class="btn btn-danger btn-sm w-100">
+                    <i class="fas fa-redo me-1"></i> Reset Admin Cooldown
+                </button>
+            </div>
+
             <div class="alert alert-warning mt-3 mb-1" style="font-size: 0.85rem;">
                 <i class="fas fa-exclamation-triangle me-1"></i>
-                This panel is for the owner only. Press <strong>Ctrl + Enter</strong> again to hide.
+                This panel is for the owner only. Press <strong>Ctrl + G then Enter</strong> again to hide.
             </div>
         </div>
     </div>
@@ -1084,6 +1101,60 @@
             function toggleAdminUnlock(show) {
                 if (!adminUnlockOverlay) return;
                 adminUnlockOverlay.style.display = show ? 'flex' : 'none';
+
+                // Update admin cooldown status when showing
+                if (show) {
+                    updateAdminCooldownStatus();
+                }
+            }
+
+            // Update admin cooldown status display
+            function updateAdminCooldownStatus() {
+                const statusEl = document.getElementById('adminCooldownStatus');
+                const resetBtn = document.getElementById('resetAdminCooldownBtn');
+                if (!statusEl) return;
+
+                if (typeof checkCooldown === 'function') {
+                    const status = checkCooldown('admin');
+                    if (status.onCooldown) {
+                        const data = getCooldownData('admin');
+                        statusEl.innerHTML = '<span style="color:#dc3545;"><i class="fas fa-lock me-1"></i>Admin is currently LOCKED — ' + formatCooldownTime(status.remainingSeconds) + ' remaining (Level ' + data.cooldownLevel + ')</span>';
+                        if (resetBtn) resetBtn.disabled = false;
+                    } else {
+                        const data = getCooldownData('admin');
+                        if (data.attempts > 0) {
+                            statusEl.innerHTML = '<span style="color:#f59e0b;"><i class="fas fa-exclamation-circle me-1"></i>Admin has ' + data.attempts + '/3 failed attempts</span>';
+                        } else {
+                            statusEl.innerHTML = '<span style="color:#16a34a;"><i class="fas fa-check-circle me-1"></i>Admin account has no cooldown</span>';
+                        }
+                        if (resetBtn) resetBtn.disabled = false;
+                    }
+                } else {
+                    statusEl.innerHTML = '<span class="text-muted">Cooldown system not loaded</span>';
+                }
+            }
+
+            // Reset Admin Cooldown Button
+            const resetAdminCdBtn = document.getElementById('resetAdminCooldownBtn');
+            if (resetAdminCdBtn) {
+                resetAdminCdBtn.addEventListener('click', function () {
+                    if (typeof resetCooldown === 'function') {
+                        resetCooldown('admin');
+                        if (window.Swal) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Admin Cooldown Reset',
+                                text: 'The admin account cooldown has been cleared. You can now log in.',
+                                confirmButtonColor: '#16a34a',
+                                heightAuto: false,
+                                timer: 2000,
+                                timerProgressBar: true,
+                                showConfirmButton: false
+                            });
+                        }
+                        updateAdminCooldownStatus();
+                    }
+                });
             }
 
             document.addEventListener('keydown', function (e) {

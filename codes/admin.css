@@ -1,4 +1,12 @@
-/* Admin Dashboard Specific Styles */
+:root {
+    --maroon: #800000;
+    --dark-maroon: #660000;
+    --gold: #d4af37;
+    --premium-black: #1a1a1a;
+    --premium-white: #ffffff;
+    --soft-gray: #f8f9fa;
+    --border-color: rgba(255, 255, 255, 0.1);
+}
 
 /* Danger Theme */
 .btn-danger {
@@ -280,4 +288,165 @@
 
 .highlight-new {
     animation: highlight 2s ease-out;
+}
+
+/* Premium Modal Overhaul */
+.premium-modal .modal-content {
+    background: var(--premium-white);
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+}
+
+.premium-modal .modal-header {
+    background: linear-gradient(135deg, var(--maroon), var(--dark-maroon));
+    border-bottom: 2px solid var(--gold);
+    padding: 1.5rem;
+}
+
+.premium-modal .modal-title {
+    color: white;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+}
+
+.premium-modal .modal-body {
+    padding: 2rem;
+}
+
+.premium-modal .form-label {
+    font-weight: 600;
+    color: #444;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.premium-modal .form-control,
+.premium-modal .form-select {
+    border: 2px solid #eee;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.premium-modal .form-control:focus,
+.premium-modal .form-select:focus {
+    border-color: var(--maroon);
+    box-shadow: 0 0 0 4px rgba(128, 0, 0, 0.1);
+}
+
+.premium-modal .input-group-text {
+    background: #f8f9fa;
+    border: 2px solid #eee;
+    border-left: none;
+    border-radius: 0 12px 12px 0;
+    font-weight: 600;
+    color: var(--maroon);
+}
+
+.premium-modal .modal-footer {
+    border-top: 1px solid #eee;
+    padding: 1.25rem 2rem;
+    background: #fcfcfc;
+}
+
+.premium-modal .btn-premium-save {
+    background: linear-gradient(135deg, var(--maroon), var(--dark-maroon));
+    color: white;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 12px;
+    font-weight: 700;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(128, 0, 0, 0.2);
+}
+
+.premium-modal .btn-premium-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(128, 0, 0, 0.3);
+}
+
+.premium-modal .btn-premium-cancel {
+    background: #eee;
+    color: #666;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.premium-modal .btn-premium-cancel:hover {
+    background: #e0e0e0;
+}
+
+/* Edit & Action Buttons Premium Design */
+.btn-action-premium {
+    width: 35px;
+    height: 35px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-edit-premium {
+    background: rgba(128, 0, 0, 0.1);
+    color: var(--maroon);
+}
+
+.btn-edit-premium:hover {
+    background: var(--maroon);
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 5px 15px rgba(128, 0, 0, 0.2);
+}
+
+.btn-delete-premium {
+    background: rgba(0, 0, 0, 0.05);
+    color: #444;
+}
+
+.btn-delete-premium:hover {
+    background: #222;
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Threshold Badge Fix */
+.threshold-badge {
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.threshold-low {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+    border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
+.threshold-normal {
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+    border: 1px solid rgba(40, 167, 69, 0.2);
+}
+
+.sidebar-badge-item {
+    font-size: 0.7rem !important;
+    padding: 3px 7px !important;
+    font-weight: 800;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }

@@ -54,7 +54,7 @@ log_php_error('Request: ' . $method . ' ' . ($table ?? 'NO_TABLE') . ' | Data: '
 $TABLES = [
 	'roles' => ['id', 'name', 'permissions'],
 	'users' => ['id', 'email', 'full_name', 'username', 'password_hash', 'role_id', 'status', 'last_login', 'created_at', 'updated_at', 'deleted_at'],
-	'account_requests' => ['id', 'full_name', 'username', 'email', 'password_hash', 'requested_role_id', 'status', 'requested_at', 'reviewed_by', 'reviewed_at', 'notes'],
+	'account_requests' => ['id', 'full_name', 'username', 'password_hash', 'requested_role_id', 'status', 'requested_at', 'reviewed_by', 'reviewed_at', 'notes'],
 	'menu_categories' => ['id', 'name', 'description'],
 	'menu_items' => ['id', 'name', 'category_id', 'description', 'recipe', 'price_reference', 'status', 'image_path', 'created_at', 'updated_at'],
 	'ingredient_categories' => ['id', 'name'],

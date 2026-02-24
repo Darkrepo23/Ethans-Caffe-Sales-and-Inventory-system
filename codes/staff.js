@@ -1,7 +1,7 @@
 // Staff Dashboard JavaScript - Fixed & Cleaned
 
 // API URL for database operations
-const API_URL = "/php/app.php";
+const API_URL = "php/app.php";
 
 // Database helper function
 function createDB(table) {
@@ -88,11 +88,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     initializeCommonStaffFeatures();
 
-    if (document.getElementById('menuItemsGrid'))                                       initializeMenuFunctionality();
+    if (document.getElementById('menuItemsGrid')) initializeMenuFunctionality();
     if (document.getElementById('ingredientsListTable') || document.getElementById('ingredientsTable')) initializeIngredientsFunctionality();
-    if (document.getElementById('recentReceipts'))                                      initializeReceiptsFunctionality();
-    if (document.getElementById('changePasswordForm'))                                  initializeAccountFunctionality();
-    if (document.getElementById('activityLogTable'))                                    initializeActivityLogFunctionality();
+    if (document.getElementById('recentReceipts')) initializeReceiptsFunctionality();
+    if (document.getElementById('changePasswordForm')) initializeAccountFunctionality();
+    if (document.getElementById('activityLogTable')) initializeActivityLogFunctionality();
 
     // Only poll user data on pages that show user info
     if (document.querySelector('.navbar .dropdown-toggle')) {
@@ -141,7 +141,7 @@ async function logStaffActivity(action, reference = 'N/A', status = 'Success') {
     if (!user.id) return;
 
     try {
-        await fetch('/php/app.php', {
+        await fetch('php/app.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -264,7 +264,7 @@ function applyCoupon() {
         const code = result.value.toUpperCase();
         const coupons = {
             SAVE10: { code: 'SAVE10', type: 'percentage', value: 10, label: '10% Off' },
-            FREE50: { code: 'FREE50', type: 'fixed',      value: 50, label: 'P50 Off' },
+            FREE50: { code: 'FREE50', type: 'fixed', value: 50, label: 'P50 Off' },
         };
 
         if (coupons[code]) {
@@ -410,13 +410,13 @@ function displayMenuItems(items) {
 
 function filterMenuItems() {
     const searchTerm = document.getElementById('menuSearch')?.value.toLowerCase() || '';
-    const activeTab  = document.querySelector('.btn-category.active');
+    const activeTab = document.querySelector('.btn-category.active');
     const categoryValue = activeTab ? activeTab.getAttribute('data-category') : 'All';
 
     const filtered = allMenuItems.filter(item => {
         const matchesSearch = item.name.toLowerCase().includes(searchTerm);
-        const matchesCategory = categoryValue === 'All' || 
-            item.category_id == categoryValue || 
+        const matchesCategory = categoryValue === 'All' ||
+            item.category_id == categoryValue ||
             item.category === categoryValue;
         return matchesSearch && matchesCategory;
     });
@@ -461,10 +461,10 @@ function calcTotals() {
 }
 
 function updateSaleDisplay() {
-    const container   = document.getElementById('cartItemsList');
-    const subtotalEl  = document.getElementById('cartSubtotal');
-    const taxEl       = document.getElementById('cartTaxes');
-    const totalEl     = document.getElementById('cartTotal');
+    const container = document.getElementById('cartItemsList');
+    const subtotalEl = document.getElementById('cartSubtotal');
+    const taxEl = document.getElementById('cartTaxes');
+    const totalEl = document.getElementById('cartTotal');
     const cartCountEl = document.getElementById('cartCount');
     const checkoutBtn = document.getElementById('checkoutBtn');
 
@@ -476,10 +476,10 @@ function updateSaleDisplay() {
     if (currentSaleItems.length === 0) {
         container.innerHTML = `<div class="text-center py-5 empty-cart-msg"><p class="text-muted">No items in cart</p></div>`;
         subtotalEl.textContent = 'P0.00';
-        taxEl.textContent      = 'P0.00';
-        totalEl.textContent    = 'P0.00';
+        taxEl.textContent = 'P0.00';
+        totalEl.textContent = 'P0.00';
         cartCountEl.textContent = '0';
-        checkoutBtn.disabled   = true;
+        checkoutBtn.disabled = true;
         return;
     }
 
@@ -503,10 +503,10 @@ function updateSaleDisplay() {
 
     subtotalEl.innerHTML = `P${subtotal.toFixed(2)}` +
         (discountAmount > 0 ? ` <span class="text-danger small">(-P${discountAmount.toFixed(2)})</span>` : '');
-    taxEl.textContent       = `P${taxes.toFixed(2)}`;
-    totalEl.textContent     = `P${total.toFixed(2)}`;
+    taxEl.textContent = `P${taxes.toFixed(2)}`;
+    totalEl.textContent = `P${total.toFixed(2)}`;
     cartCountEl.textContent = itemsCount;
-    checkoutBtn.disabled    = false;
+    checkoutBtn.disabled = false;
 }
 
 function changeQty(index, delta) {
@@ -522,9 +522,9 @@ function removeSaleItem(index) {
 
 function clearCurrentSale() {
     currentSaleItems = [];
-    currentCustomer  = null;
-    currentDiscount  = 0;
-    currentCoupon    = null;
+    currentCustomer = null;
+    currentDiscount = 0;
+    currentCoupon = null;
     updateSaleDisplay();
 }
 
@@ -581,13 +581,13 @@ window.addEventListener('storage', e => {
 function initializeIngredientsFunctionality() {
     document.getElementById('ingredientSearch')?.addEventListener('input', filterIngredients);
     document.getElementById('ingredientCategoryFilter')?.addEventListener('change', filterIngredients);
-    
+
     // Save update button listener
     const saveBtn = document.getElementById('confirmQuantityUpdate');
     if (saveBtn) {
         saveBtn.addEventListener('click', saveIngredientUpdate);
     }
-    
+
     loadIngredients();
 }
 
@@ -735,13 +735,13 @@ async function showIngredientHistory(id) {
     try {
         // Fetch transactions for this ingredient
         const transactions = await inventoryTransactionsDB.show({ ingredient_id: id });
-        
+
         let historyHtml = '';
         if (transactions && transactions.length > 0) {
             historyHtml = transactions.slice(-10).reverse().map(t => {
                 const isPositive = parseFloat(t.change_qty) > 0;
                 const date = new Date(t.timestamp).toLocaleDateString();
-                const time = new Date(t.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const time = new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 return `
                     <div class="d-flex justify-content-between align-items-center border-bottom py-2">
                         <div>
@@ -814,7 +814,7 @@ function showUpdateModal(id, type = 'restock') {
     // Set the correct radio button based on type
     const increaseRadio = document.getElementById('increase');
     const decreaseRadio = document.getElementById('decrease');
-    
+
     if (type === 'restock' && increaseRadio) {
         increaseRadio.checked = true;
     } else if (type === 'usage' && decreaseRadio) {
@@ -922,7 +922,7 @@ async function saveIngredientUpdate() {
 
 function filterIngredients() {
     const searchTerm = document.getElementById('ingredientSearch')?.value.toLowerCase() || '';
-    const category   = document.getElementById('ingredientCategoryFilter')?.value || '';
+    const category = document.getElementById('ingredientCategoryFilter')?.value || '';
 
     const filtered = allIngredients.filter(ing =>
         ing.name.toLowerCase().includes(searchTerm) &&
@@ -951,14 +951,14 @@ function initializeAccountFunctionality() {
     document.getElementById('editAccountBtn')?.addEventListener('click', () => toggleAccountEdit());
 
     document.getElementById('sendAccountRequestBtn')?.addEventListener('click', async function () {
-        const fullName    = document.getElementById('accFullName')?.value.trim();
-        const email       = document.getElementById('accEmail')?.value.trim();
+        const fullName = document.getElementById('accFullName')?.value.trim();
+        const email = document.getElementById('accEmail')?.value.trim();
         const currentPass = document.getElementById('currentPass')?.value;
-        const newPass     = document.getElementById('newPass')?.value;
+        const newPass = document.getElementById('newPass')?.value;
         const confirmPass = document.getElementById('confirmPass')?.value;
 
-        if (fullName || email)                           await saveAccountInfo();
-        if (currentPass || newPass || confirmPass)       await handlePasswordUpdate();
+        if (fullName || email) await saveAccountInfo();
+        if (currentPass || newPass || confirmPass) await handlePasswordUpdate();
 
         toggleAccountEdit(false);
     });
@@ -967,7 +967,7 @@ function initializeAccountFunctionality() {
 function toggleAccountEdit(forceState) {
     const editBtn = document.getElementById('editAccountBtn');
     const sendBtn = document.getElementById('sendAccountRequestBtn');
-    const inputs  = document.querySelectorAll('#accountInfoForm input, #changePasswordForm input:not(#accUsername)');
+    const inputs = document.querySelectorAll('#accountInfoForm input, #changePasswordForm input:not(#accUsername)');
 
     const isLocked = forceState !== undefined ? !forceState : editBtn.classList.contains('btn-outline-maroon');
 
@@ -1005,13 +1005,13 @@ function loadAccountData() {
 
     setVal('accFullName', user.full_name || '');
     setVal('accUsername', user.username || '');
-    setVal('accEmail',    user.email    || '');
+    setVal('accEmail', user.email || '');
 }
 
 async function saveAccountInfo() {
-    const user     = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+    const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
     const fullName = document.getElementById('accFullName')?.value.trim();
-    const email    = document.getElementById('accEmail')?.value.trim();
+    const email = document.getElementById('accEmail')?.value.trim();
 
     if (!fullName) {
         showModalNotification('Full Name is required', 'warning', 'Validation');
@@ -1019,7 +1019,7 @@ async function saveAccountInfo() {
     }
 
     try {
-        const res = await fetch('/php/app.php', {
+        const res = await fetch('php/app.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1043,9 +1043,9 @@ async function saveAccountInfo() {
 }
 
 async function handlePasswordUpdate() {
-    const user        = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+    const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
     const currentPass = document.getElementById('currentPass')?.value;
-    const newPass     = document.getElementById('newPass')?.value;
+    const newPass = document.getElementById('newPass')?.value;
     const confirmPass = document.getElementById('confirmPass')?.value;
 
     if (!currentPass || !newPass || !confirmPass) {
@@ -1062,7 +1062,7 @@ async function handlePasswordUpdate() {
     }
 
     try {
-        const res = await fetch('/php/app.php', {
+        const res = await fetch('php/app.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1104,7 +1104,7 @@ async function loadActivityLog() {
     if (!user.id) return;
 
     try {
-        const res  = await fetch(`/php/app.php?table=activity_logs&user_id=${user.id}`);
+        const res = await fetch(`/php/app.php?table=activity_logs&user_id=${user.id}`);
         const logs = await res.json();
 
         if (!Array.isArray(logs)) {
@@ -1141,7 +1141,7 @@ async function refreshUserData() {
     if (!user.id) return;
 
     try {
-        const res   = await fetch(`/php/app.php?table=users&id=${user.id}`);
+        const res = await fetch(`/php/app.php?table=users&id=${user.id}`);
         const users = await res.json();
         const dbUser = Array.isArray(users) ? users[0] : users;
 
@@ -1161,7 +1161,7 @@ async function refreshUserData() {
 }
 
 async function updateUserStatus(userId, status) {
-    const response = await fetch('/php/user_status.php', {
+    const response = await fetch('php/user_status.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, status })

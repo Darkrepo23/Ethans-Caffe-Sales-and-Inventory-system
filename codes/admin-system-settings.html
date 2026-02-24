@@ -247,6 +247,59 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Login Cooldown Management -->
+                <div class="row">
+                    <div class="col-12 mb-4">
+                        <div class="card shadow">
+                            <div
+                                class="card-header bg-black text-white d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold"><i class="fas fa-unlock-alt me-1"></i>Login Cooldown
+                                    Management</h6>
+                                <button class="btn btn-sm btn-outline-light" id="refreshCooldownList">
+                                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-info mb-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>How it works:</strong> Each account gets 3 login attempts. After 3 failed
+                                    attempts, the account is locked for 2 minutes.
+                                    Each subsequent lockout increases by 2 minutes (2min → 4min → 6min, etc.).
+                                    You can reset any staff account's cooldown here.
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle" id="cooldownManagementTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Username</th>
+                                                <th>Failed Attempts</th>
+                                                <th>Cooldown Level</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted py-3">
+                                                    <i class="fas fa-check-circle fa-2x mb-2 d-block text-success"></i>
+                                                    No accounts with cooldown data
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="d-flex justify-content-end mt-3">
+                                    <button class="btn btn-outline-danger" id="resetAllCooldownsBtn">
+                                        <i class="fas fa-redo me-1"></i> Reset All Cooldowns
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -261,7 +314,199 @@
     <script src="admin.js"></script>
 
     <script>
-        // Centralized logic handles these features
+        // ===== Cooldown Management for System Settings =====
+
+        // Get cooldown data from localStorage (mirrors auth.js logic)
+        function getLocalCooldownData(username) {
+            try {
+                const key = 'loginCooldown_' + username.toLowerCase();
+                const stored = localStorage.getItem(key);
+                if (stored) return JSON.parse(stored);
+            } catch (e) { }
+            return null;
+        }
+
+        function resetLocalCooldown(username) {
+            const key = 'loginCooldown_' + username.toLowerCase();
+            localStorage.removeItem(key);
+        }
+
+        function resetAllLocalCooldowns() {
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('loginCooldown_')) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+        }
+
+        function formatTime(totalSeconds) {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function loadCooldownTable() {
+            const table = document.getElementById('cooldownManagementTable');
+            if (!table) return;
+
+            const tbody = table.querySelector('tbody');
+            if (!tbody) return;
+
+            // Gather all cooldown entries from localStorage
+            const users = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('loginCooldown_')) {
+                    const username = key.replace('loginCooldown_', '');
+                    try {
+                        const data = JSON.parse(localStorage.getItem(key));
+                        users.push({ username, ...data });
+                    } catch (e) { }
+                }
+            }
+
+            if (users.length === 0) {
+                tbody.innerHTML = `<tr>
+                    <td colspan="5" class="text-center text-muted py-3">
+                        <i class="fas fa-check-circle fa-2x mb-2 d-block text-success"></i>
+                        No accounts with cooldown data
+                    </td>
+                </tr>`;
+                return;
+            }
+
+            const now = Date.now();
+            const html = users.map(user => {
+                const isLocked = user.cooldownUntil > now;
+                const remainingSeconds = isLocked ? Math.ceil((user.cooldownUntil - now) / 1000) : 0;
+                const cooldownMinutes = user.cooldownLevel * 2;
+
+                let statusBadge;
+                if (isLocked) {
+                    statusBadge = `<span class="badge bg-danger"><i class="fas fa-lock me-1"></i>Locked — ${formatTime(remainingSeconds)} left</span>`;
+                } else if (user.attempts > 0) {
+                    statusBadge = `<span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i>${user.attempts}/3 attempts</span>`;
+                } else if (user.cooldownLevel > 0) {
+                    statusBadge = `<span class="badge bg-secondary"><i class="fas fa-history me-1"></i>Was locked (Level ${user.cooldownLevel})</span>`;
+                } else {
+                    statusBadge = `<span class="badge bg-success"><i class="fas fa-check me-1"></i>OK</span>`;
+                }
+
+                return `<tr class="animate__animated animate__fadeIn">
+                    <td><strong>${user.username}</strong></td>
+                    <td>${user.attempts}/3</td>
+                    <td>
+                        Level ${user.cooldownLevel}
+                        ${user.cooldownLevel > 0 ? `<small class="text-muted">(${cooldownMinutes}min)</small>` : ''}
+                    </td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="handleResetCooldown('${user.username}')" title="Reset Cooldown">
+                            <i class="fas fa-redo me-1"></i>Reset
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            tbody.innerHTML = html;
+        }
+
+        function handleResetCooldown(username) {
+            Swal.fire({
+                title: 'Reset Cooldown?',
+                html: `Are you sure you want to reset the login cooldown for <strong>"${username}"</strong>?<br><small class="text-muted">This will allow them to log in again immediately.</small>`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: '<i class="fas fa-redo me-1"></i>Yes, Reset',
+                heightAuto: false
+            }).then(result => {
+                if (result.isConfirmed) {
+                    resetLocalCooldown(username);
+                    loadCooldownTable();
+
+                    // Log the action
+                    if (typeof logAdminActivity === 'function') {
+                        logAdminActivity('Reset login cooldown', username, 'Success');
+                    }
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Cooldown Reset!',
+                        text: `"${username}" can now log in again.`,
+                        timer: 1500,
+                        timerProgressBar: true,
+                        showConfirmButton: false,
+                        heightAuto: false
+                    });
+                }
+            });
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            loadCooldownTable();
+
+            // Refresh button
+            const refreshBtn = document.getElementById('refreshCooldownList');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', function () {
+                    loadCooldownTable();
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Refreshed',
+                        text: 'Cooldown list updated.',
+                        timer: 800,
+                        timerProgressBar: true,
+                        showConfirmButton: false,
+                        heightAuto: false
+                    });
+                });
+            }
+
+            // Reset All button
+            const resetAllBtn = document.getElementById('resetAllCooldownsBtn');
+            if (resetAllBtn) {
+                resetAllBtn.addEventListener('click', function () {
+                    Swal.fire({
+                        title: 'Reset ALL Cooldowns?',
+                        text: 'This will clear cooldown data for every account. Are you sure?',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: '<i class="fas fa-redo me-1"></i>Yes, Reset All',
+                        heightAuto: false
+                    }).then(result => {
+                        if (result.isConfirmed) {
+                            resetAllLocalCooldowns();
+                            loadCooldownTable();
+
+                            if (typeof logAdminActivity === 'function') {
+                                logAdminActivity('Reset all login cooldowns', 'All accounts', 'Success');
+                            }
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'All Cooldowns Reset!',
+                                text: 'All accounts can now log in without restrictions.',
+                                timer: 1500,
+                                timerProgressBar: true,
+                                showConfirmButton: false,
+                                heightAuto: false
+                            });
+                        }
+                    });
+                });
+            }
+
+            // Auto-refresh cooldown table every 10 seconds
+            setInterval(loadCooldownTable, 10000);
+        });
     </script>
 </body>
 

@@ -1,3 +1,190 @@
+// ===== LOGIN COOLDOWN SYSTEM =====
+// Tracks failed login attempts per username in localStorage
+// 3 failed attempts → 2min cooldown, escalating by +2min each cycle
+
+/**
+ * Get cooldown data for a specific username
+ * @param {string} username
+ * @returns {object} { attempts, cooldownLevel, cooldownUntil }
+ */
+function getCooldownData(username) {
+    try {
+        const key = 'loginCooldown_' + username.toLowerCase();
+        const stored = localStorage.getItem(key);
+        if (stored) return JSON.parse(stored);
+    } catch (e) { }
+    return { attempts: 0, cooldownLevel: 0, cooldownUntil: 0 };
+}
+
+/**
+ * Save cooldown data for a specific username
+ * @param {string} username
+ * @param {object} data
+ */
+function saveCooldownData(username, data) {
+    const key = 'loginCooldown_' + username.toLowerCase();
+    localStorage.setItem(key, JSON.stringify(data));
+}
+
+/**
+ * Reset cooldown for a specific username
+ * @param {string} username
+ */
+function resetCooldown(username) {
+    const key = 'loginCooldown_' + username.toLowerCase();
+    localStorage.removeItem(key);
+}
+
+/**
+ * Reset ALL cooldowns (for all usernames)
+ */
+function resetAllCooldowns() {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('loginCooldown_')) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+}
+
+/**
+ * Check if a username is currently on cooldown
+ * @param {string} username
+ * @returns {object} { onCooldown: bool, remainingSeconds: number }
+ */
+function checkCooldown(username) {
+    const data = getCooldownData(username);
+    const now = Date.now();
+
+    if (data.cooldownUntil > now) {
+        const remainingMs = data.cooldownUntil - now;
+        return { onCooldown: true, remainingSeconds: Math.ceil(remainingMs / 1000) };
+    }
+
+    return { onCooldown: false, remainingSeconds: 0 };
+}
+
+/**
+ * Record a failed login attempt for a username
+ * @param {string} username
+ */
+function recordFailedAttempt(username) {
+    const data = getCooldownData(username);
+    const now = Date.now();
+
+    // If cooldown has expired, keep the cooldownLevel but reset attempts
+    if (data.cooldownUntil > 0 && data.cooldownUntil <= now) {
+        data.attempts = 0;
+    }
+
+    data.attempts++;
+
+    // Every 3 failed attempts triggers a new cooldown
+    if (data.attempts >= 3) {
+        data.cooldownLevel++;
+        // Cooldown = cooldownLevel * 2 minutes (in ms)
+        const cooldownMinutes = data.cooldownLevel * 2;
+        data.cooldownUntil = now + (cooldownMinutes * 60 * 1000);
+        data.attempts = 0; // Reset attempt counter for next cycle
+    }
+
+    saveCooldownData(username, data);
+    return data;
+}
+
+/**
+ * Format seconds into MM:SS string
+ * @param {number} totalSeconds
+ * @returns {string}
+ */
+function formatCooldownTime(totalSeconds) {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Show cooldown countdown in SweetAlert
+ * @param {string} username
+ * @param {number} remainingSeconds
+ */
+function showCooldownAlert(username, remainingSeconds) {
+    const data = getCooldownData(username);
+    const cooldownMinutes = data.cooldownLevel * 2;
+
+    let timerInterval;
+    Swal.fire({
+        icon: 'error',
+        title: 'Account Locked',
+        html: `<div style="text-align:center;">
+            <p>Too many failed login attempts for <strong>"${username}"</strong></p>
+            <p>Account is locked for <strong>${cooldownMinutes} minute${cooldownMinutes > 1 ? 's' : ''}</strong></p>
+            <div style="font-size: 2rem; font-weight: bold; color: #dc3545; margin: 15px 0;" id="cooldownTimer">${formatCooldownTime(remainingSeconds)}</div>
+            <p class="text-muted small">Please wait for the cooldown to expire, or ask an admin to reset it.</p>
+        </div>`,
+        allowOutsideClick: false,
+        showConfirmButton: true,
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#800000',
+        heightAuto: false,
+        didOpen: () => {
+            const timerEl = document.getElementById('cooldownTimer');
+            if (!timerEl) return;
+            let remaining = remainingSeconds;
+            timerInterval = setInterval(() => {
+                remaining--;
+                if (remaining <= 0) {
+                    clearInterval(timerInterval);
+                    timerEl.textContent = '0:00';
+                    timerEl.style.color = '#28a745';
+                    Swal.update({
+                        html: `<div style="text-align:center;">
+                            <p style="color:#28a745; font-weight:bold;">Cooldown expired! You can try again.</p>
+                        </div>`,
+                        icon: 'success',
+                        confirmButtonText: 'Try Again'
+                    });
+                } else {
+                    timerEl.textContent = formatCooldownTime(remaining);
+                }
+            }, 1000);
+        },
+        willClose: () => {
+            if (timerInterval) clearInterval(timerInterval);
+        }
+    });
+}
+
+/**
+ * Get list of all usernames that have cooldown data
+ * @returns {Array} list of { username, data } objects
+ */
+function getAllCooldownUsers() {
+    const users = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('loginCooldown_')) {
+            const username = key.replace('loginCooldown_', '');
+            try {
+                const data = JSON.parse(localStorage.getItem(key));
+                users.push({ username, ...data });
+            } catch (e) { }
+        }
+    }
+    return users;
+}
+
+// Make functions globally available for other scripts
+window.getCooldownData = getCooldownData;
+window.saveCooldownData = saveCooldownData;
+window.resetCooldown = resetCooldown;
+window.resetAllCooldowns = resetAllCooldowns;
+window.checkCooldown = checkCooldown;
+window.getAllCooldownUsers = getAllCooldownUsers;
+window.formatCooldownTime = formatCooldownTime;
+
 // DOM Ready
 document.addEventListener('DOMContentLoaded', function () {
     // Login form submission
@@ -46,6 +233,16 @@ async function handleLogin() {
         return;
     }
 
+    // ===== CHECK COOLDOWN BEFORE ATTEMPTING LOGIN =====
+    const cooldownStatus = checkCooldown(username);
+    if (cooldownStatus.onCooldown) {
+        showCooldownAlert(username, cooldownStatus.remainingSeconds);
+        return;
+    }
+
+    const cooldownData = getCooldownData(username);
+    const attemptsRemaining = 3 - cooldownData.attempts;
+
     const originalText = loginBtn.innerHTML;
     loginBtn.innerHTML = '<span class="loading-spinner"></span> Logging in...';
     loginBtn.disabled = true;
@@ -53,7 +250,7 @@ async function handleLogin() {
     try {
         console.log("Sending login request...", { username, password: "[HIDDEN]" });
 
-        const res = await fetch("/php/login.php", {
+        const res = await fetch("php/login.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password })
@@ -65,9 +262,26 @@ async function handleLogin() {
         loginBtn.disabled = false;
 
         if (!res.ok || data.error) {
-            showLoginError(data.error || "Login failed");
+            // ===== RECORD FAILED ATTEMPT =====
+            const updatedData = recordFailedAttempt(username);
+            const newCooldownCheck = checkCooldown(username);
+
+            if (newCooldownCheck.onCooldown) {
+                // Just entered cooldown
+                showCooldownAlert(username, newCooldownCheck.remainingSeconds);
+            } else {
+                // Show remaining attempts warning
+                const remaining = 3 - updatedData.attempts;
+                const warningText = remaining <= 2
+                    ? `<br><small style="color:#dc3545;"><i class="fas fa-exclamation-triangle"></i> ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining before account lockout</small>`
+                    : '';
+                showLoginError((data.error || "Invalid username or password") + warningText, remaining <= 2);
+            }
             return;
         }
+
+        // ===== RESET COOLDOWN ON SUCCESSFUL LOGIN =====
+        resetCooldown(username);
 
         // Clear inputs after successful login
         usernameInput.value = '';
@@ -117,12 +331,11 @@ async function handleLogin() {
 }
 
 
-function showLoginError(message) {
+function showLoginError(message, useHtml = false) {
     if (window.Swal) {
-        Swal.fire({
+        const config = {
             icon: 'error',
             title: 'Login Failed',
-            text: message,
             confirmButtonText: 'Try Again',
             confirmButtonColor: '#800000',
             background: '#fff',
@@ -130,7 +343,13 @@ function showLoginError(message) {
             customClass: {
                 popup: 'swal2-rounded'
             }
-        });
+        };
+        if (useHtml) {
+            config.html = message;
+        } else {
+            config.text = message;
+        }
+        Swal.fire(config);
     } else {
         const loginError = document.getElementById('loginError');
         if (loginError) {
@@ -186,7 +405,7 @@ function handleAccountRequest() {
     submitBtn.innerHTML = '<span class="loading-spinner"></span> Submitting...';
     submitBtn.disabled = true;
 
-    fetch("/php/account_request.php", {
+    fetch("php/account_request.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -265,7 +484,7 @@ function showRequestError(message) {
  */
 async function updateUserStatus(userId, status) {
     try {
-        const response = await fetch('/php/user_status.php', {
+        const response = await fetch('php/user_status.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

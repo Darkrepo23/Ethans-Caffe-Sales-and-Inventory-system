@@ -1,5 +1,5 @@
 // Admin Dashboard JavaScript - Updated with User Management and Multi-page fixes
-const API_URL = "/php/app.php";
+const API_URL = "php/app.php";
 
 function createDB(table) {
     return {
@@ -142,6 +142,7 @@ const temporaryAccountLogDB = createDB('temporary_account_log');
 let tempAccountActive = false;
 let currentRequestType = null;
 let currentRequestId = null;
+let realtimeRefreshInterval = null;
 
 
 function loadDashboardStats() {
@@ -150,8 +151,8 @@ function loadDashboardStats() {
         ingredientsDB.show(),
         ingredientCategoriesDB.show()
     ]).then(function (results) {
-        const ingredients = results[0];
-        const categories = results[1];
+        const ingredients = Array.isArray(results[0]) ? results[0] : [];
+        const categories = Array.isArray(results[1]) ? results[1] : [];
 
         const categoryMap = {};
         categories.forEach(function (cat) {
@@ -164,33 +165,48 @@ function loadDashboardStats() {
         });
 
         const restockEl = document.getElementById('ingredientsRestock');
-        if (restockEl) restockEl.textContent = lowItems.length;
+        if (restockEl) {
+            const currentCount = parseInt(restockEl.textContent);
+            if (currentCount !== lowItems.length && !isNaN(currentCount)) {
+                restockEl.classList.add('animate__animated', 'animate__pulse');
+                setTimeout(() => restockEl.classList.remove('animate__animated', 'animate__pulse'), 1000);
+            }
+            restockEl.textContent = lowItems.length;
+        }
+
+        // Total ingredients count
+        const totalItemsEl = document.getElementById('totalIngredientsCount');
+        if (totalItemsEl) totalItemsEl.textContent = ingredients.length;
 
         // Fill low stock table
         const lowStockTable = document.getElementById('lowStockTable');
         if (!lowStockTable) return;
 
-        const tbody = lowStockTable.getElementsByTagName('tbody')[0];
+        const tbody = lowStockTable.querySelector('tbody');
         if (!tbody) return;
-
-        tbody.innerHTML = '';
 
         if (lowItems.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No low stock items.</td></tr>';
             return;
         }
 
-        lowItems.forEach(function (ing) {
+        // Only update HTML if changed to prevent flicker
+        const newHtml = lowItems.map(function (ing) {
             const isOut = parseFloat(ing.current_quantity) === 0;
-            const row = tbody.insertRow();
-            row.innerHTML = `
-                <td><strong>${ing.name}</strong></td>
-                <td><span class="badge bg-secondary">${categoryMap[ing.category_id] || '—'}</span></td>
-                <td class="text-danger fw-bold">${ing.current_quantity}</td>
-                <td>${ing.low_stock_threshold}</td>
-                <td><span class="badge ${isOut ? 'bg-danger' : 'bg-warning'}">${isOut ? 'Out of Stock' : 'Low Stock'}</span></td>
+            return `
+                <tr>
+                    <td><strong>${ing.name}</strong></td>
+                    <td><span class="badge bg-secondary">${categoryMap[ing.category_id] || '—'}</span></td>
+                    <td class="text-danger fw-bold">${ing.current_quantity}</td>
+                    <td>${ing.low_stock_threshold}</td>
+                    <td><span class="badge ${isOut ? 'bg-danger' : 'bg-warning'}">${isOut ? 'Out of Stock' : 'Low Stock'}</span></td>
+                </tr>
             `;
-        });
+        }).join('');
+
+        if (tbody.innerHTML !== newHtml) {
+            tbody.innerHTML = newHtml;
+        }
 
     }).catch(function (err) {
         console.error('Failed to load ingredient stats:', err);
@@ -339,9 +355,38 @@ document.addEventListener('DOMContentLoaded', function () {
     if (document.getElementById('fullActivityLogTable')) initializeFullActivityLog();
     if (document.getElementById('tempStaffTable')) initializeTempAccount();
 
+    // Start Real-time Auto Refresh (Consolidated)
+    startGlobalAutoRefresh();
+
     // Load recent activities on the dashboard
     if (document.getElementById('recentActivities')) loadRecentActivities();
 });
+
+function startGlobalAutoRefresh() {
+    // Clear existing if any
+    if (realtimeRefreshInterval) clearInterval(realtimeRefreshInterval);
+
+    // Initial calls
+    updateAllData();
+
+    // Set interval for every 5 seconds (Real-time Feel)
+    realtimeRefreshInterval = setInterval(updateAllData, 5000);
+}
+
+function updateAllData() {
+    // 1. Always update badges (Consolidated)
+    updateSystemAlertsCount();
+    updateRequestSidebarBadge();
+
+    // 2. Refresh page-specific content if present
+    if (document.getElementById('lowStockTable')) loadDashboardStats();
+    if (document.getElementById('ingredientsMasterTable')) loadIngredientsMasterlist();
+    if (document.getElementById('activeUsersTable')) loadActiveUsers(); // Corrected function name
+    if (document.getElementById('requestsTable')) loadRequests();
+    if (document.getElementById('menuControlTable')) loadMenuControl();
+    if (document.getElementById('recipeMappingTable')) loadRecipeControl();
+    if (document.getElementById('recentActivities')) loadRecentActivities();
+}
 
 // Common features for all admin pages
 function initializeCommonAdminFeatures() {
@@ -352,16 +397,16 @@ function initializeCommonAdminFeatures() {
             e.preventDefault();
             e.stopPropagation();
             console.log('🔄 Admin logout initiated - showing confirmation dialog');
-            
+
             showConfirm('Are you sure you want to logout?', function () {
                 console.log('✅ Admin logout confirmed by user');
-                
+
                 // Get user info before clearing
                 const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
-                
+
                 // Log the logout activity
                 logAdminActivity('Logged out', 'Admin session terminated', 'Success');
-                
+
                 // Mark user as inactive
                 updateUserStatus(user.id, 'inactive').then(() => {
                     console.log('✅ Admin user marked as inactive');
@@ -486,7 +531,7 @@ function loadAdminDashboardData() {
             const restockItems = allIngredients.filter(ing => ing.current_quantity <= ing.low_stock_threshold);
             const restockCount = document.getElementById('ingredientsRestock');
             if (restockCount) restockCount.textContent = restockItems.length;
-            
+
             const alertsCount = document.getElementById('systemAlerts');
             if (alertsCount) alertsCount.textContent = restockItems.length > 0 ? '1' : '0';
         }
@@ -593,14 +638,17 @@ function loadMenuControl() {
     const searchQuery = (document.getElementById('menuControlSearch')?.value || '').toLowerCase().trim();
     const categoryFilter = document.getElementById('menuControlCategory')?.value || '';
 
-    menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
+    // Only show loading if empty
+    if (menuControlTable.children.length === 0 || (menuControlTable.children.length === 1 && menuControlTable.innerText.includes('Loading'))) {
+        menuControlTable.innerHTML = '<tr><td colspan="7" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
+    }
 
     Promise.all([
         menuItemsDB.show(),
         menuCategoriesDB.show()
     ]).then(function (results) {
-        const allItems = results[0];
-        const categories = results[1];
+        const allItems = Array.isArray(results[0]) ? results[0] : [];
+        const categories = Array.isArray(results[1]) ? results[1] : [];
 
         const categoryMap = {};
         categories.forEach(function (cat) {
@@ -629,21 +677,21 @@ function loadMenuControl() {
             });
         }
 
-        menuControlTable.innerHTML = '';
-
         if (menuItems.length === 0) {
             menuControlTable.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-utensils fa-2x mb-2 d-block"></i>No menu items found.</td></tr>';
-        } else {
-            menuItems.forEach(function (item) {
-                const catName = categoryMap[item.category_id] || '—';
-                const itemStatus = (item.status || '').trim();
-                const isActive = itemStatus.toLowerCase() === 'active';
-                const imageHtml = item.image_path 
-                    ? `<img src="${item.image_path}" alt="${item.name}" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">`
-                    : '<span class="text-muted"><i class="fas fa-image fa-2x"></i></span>';
-                const row = menuControlTable.insertRow();
-                row.classList.add('animate__animated', 'animate__fadeIn');
-                row.innerHTML = `
+            return;
+        }
+
+        const newHtml = menuItems.map(function (item) {
+            const catName = categoryMap[item.category_id] || '—';
+            const itemStatus = (item.status || '').trim();
+            const isActive = itemStatus.toLowerCase() === 'active';
+            const imageHtml = item.image_path
+                ? `<img src="${item.image_path}" alt="${item.name}" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">`
+                : '<span class="text-muted"><i class="fas fa-image fa-2x"></i></span>';
+
+            return `
+                <tr class="animate__animated animate__fadeIn">
                     <td>${item.id}</td>
                     <td class="text-center">${imageHtml}</td>
                     <td><strong>${item.name}</strong></td>
@@ -664,8 +712,12 @@ function loadMenuControl() {
                             </button>
                         </div>
                     </td>
-                `;
-            });
+                </tr>
+            `;
+        }).join('');
+
+        if (menuControlTable.innerHTML !== newHtml) {
+            menuControlTable.innerHTML = newHtml;
         }
 
         const totalElems = document.getElementById('totalMenuItems');
@@ -799,7 +851,7 @@ function initializeImageUpload() {
     imageInput.parentNode.replaceChild(newImageInput, imageInput);
 
     // File selection preview
-    newImageInput.addEventListener('change', function(e) {
+    newImageInput.addEventListener('change', function (e) {
         const file = e.target.files[0];
         if (file) {
             // Validate file type
@@ -819,7 +871,7 @@ function initializeImageUpload() {
 
             // Show preview
             const reader = new FileReader();
-            reader.onload = function(event) {
+            reader.onload = function (event) {
                 if (previewImg) previewImg.src = event.target.result;
                 if (previewContainer) previewContainer.style.display = 'block';
             };
@@ -831,7 +883,7 @@ function initializeImageUpload() {
     if (removeBtn) {
         const newRemoveBtn = removeBtn.cloneNode(true);
         removeBtn.parentNode.replaceChild(newRemoveBtn, removeBtn);
-        newRemoveBtn.addEventListener('click', function() {
+        newRemoveBtn.addEventListener('click', function () {
             resetImagePreview();
         });
     }
@@ -867,7 +919,7 @@ async function uploadMenuItemImage() {
     formData.append('image', file);
 
     try {
-        const response = await fetch('/php/upload_file.php', {
+        const response = await fetch('php/upload_file.php', {
             method: 'POST',
             body: formData
         });
@@ -1233,16 +1285,19 @@ function loadRecipeControl() {
 
     const searchQuery = (document.getElementById('recipeSearch')?.value || '').toLowerCase().trim();
 
-    recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
+    // Only show loading if empty
+    if (recipeMappingTable.children.length === 0 || (recipeMappingTable.children.length === 1 && recipeMappingTable.innerText.includes('Loading'))) {
+        recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
+    }
 
     Promise.all([
         recipesDB.show(),
         menuItemsDB.show(),
         ingredientsDB.show()
     ]).then(function (results) {
-        const recipes = results[0];
-        const menuItems = results[1];
-        const ingredients = results[2];
+        const recipes = Array.isArray(results[0]) ? results[0] : [];
+        const menuItems = Array.isArray(results[1]) ? results[1] : [];
+        const ingredients = Array.isArray(results[2]) ? results[2] : [];
 
         // Build lookup maps
         const menuItemMap = {};
@@ -1286,46 +1341,46 @@ function loadRecipeControl() {
             });
         }
 
-        recipeMappingTable.innerHTML = '';
-
         if (groupedList.length === 0) {
             recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="fas fa-clipboard-list fa-2x mb-2 d-block"></i>No recipe mappings found.</td></tr>';
             return;
         }
 
-        groupedList.forEach(function (recipe) {
-            const totalQty = recipe.ingredients.reduce(function (sum, i) {
-                return sum + (i.qty || 0);
-            }, 0);
-
+        const newHtml = groupedList.map(function (recipe) {
             const ingredientBadges = recipe.ingredients.map(function (i) {
                 return `<span class="badge bg-light text-dark border me-1 mb-1" style="font-size: 0.78em;">
                     <i class="fas fa-leaf text-success me-1"></i>${i.name} <small class="text-muted">(${i.qty} ${i.unit})</small>
                 </span>`;
             }).join('');
 
-            const row = recipeMappingTable.insertRow();
-            row.classList.add('animate__animated', 'animate__fadeIn');
-            row.innerHTML = `
-                <td><strong>${recipe.menu_item_name}</strong></td>
-                <td style="max-width: 300px;">${ingredientBadges}</td>
-                <td><span class="badge bg-secondary">${totalQty.toFixed(2)} kg</span></td>
-                <td>
-                    <div class="table-actions">
-                        <button class="btn btn-sm btn-outline-primary" onclick="editRecipe(${recipe.menu_item_id})" title="Edit Recipe">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteRecipe(${recipe.menu_item_id})" title="Delete Recipe">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
+            return `
+                <tr class="animate__animated animate__fadeIn">
+                    <td><strong>${recipe.menu_item_name}</strong></td>
+                    <td style="max-width: 300px;">${ingredientBadges}</td>
+                    <td><span class="badge bg-info">${recipe.ingredients.length} Ingredients</span></td>
+                    <td>
+                        <div class="table-actions">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editRecipe(${recipe.menu_item_id})" title="Edit Recipe">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRecipe(${recipe.menu_item_id})" title="Delete Recipe">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
             `;
-        });
+        }).join('');
+
+        if (recipeMappingTable.innerHTML !== newHtml) {
+            recipeMappingTable.innerHTML = newHtml;
+        }
 
     }).catch(function (err) {
         console.error('Failed to load recipes:', err);
-        recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load recipes.</td></tr>';
+        if (recipeMappingTable.innerHTML === '' || recipeMappingTable.innerText.includes('Loading')) {
+            recipeMappingTable.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load recipes.</td></tr>';
+        }
     });
 }
 function showAssignRecipeModal() {
@@ -1732,93 +1787,107 @@ async function loadIngredientsMasterlist() {
     const searchQuery = (document.getElementById('masterIngredientSearch')?.value || '').toLowerCase().trim();
     const categoryFilter = document.getElementById('masterCategoryFilter')?.value || '';
 
-    ingredientsMasterTable.innerHTML = '<tr><td colspan="9" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
+    // Only show loading indicator if table is empty
+    if (ingredientsMasterTable.children.length === 0 || (ingredientsMasterTable.children.length === 1 && ingredientsMasterTable.innerText.includes('Loading'))) {
+        ingredientsMasterTable.innerHTML = '<tr><td colspan="9" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
+    }
 
-    const results = await Promise.all([
-        ingredientsDB.show(),
-        ingredientCategoriesDB.show(),
-        unitsDB.show(),
-        recipesDB.show()
-    ]);
+    try {
+        const results = await Promise.all([
+            ingredientsDB.show(),
+            ingredientCategoriesDB.show(),
+            unitsDB.show(),
+            recipesDB.show()
+        ]);
 
-    let ingredients = results[0];
-    const categories = results[1];
-    const units = results[2];
-    const recipes = results[3];
+        const ingredientsRaw = Array.isArray(results[0]) ? results[0] : [];
+        const categories = Array.isArray(results[1]) ? results[1] : [];
+        const units = Array.isArray(results[2]) ? results[2] : [];
+        const recipes = Array.isArray(results[3]) ? results[3] : [];
 
-    const getCategoryName = function (id) {
-        const cat = categories.find(function (c) { return c.id == id; });
-        return cat ? cat.name : 'Unknown';
-    };
+        let ingredients = [...ingredientsRaw];
 
-    const getUnitName = function (id) {
-        const unit = units.find(function (u) { return u.id == id; });
-        return unit ? (unit.short_name || unit.name) : 'Unknown';
-    };
+        const getCategoryName = function (id) {
+            const cat = categories.find(function (c) { return c.id == id; });
+            return cat ? cat.name : 'Unknown';
+        };
 
-    const getUsedInCount = function (ingredientId) {
-        return recipes.filter(function (r) {
-            return r.ingredient_id == ingredientId;
-        }).length;
-    };
+        const getUnitName = function (id) {
+            const unit = units.find(function (u) { return u.id == id; });
+            return unit ? (unit.short_name || unit.name) : 'Unknown';
+        };
 
-    if (categoryFilter) {
-        ingredients = ingredients.filter(function (ing) {
-            return ing.category_id == categoryFilter;
+        const getUsedInCount = function (ingredientId) {
+            return recipes.filter(function (r) {
+                return r.ingredient_id == ingredientId;
+            }).length;
+        };
+
+        if (categoryFilter) {
+            ingredients = ingredients.filter(function (ing) {
+                return ing.category_id == categoryFilter;
+            });
+        }
+
+        if (searchQuery) {
+            ingredients = ingredients.filter(function (ing) {
+                return (ing.name || '').toLowerCase().includes(searchQuery) ||
+                    (ing.id || '').toString().includes(searchQuery);
+            });
+        }
+
+        let lowStockCount = 0;
+        ingredients.forEach(function (ing) {
+            if (parseFloat(ing.current_quantity) <= parseFloat(ing.low_stock_threshold)) lowStockCount++;
         });
+
+        if (masterLowStockCount) masterLowStockCount.textContent = lowStockCount;
+        if (masterTotalIngredients) masterTotalIngredients.textContent = ingredients.length;
+
+        if (ingredients.length === 0) {
+            ingredientsMasterTable.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No ingredients found.</td></tr>';
+            return;
+        }
+
+        const newHtml = ingredients.map(function (ingredient) {
+            const currentQty = parseFloat(ingredient.current_quantity) || 0;
+            const threshold = parseFloat(ingredient.low_stock_threshold) || 0;
+            const isLow = currentQty <= threshold;
+            const unitName = getUnitName(ingredient.unit_id);
+            const usedIn = getUsedInCount(ingredient.id);
+
+            return `
+                <tr class="animate__animated animate__fadeIn">
+                    <td>${ingredient.id}</td>
+                    <td><strong>${ingredient.name}</strong></td>
+                    <td><span class="badge bg-secondary">${getCategoryName(ingredient.category_id)}</span></td>
+                    <td>${unitName}</td>
+                    <td class="${isLow ? 'text-danger fw-bold' : ''}">${currentQty} ${unitName}</td>
+                    <td>${threshold} ${unitName}</td>
+                    <td><span class="badge ${!isLow ? 'bg-success' : 'bg-warning'}">${!isLow ? 'Normal' : 'Low Stock'}</span></td>
+                    <td><span class="badge bg-info">${usedIn} menu item${usedIn !== 1 ? 's' : ''}</span></td>
+                    <td>
+                        <div class="table-actions">
+                            <button class="btn-action-premium btn-edit-premium" onclick="editIngredient(${ingredient.id})" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-action-premium btn-delete-premium" onclick="deleteIngredient(${ingredient.id})" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        if (ingredientsMasterTable.innerHTML !== newHtml) {
+            ingredientsMasterTable.innerHTML = newHtml;
+        }
+
+    } catch (err) {
+        console.error('Failed to load ingredients list:', err);
+        ingredientsMasterTable.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">Error loading data.</td></tr>';
     }
-
-    if (searchQuery) {
-        ingredients = ingredients.filter(function (ing) {
-            return ing.name.toLowerCase().includes(searchQuery) ||
-                ing.id.toString().includes(searchQuery);
-        });
-    }
-
-    let lowStockCount = 0;
-    ingredients.forEach(function (ing) {
-        if (ing.current_quantity <= ing.low_stock_threshold) lowStockCount++;
-    });
-
-    if (masterLowStockCount) masterLowStockCount.textContent = lowStockCount;
-    if (masterTotalIngredients) masterTotalIngredients.textContent = ingredients.length;
-
-    ingredientsMasterTable.innerHTML = '';
-
-    if (ingredients.length === 0) {
-        ingredientsMasterTable.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No ingredients found.</td></tr>';
-        return;
-    }
-
-    ingredients.forEach(function (ingredient) {
-        const currentQty = parseFloat(ingredient.current_quantity) || 0;
-        const threshold = parseFloat(ingredient.low_stock_threshold) || 0;
-        const isLow = currentQty <= threshold;
-        const unitName = getUnitName(ingredient.unit_id);
-        const usedIn = getUsedInCount(ingredient.id);
-        const row = ingredientsMasterTable.insertRow();
-        row.classList.add('animate__animated', 'animate__fadeIn');
-        row.innerHTML = `
-        <td>${ingredient.id}</td>
-        <td><strong>${ingredient.name}</strong></td>
-        <td><span class="badge bg-secondary">${getCategoryName(ingredient.category_id)}</span></td>
-        <td>${unitName}</td>
-        <td class="${isLow ? 'text-danger fw-bold' : ''}">${currentQty} ${unitName}</td>
-        <td>${threshold} ${unitName}</td>
-        <td><span class="badge ${!isLow ? 'bg-success' : 'bg-warning'}">${!isLow ? 'Normal' : 'Low Stock'}</span></td>
-        <td><span class="badge bg-info">${usedIn} menu item${usedIn !== 1 ? 's' : ''}</span></td>
-        <td>
-            <div class="table-actions">
-                <button class="btn btn-sm btn-outline-primary" onclick="editIngredient(${ingredient.id})" title="Edit">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteIngredient(${ingredient.id})" title="Delete">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </td>
-    `;
-    });
 }
 
 
@@ -1828,12 +1897,14 @@ async function showAddIngredientModal() {
 
     const unitSelect = document.getElementById('ingredientUnit');
     const categorySelect = document.getElementById('ingredientCategory');
-    const thresholdUnit = document.getElementById('thresholdUnit');
+    const thresholdUnitLabel = modalElem.querySelector('.threshold-unit-label');
+    const quantityUnitLabel = modalElem.querySelector('.quantity-unit-label');
     const modalTitle = modalElem.querySelector('.modal-title');
     const form = document.getElementById('addIngredientForm');
 
     if (form) form.reset();
-    if (thresholdUnit) thresholdUnit.textContent = '';
+    if (thresholdUnitLabel) thresholdUnitLabel.textContent = 'unit';
+    if (quantityUnitLabel) quantityUnitLabel.textContent = 'unit';
 
     if (modalTitle) {
         modalTitle.innerHTML = editingIngredientId
@@ -1879,9 +1950,12 @@ async function showAddIngredientModal() {
                 if (categorySelect) categorySelect.value = ing.category_id;
                 if (unitSelect) {
                     unitSelect.value = ing.unit_id;
-                    if (thresholdUnit) thresholdUnit.textContent = unitSelect.selectedOptions[0]?.dataset.short || '';
+                    const unitName = unitSelect.selectedOptions[0]?.dataset.short || '';
+                    if (thresholdUnitLabel) thresholdUnitLabel.textContent = unitName;
+                    if (quantityUnitLabel) quantityUnitLabel.textContent = unitName;
                 }
                 document.getElementById('lowStockThreshold').value = ing.low_stock_threshold;
+                document.getElementById('ingredientQuantity').value = ing.current_quantity;
             }
         }
 
@@ -1889,11 +1963,13 @@ async function showAddIngredientModal() {
         console.error('Failed to load modal data:', err);
     }
 
-    if (unitSelect && thresholdUnit) {
+    if (unitSelect && thresholdUnitLabel) {
         const newUnitSelect = unitSelect.cloneNode(true);
         unitSelect.parentNode.replaceChild(newUnitSelect, unitSelect);
         newUnitSelect.addEventListener('change', function () {
-            thresholdUnit.textContent = this.selectedOptions[0]?.dataset.short || '';
+            const unitName = this.selectedOptions[0]?.dataset.short || 'unit';
+            if (thresholdUnitLabel) thresholdUnitLabel.textContent = unitName;
+            if (quantityUnitLabel) quantityUnitLabel.textContent = unitName;
         });
         // Re-set value after clone
         if (editingIngredientId) newUnitSelect.value = newUnitSelect.value;
@@ -1990,17 +2066,38 @@ function showSetThresholdsModal() {
         }).join('');
 
         Swal.fire({
-            title: 'Global Stock Thresholds',
+            title: 'Inventory Thresholds',
             html: `
-                <div class="text-start">
-                    <p class="small text-muted mb-3">Update warning thresholds for all categories.</p>
-                    ${inputs}
-                    <p class="small text-danger">Note: This will reset all individual thresholds in these categories.</p>
+                <div class="premium-swal-container">
+                    <div class="alert alert-info py-2" style="font-size: 0.85rem; border-radius: 12px; border: none; background: rgba(128,0,0,0.05); color: var(--maroon);">
+                        <i class="fas fa-info-circle me-2"></i> Update warning levels for all ingredients in these categories.
+                    </div>
+                    <div class="row g-3 mt-1">
+                        ${categories.map(cat => `
+                            <div class="col-6 text-start">
+                                <label class="form-label" style="font-size: 0.8rem; color: #666; font-weight: 700;">${cat.name}</label>
+                                <div class="input-group">
+                                    <input type="number" id="swal-cat-${cat.id}" class="form-control" style="border-radius: 10px; border: 2px solid #eee;" placeholder="0.00" min="0" step="0.01">
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="mt-3 py-2 px-3" style="background: #fff5f5; border-radius: 10px; border-left: 4px solid #dc3545;">
+                         <p class="small text-danger mb-0" style="font-weight: 600;">⚠️ This will override individual ingredient settings.</p>
+                    </div>
                 </div>
             `,
             showCancelButton: true,
-            confirmButtonText: 'Update All',
-            confirmButtonColor: '#dc3545',
+            confirmButtonText: 'Update Global Sync',
+            cancelButtonText: 'Keep Current',
+            confirmButtonColor: '#800000',
+            cancelButtonColor: '#eee',
+            buttonsStyling: true,
+            customClass: {
+                popup: 'premium-swal-popup',
+                confirmButton: 'btn-premium-save',
+                cancelButton: 'btn-premium-cancel'
+            },
             preConfirm: function () {
                 const values = {};
                 categories.forEach(function (cat) {
@@ -2141,47 +2238,57 @@ async function loadActiveUsers() {
     const tbody = tableElem.querySelector('tbody');
     if (!tbody) return;
 
-    // 1️⃣ Get all users
-    const users = (await getUsers()).filter(u => !u.isDeleted);
-
-    // 2️⃣ Get all roles from roleDB
-    let roles = [];
     try {
-        roles = await rolesDB.show(); // [{id:1, name:'Staff'}, ...]
+        // 1️⃣ Get all users
+        const usersRaw = await getUsers();
+        const users = Array.isArray(usersRaw) ? usersRaw.filter(u => !u.isDeleted) : [];
+
+        // 2️⃣ Get all roles from roleDB
+        let roles = [];
+        try {
+            const rolesRaw = await rolesDB.show();
+            roles = Array.isArray(rolesRaw) ? rolesRaw : [];
+        } catch (err) {
+            console.error('Failed to fetch roles:', err);
+        }
+
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No active users found.</td></tr>';
+            return;
+        }
+
+        const newHtml = users.map(user => {
+            const roleName = roles.find(r => r.id === user.role)?.name || 'Unknown';
+            return `
+                <tr class="animate__animated animate__fadeIn">
+                    <td><strong>${user.name}</strong></td>
+                    <td><span class="badge ${roleName === 'Staff' ? 'bg-success' : roleName === 'Cashier' ? 'bg-info' : 'bg-warning'}">${roleName}</span></td>
+                    <td>${user.username}</td>
+                    <td><span class="badge ${user.status === 'Active' ? 'bg-success' : 'bg-secondary'}">${user.status}</span></td>
+                    <td>${user.lastLogin || 'Never'}</td>
+                    <td>
+                        <div class="table-actions">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editUser(${user.id})" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${user.id})" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        if (tbody.innerHTML !== newHtml) {
+            tbody.innerHTML = newHtml;
+        }
     } catch (err) {
-        console.error('Failed to fetch roles:', err);
+        console.error('Failed to load active users:', err);
+        if (tbody.innerHTML === '') {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Error loading data.</td></tr>';
+        }
     }
-
-    tbody.innerHTML = '';
-    if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No active users found.</td></tr>';
-        return;
-    }
-
-    users.forEach(user => {
-        // Map role_id to role name
-        const roleName = roles.find(r => r.id === user.role)?.name || 'Unknown';
-
-        const row = tbody.insertRow();
-        row.classList.add('animate__animated', 'animate__fadeIn');
-        row.innerHTML = `
-            <td><strong>${user.name}</strong></td>
-            <td><span class="badge ${roleName === 'Staff' ? 'bg-success' : roleName === 'Cashier' ? 'bg-info' : 'bg-warning'}">${roleName}</span></td>
-            <td>${user.username}</td>
-            <td><span class="badge ${user.status === 'Active' ? 'bg-success' : 'bg-secondary'}">${user.status}</span></td>
-            <td>${user.lastLogin || 'Never'}</td>
-            <td>
-                <div class="table-actions">
-                    <button class="btn btn-sm btn-outline-primary" onclick="editUser(${user.id})" title="Edit">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${user.id})" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </td>
-        `;
-    });
 }
 
 // Populate ingredient select with unit_id as attribute
@@ -3050,16 +3157,24 @@ async function loadRequests() {
     const searchTerm = (document.getElementById('requestSearch')?.value || '').toLowerCase();
     const statusFilter = document.getElementById('requestStatusFilter')?.value || 'Pending';
 
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border spinner-border-sm text-danger me-2"></div>Loading requests...</td></tr>';
+    // Only show loading if empty
+    if (tbody.children.length === 0 || (tbody.children.length === 1 && tbody.innerText.includes('Loading'))) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border spinner-border-sm text-danger me-2"></div>Loading requests...</td></tr>';
+    }
 
     try {
         // Fetch from both tables
-        const [regRequests, updateRequests, users, roles] = await Promise.all([
+        const results = await Promise.all([
             accountRequestsDB.show(),
             requestsTblDB.show(),
             usersDB.show(),
             rolesDB.show()
         ]);
+
+        const regRequests = Array.isArray(results[0]) ? results[0] : [];
+        const updateRequests = Array.isArray(results[1]) ? results[1] : [];
+        const users = Array.isArray(results[2]) ? results[2] : [];
+        const roles = Array.isArray(results[3]) ? results[3] : [];
 
         const userMap = {};
         users.forEach(u => userMap[u.id] = u.full_name);
@@ -3127,15 +3242,15 @@ async function loadRequests() {
 
         if (allRequests.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No matching requests found.</td></tr>';
-        } else {
-            allRequests.forEach(req => {
-                const row = tbody.insertRow();
-                row.classList.add('animate__animated', 'animate__fadeIn');
+            return;
+        }
 
-                const isPending = req.status === 'Pending';
-                const statusBadge = req.status === 'Pending' ? 'bg-warning' : (req.status === 'Approved' ? 'bg-success' : 'bg-danger');
+        const newHtml = allRequests.map(req => {
+            const isPending = req.status === 'Pending';
+            const statusBadge = req.status === 'Pending' ? 'bg-warning' : (req.status === 'Approved' ? 'bg-success' : 'bg-danger');
 
-                row.innerHTML = `
+            return `
+                <tr class="animate__animated animate__fadeIn">
                     <td>${new Date(req.date).toLocaleString()}</td>
                     <td><strong>${req.name}</strong></td>
                     <td><span class="badge bg-secondary">${req.typeLabel}</span></td>
@@ -3158,8 +3273,12 @@ async function loadRequests() {
                             </button>
                         `}
                     </td>
-                `;
-            });
+                </tr>
+            `;
+        }).join('');
+
+        if (tbody.innerHTML !== newHtml) {
+            tbody.innerHTML = newHtml;
         }
 
         const pageBadge = document.getElementById('pendingRequestsBadge');
@@ -3169,12 +3288,15 @@ async function loadRequests() {
         }
 
         updateRequestSidebarBadge();
-
-    } catch (err) {
-        console.error('Failed to load requests:', err);
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Error loading data.</td></tr>';
+    } catch (e) {
+        console.error('Failed to load requests:', e);
+        if (tbody.innerHTML === '' || tbody.innerText.includes('Loading')) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Error loading requests.</td></tr>';
+        }
     }
 }
+
+
 
 async function updateRequestSidebarBadge() {
     try {
@@ -3185,24 +3307,36 @@ async function updateRequestSidebarBadge() {
 
         const pendingCount = (Array.isArray(regs) ? regs.length : 0) + (Array.isArray(others) ? others.length : 0);
 
-        // Find "Requests" sidebar link
+        // 1. Update global ID-based badge if it exists (usually in dashboard content or requests page header)
+        const idBadge = document.getElementById('pendingRequestsBadge');
+        if (idBadge) {
+            idBadge.textContent = pendingCount + (idBadge.tagName === 'SPAN' && idBadge.innerText.includes('Pending') ? ' Pending Requests' : '');
+            if (pendingCount > 0) {
+                idBadge.classList.remove('d-none');
+            } else {
+                idBadge.classList.add('d-none');
+            }
+        }
+
+        // 2. Update SIDEBAR specific badges
         const sidebarLinks = document.querySelectorAll('.sidebar-link');
         sidebarLinks.forEach(link => {
-            if (link.textContent.includes('Requests')) {
-                let badge = link.querySelector('.sidebar-badge');
+            // Check if this link is for Requests
+            if (link.href.includes('admin-requests.html') || link.textContent.includes('Requests')) {
+                let sidebarBadge = link.querySelector('.sidebar-badge-item');
+
                 if (pendingCount > 0) {
-                    if (!badge) {
-                        badge = document.createElement('span');
-                        badge.className = 'badge bg-danger rounded-pill ms-auto sidebar-badge animate__animated animate__bounceIn';
-                        link.appendChild(badge);
+                    if (!sidebarBadge) {
+                        sidebarBadge = document.createElement('span');
+                        sidebarBadge.className = 'badge bg-danger rounded-pill ms-auto sidebar-badge-item animate__animated animate__bounceIn';
+                        link.appendChild(sidebarBadge);
                     }
-                    badge.textContent = pendingCount;
-                } else if (badge) {
-                    badge.remove();
+                    sidebarBadge.textContent = pendingCount;
+                } else if (sidebarBadge) {
+                    sidebarBadge.remove();
                 }
             }
         });
-
         // Also update dashboard alert count if on dashboard
         const alertsCount = document.getElementById('systemAlerts');
         if (alertsCount) {
@@ -3901,7 +4035,7 @@ async function markUserDeleted(userId, deletedBy = 'Admin') {
             id: userId,
             deleted_at: deleteTime
         });
-        
+
         if (result && !result.error) {
             console.log(`✅ User ${userId} marked as deleted at ${deleteTime}`);
             return { success: true, timestamp: deleteTime };
@@ -3925,7 +4059,7 @@ async function restoreUserRecord(userId) {
             id: userId,
             deleted_at: null
         });
-        
+
         if (result && !result.error) {
             console.log(`✅ User ${userId} restored (deleted_at cleared)`);
             return { success: true };
@@ -3950,7 +4084,7 @@ async function updateUserTimestamp(userId) {
             id: userId,
             updated_at: updateTime
         });
-        
+
         if (result && !result.error) {
             console.log(`✅ User ${userId} updated_at set to ${updateTime}`);
             return { success: true, timestamp: updateTime };
@@ -3996,7 +4130,7 @@ function getUserDeletionInfo(user) {
 function getUserUpdateInfo(user) {
     const updated = user.updated_at ? new Date(user.updated_at).toLocaleString() : 'Never';
     const created = user.created_at ? new Date(user.created_at).toLocaleString() : 'Unknown';
-    
+
     return {
         updatedAt: user.updated_at || null,
         createdAt: user.created_at || null,
@@ -4017,7 +4151,7 @@ async function updateUserLastLogin(userId) {
             id: userId,
             last_login: loginTime
         });
-        
+
         if (result && !result.error) {
             console.log(`✅ User ${userId} last_login updated to ${loginTime}`);
             return { success: true, timestamp: loginTime };
@@ -4046,14 +4180,14 @@ function getUserLastLoginInfo(user) {
             status: 'Never logged in'
         };
     }
-    
+
     const lastLoginDate = new Date(user.last_login);
     const lastLoginDisplay = lastLoginDate.toLocaleString();
     const now = new Date();
     const diffMs = now.getTime() - lastLoginDate.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffHours / 24);
-    
+
     let timeSinceText = '';
     if (diffDays > 0) {
         timeSinceText = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
@@ -4063,7 +4197,7 @@ function getUserLastLoginInfo(user) {
         const diffMins = Math.floor(diffMs / (1000 * 60));
         timeSinceText = `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
     }
-    
+
     return {
         lastLogin: user.last_login,
         lastLoginDisplay: lastLoginDisplay,
@@ -4082,11 +4216,11 @@ function getUserLastLoginInfo(user) {
  */
 function isUserActive(user, daysThreshold = 30) {
     if (!user.last_login) return false;
-    
+
     const lastLoginDate = new Date(user.last_login);
     const now = new Date();
     const diffDays = Math.floor((now.getTime() - lastLoginDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     return diffDays <= daysThreshold;
 }
 
@@ -4097,11 +4231,11 @@ function isUserActive(user, daysThreshold = 30) {
  */
 function getUserLoginStats(users) {
     if (!Array.isArray(users)) return { totalUsers: 0, activeUsers: 0, inactiveUsers: 0, neverLoggedIn: 0 };
-    
+
     let activeUsers = 0;
     let inactiveUsers = 0;
     let neverLoggedIn = 0;
-    
+
     users.forEach(user => {
         if (!user.last_login) {
             neverLoggedIn++;
@@ -4111,7 +4245,7 @@ function getUserLoginStats(users) {
             inactiveUsers++;
         }
     });
-    
+
     return {
         totalUsers: users.length,
         activeUsers: activeUsers,
@@ -4129,7 +4263,7 @@ function getUserLoginStats(users) {
  */
 async function updateUserStatus(userId, status) {
     try {
-        const response = await fetch('/php/user_status.php', {
+        const response = await fetch('php/user_status.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -4152,3 +4286,35 @@ async function updateUserStatus(userId, status) {
 }
 
 // showModalNotification and showConfirm are defined in main.js — not duplicated here
+
+async function updateSystemAlertsCount() {
+    const alertsCount = document.getElementById('systemAlerts');
+    if (!alertsCount) return;
+
+    try {
+        const [ingredients, regs, others] = await Promise.all([
+            ingredientsDB.show(),
+            accountRequestsDB.show({ status: 'Pending' }),
+            requestsTblDB.show({ status: 'Pending' })
+        ]);
+
+        const ings = Array.isArray(ingredients) ? ingredients : [];
+        const lowStock = ings.filter(ing => parseFloat(ing.current_quantity) <= parseFloat(ing.low_stock_threshold)).length;
+        const pendingRequests = (Array.isArray(regs) ? regs.length : 0) + (Array.isArray(others) ? others.length : 0);
+
+        // Alert count is number of pending requests + 1 if there's any low stock
+        const totalAlerts = pendingRequests + (lowStock > 0 ? 1 : 0);
+
+        if (alertsCount.textContent !== totalAlerts.toString()) {
+            alertsCount.textContent = totalAlerts;
+            if (totalAlerts > 0) {
+                alertsCount.classList.remove('d-none');
+                alertsCount.classList.add('animate__animated', 'animate__bounceIn');
+            } else {
+                alertsCount.classList.add('d-none');
+            }
+        }
+    } catch (e) {
+        console.error('Failed to update system alerts:', e);
+    }
+}
