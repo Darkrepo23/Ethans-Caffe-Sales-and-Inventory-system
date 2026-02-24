@@ -53,7 +53,7 @@ async function handleLogin() {
     try {
         console.log("Sending login request...", { username, password: "[HIDDEN]" });
 
-        const res = await fetch("/php/login.php", {
+        const res = await fetch("php/login.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password })
@@ -186,7 +186,7 @@ function handleAccountRequest() {
     submitBtn.innerHTML = '<span class="loading-spinner"></span> Submitting...';
     submitBtn.disabled = true;
 
-    fetch("/php/account_request.php", {
+    fetch("php/account_request.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -265,7 +265,7 @@ function showRequestError(message) {
  */
 async function updateUserStatus(userId, status) {
     try {
-        const response = await fetch('/php/user_status.php', {
+        const response = await fetch('php/user_status.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

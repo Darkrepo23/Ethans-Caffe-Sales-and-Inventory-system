@@ -1,5 +1,12 @@
 // Admin Dashboard JavaScript - Updated with User Management and Multi-page fixes
-const API_URL = "/php/app.php";
+const API_URL = "php/app.php";
+
+// Helper function to fix image paths (remove leading slash for relative paths)
+function fixImagePath(path) {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return path.startsWith('/') ? path.substring(1) : path;
+}
 
 function createDB(table) {
     return {
@@ -638,8 +645,9 @@ function loadMenuControl() {
                 const catName = categoryMap[item.category_id] || '—';
                 const itemStatus = (item.status || '').trim();
                 const isActive = itemStatus.toLowerCase() === 'active';
-                const imageHtml = item.image_path 
-                    ? `<img src="${item.image_path}" alt="${item.name}" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">`
+                const imgSrc = fixImagePath(item.image_path);
+                const imageHtml = imgSrc 
+                    ? `<img src="${imgSrc}" alt="${item.name}" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">`
                     : '<span class="text-muted"><i class="fas fa-image fa-2x"></i></span>';
                 const row = menuControlTable.insertRow();
                 row.classList.add('animate__animated', 'animate__fadeIn');
@@ -730,8 +738,9 @@ function showAddMenuItemModal() {
 
                 // Load existing image preview if available
                 if (item.image_path) {
-                    if (imagePathEl) imagePathEl.value = item.image_path;
-                    if (previewImg) previewImg.src = item.image_path;
+                    const fixedPath = fixImagePath(item.image_path);
+                    if (imagePathEl) imagePathEl.value = fixedPath;
+                    if (previewImg) previewImg.src = fixedPath;
                     if (previewContainer) previewContainer.style.display = 'block';
                 } else {
                     resetImagePreview();

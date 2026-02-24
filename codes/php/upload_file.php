@@ -141,7 +141,7 @@ if ($httpCode >= 200 && $httpCode < 300) {
             echo json_encode([
                 'success' => true,
                 'filename' => $filename,
-                'url' => '/resources/uploads/' . $filename,
+                'url' => 'resources/uploads/' . $filename,
                 'size' => $file['size'],
                 'type' => $mimeType,
                 'storage' => 'local'

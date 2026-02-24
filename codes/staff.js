@@ -1,7 +1,7 @@
 // Staff Dashboard JavaScript - Fixed & Cleaned
 
-// API URL for database operations
-const API_URL = "/php/app.php";
+// API URL for database operations (relative path works on any server)
+const API_URL = "php/app.php";
 
 // Database helper function
 function createDB(table) {
@@ -141,7 +141,7 @@ async function logStaffActivity(action, reference = 'N/A', status = 'Success') {
     if (!user.id) return;
 
     try {
-        await fetch('/php/app.php', {
+        await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -151,7 +151,7 @@ async function logStaffActivity(action, reference = 'N/A', status = 'Success') {
                 action,
                 reference,
                 status,
-                ip_address: '127.0.0.1',
+                ip_address: window.location.hostname,
                 created_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
             })
         });
@@ -364,16 +364,23 @@ async function loadMenuItems() {
         // Transform DB items to include category_name and filter only active items
         allMenuItems = menuItems
             .filter(item => item.status === 'Active' || item.status === 'active')
-            .map(item => ({
-                id: item.id,
-                name: item.name,
-                category_id: item.category_id,
-                category: categoryMap[item.category_id] || 'Uncategorized',
-                price: parseFloat(item.price_reference) || 0,
-                image: item.image_path || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop',
-                description: item.description || '',
-                available: true
-            }));
+            .map(item => {
+                // Fix image path - handle both absolute and relative paths
+                let imgPath = item.image_path || '';
+                if (imgPath.startsWith('/')) {
+                    imgPath = imgPath.substring(1); // Remove leading slash
+                }
+                return {
+                    id: item.id,
+                    name: item.name,
+                    category_id: item.category_id,
+                    category: categoryMap[item.category_id] || 'Uncategorized',
+                    price: parseFloat(item.price_reference) || 0,
+                    image: imgPath || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop',
+                    description: item.description || '',
+                    available: true
+                };
+            });
 
         displayMenuItems(allMenuItems);
     } catch (err) {
@@ -1019,7 +1026,7 @@ async function saveAccountInfo() {
     }
 
     try {
-        const res = await fetch('/php/app.php', {
+        const res = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1062,7 +1069,7 @@ async function handlePasswordUpdate() {
     }
 
     try {
-        const res = await fetch('/php/app.php', {
+        const res = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1104,7 +1111,7 @@ async function loadActivityLog() {
     if (!user.id) return;
 
     try {
-        const res  = await fetch(`/php/app.php?table=activity_logs&user_id=${user.id}`);
+        const res  = await fetch(`${API_URL}?table=activity_logs&user_id=${user.id}`);
         const logs = await res.json();
 
         if (!Array.isArray(logs)) {
@@ -1141,7 +1148,7 @@ async function refreshUserData() {
     if (!user.id) return;
 
     try {
-        const res   = await fetch(`/php/app.php?table=users&id=${user.id}`);
+        const res   = await fetch(`${API_URL}?table=users&id=${user.id}`);
         const users = await res.json();
         const dbUser = Array.isArray(users) ? users[0] : users;
 
@@ -1161,7 +1168,7 @@ async function refreshUserData() {
 }
 
 async function updateUserStatus(userId, status) {
-    const response = await fetch('/php/user_status.php', {
+    const response = await fetch('php/user_status.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, status })
