@@ -876,7 +876,7 @@ async function uploadMenuItemImage() {
     formData.append('image', file);
 
     try {
-        const response = await fetch('/php/upload_file.php', {
+        const response = await fetch('php/upload_file.php', {
             method: 'POST',
             body: formData
         });
@@ -4138,7 +4138,7 @@ function getUserLoginStats(users) {
  */
 async function updateUserStatus(userId, status) {
     try {
-        const response = await fetch('/php/user_status.php', {
+        const response = await fetch('php/user_status.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
