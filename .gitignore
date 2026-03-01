@@ -1,7 +1,7 @@
 *.log
 
-# Secure configuration - NEVER commit this
-codes/php/config.php
+# # Secure configuration - NEVER commit this
+# codes/php/config.php
 
 # Backup files with sensitive data
 codes/resources/backups/

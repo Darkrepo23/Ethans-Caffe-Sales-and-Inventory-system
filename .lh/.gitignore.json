@@ -3,7 +3,7 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 1,
+            "activePatchIndex": 2,
             "patches": [
                 {
                     "date": 1771862673410,
@@ -12,6 +12,10 @@
                 {
                     "date": 1771862699220,
                     "content": "Index: \n===================================================================\n--- \n+++ \n@@ -0,0 +1,1 @@\n+*.log\n\\ No newline at end of file\n"
+                },
+                {
+                    "date": 1772336606658,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,1 +1,11 @@\n-*.log\n\\ No newline at end of file\n+*.log\r\n+\r\n+# # Secure configuration - NEVER commit this\r\n+# codes/php/config.php\r\n+\r\n+# Backup files with sensitive data\r\n+codes/resources/backups/\r\n+\r\n+# Text files with credentials\r\n+users auth.txt\r\n+test.txt\n\\ No newline at end of file\n"
                 }
             ],
             "date": 1771862673410,
