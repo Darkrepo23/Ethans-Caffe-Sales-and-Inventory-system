@@ -53,8 +53,8 @@ log_php_error('Request: ' . $method . ' ' . ($table ?? 'NO_TABLE') . ' | Data: '
 // Table whitelist and columns
 $TABLES = [
 	'roles' => ['id', 'name', 'permissions'],
-	'users' => ['id', 'email', 'full_name', 'username', 'password_hash', 'role_id', 'status', 'last_login', 'created_at', 'updated_at', 'deleted_at'],
-	'account_requests' => ['id', 'full_name', 'username', 'email', 'password_hash', 'requested_role_id', 'status', 'requested_at', 'reviewed_by', 'reviewed_at', 'notes'],
+	'users' => ['id', 'email', 'full_name', 'username', 'password_hash', 'role_id', 'status', 'last_login', 'created_at', 'updated_at', 'deleted_at', 'ip_address'],
+	'account_requests' => ['id', 'full_name', 'username', 'email', 'password_hash', 'requested_role_id', 'status', 'requested_at', 'reviewed_by', 'reviewed_at', 'notes', 'ip_address'],
 	'menu_categories' => ['id', 'name', 'description'],
 	'menu_items' => ['id', 'name', 'category_id', 'description', 'recipe', 'price_reference', 'status', 'image_path', 'created_at', 'updated_at'],
 	'ingredient_categories' => ['id', 'name'],
@@ -66,9 +66,12 @@ $TABLES = [
 	'inventory_transactions' => ['id', 'ingredient_id', 'change_qty', 'transaction_type', 'reason', 'performed_by', 'prev_qty', 'new_qty', 'timestamp'],
 	'activity_logs' => ['id', 'user_id', 'role_label', 'action', 'reference', 'status', 'ip_address', 'created_at'],
 	'requests_tbl' => ['id', 'type', 'requester_id', 'target_id', 'payload', 'status', 'created_at', 'handled_by', 'handled_at'],
-	'backups' => ['id', 'name', 'type', 'file_path', 'created_at', 'size'],
+	'backups' => ['id', 'filename', 'file_path', 'file_size', 'backup_type', 'includes_media', 'created_by', 'created_at'],
+	'backup_settings' => ['id', 'schedule', 'retention_count', 'include_media', 'updated_at'],
 	'system_settings' => ['key', 'value', 'updated_at'],
-	'temporary_account_log' => ['id', 'activated_by', 'activated_at', 'deactivated_at', 'note']
+	'temp_accounts' => ['id', 'role_id', 'username', 'password_hash', 'ip_address', 'reason', 'created_by', 'created_at', 'expires_at', 'status'],
+	'account_lockout' => ['id', 'user_id', 'lockout_at'],
+	'login_attempts' => ['id', 'username', 'attempt_count', 'last_attempt_at']
 ];
 
 // Get table name from query string or body

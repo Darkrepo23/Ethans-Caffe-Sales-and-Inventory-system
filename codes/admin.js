@@ -150,28 +150,6 @@ let tempAccountActive = false;
 let currentRequestType = null;
 let currentRequestId = null;
 
-// ─── Loading Modal Helper Functions ────────────────────────────────────────────
-function showLoadingModal(message = 'Loading data...') {
-    if (window.Swal) {
-        Swal.fire({
-            title: message,
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            showConfirmButton: false,
-            heightAuto: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-    }
-}
-
-function hideLoadingModal() {
-    if (window.Swal) {
-        Swal.close();
-    }
-}
-
 
 function loadDashboardStats() {
     // Ingredients to Restock + Low Stock Table
@@ -473,8 +451,6 @@ async function loadLowStockData() {
     const lowStockTable = tableElement.getElementsByTagName('tbody')[0];
     if (!lowStockTable) return;
 
-    showLoadingModal('Loading stock data...');
-
     try {
         const allIngredients = await ingredientsDB.show();
         if (!allIngredients || !Array.isArray(allIngredients)) {
@@ -503,8 +479,6 @@ async function loadLowStockData() {
     } catch (error) {
         console.error('Error loading low stock data:', error);
         lowStockTable.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">Error loading data.</td></tr>';
-    } finally {
-        hideLoadingModal();
     }
 }
 
@@ -637,7 +611,7 @@ function loadMenuControl() {
 
         const categoryMap = {};
         categories.forEach(function (cat) {
-            categoryMap[cat.id] = cat.name;
+            categoryMap[String(cat.id)] = cat.name;
         });
 
         let menuItems = allItems;
@@ -650,7 +624,7 @@ function loadMenuControl() {
 
         if (searchQuery) {
             menuItems = menuItems.filter(function (item) {
-                const catName = (categoryMap[item.category_id] || '').toLowerCase();
+                const catName = (categoryMap[String(item.category_id)] || '').toLowerCase();
                 return item.name.toLowerCase().includes(searchQuery) ||
                     catName.includes(searchQuery);
             });
@@ -668,7 +642,7 @@ function loadMenuControl() {
             menuControlTable.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-utensils fa-2x mb-2 d-block"></i>No menu items found.</td></tr>';
         } else {
             menuItems.forEach(function (item) {
-                const catName = categoryMap[item.category_id] || '—';
+                const catName = categoryMap[String(item.category_id)] || '—';
                 const itemStatus = (item.status || '').trim();
                 const isActive = itemStatus.toLowerCase() === 'active';
                 const imgSrc = fixImagePath(item.image_path);
@@ -1769,17 +1743,14 @@ async function loadIngredientsMasterlist() {
 
     ingredientsMasterTable.innerHTML = '<tr><td colspan="9" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>';
 
-    showLoadingModal('Loading ingredients...');
+    const results = await Promise.all([
+        ingredientsDB.show(),
+        ingredientCategoriesDB.show(),
+        unitsDB.show(),
+        recipesDB.show()
+    ]);
 
-    try {
-        const results = await Promise.all([
-            ingredientsDB.show(),
-            ingredientCategoriesDB.show(),
-            unitsDB.show(),
-            recipesDB.show()
-        ]);
-
-        let ingredients = results[0];
+    let ingredients = results[0];
     const categories = results[1];
     const units = results[2];
     const recipes = results[3];
@@ -1857,9 +1828,6 @@ async function loadIngredientsMasterlist() {
         </td>
     `;
     });
-    } finally {
-        hideLoadingModal();
-    }
 }
 
 
@@ -2171,13 +2139,8 @@ function initializeUserManagement() {
 }
 
 async function loadUserManagement() {
-    showLoadingModal('Loading users...');
-    try {
-        await loadActiveUsers();
-        await loadDeletedUsers();
-    } finally {
-        hideLoadingModal();
-    }
+    await loadActiveUsers();
+    await loadDeletedUsers();
 }
 
 async function loadActiveUsers() {
@@ -2187,11 +2150,8 @@ async function loadActiveUsers() {
     const tbody = tableElem.querySelector('tbody');
     if (!tbody) return;
 
-    showLoadingModal('Loading users...');
-
-    try {
-        // 1️⃣ Get all users
-        const users = (await getUsers()).filter(u => !u.isDeleted);
+    // 1️⃣ Get all users
+    const users = (await getUsers()).filter(u => !u.isDeleted);
 
     // 2️⃣ Get all roles from roleDB
     let roles = [];
@@ -2231,9 +2191,6 @@ async function loadActiveUsers() {
             </td>
         `;
     });
-    } finally {
-        hideLoadingModal();
-    }
 }
 
 // Populate ingredient select with unit_id as attribute
@@ -2298,10 +2255,7 @@ async function loadDeletedUsers() {
     const badge = document.getElementById('deletedUsersCount');
     if (!tbody) return;
 
-    showLoadingModal('Loading deleted users...');
-
-    try {
-        const users = (await getUsers()).filter(u => u.isDeleted);
+    const users = (await getUsers()).filter(u => u.isDeleted);
 
     if (badge) badge.textContent = users.length;
 
@@ -2332,9 +2286,6 @@ async function loadDeletedUsers() {
             </td>
         `;
     });
-    } finally {
-        hideLoadingModal();
-    }
 }
 function showAddUserModal() {
     const form = document.getElementById('addUserForm');
@@ -3334,8 +3285,6 @@ async function loadRequests() {
     const searchTerm = (document.getElementById('requestSearch')?.value || '').toLowerCase();
     const statusFilter = document.getElementById('requestStatusFilter')?.value || 'Pending';
 
-    showLoadingModal('Loading requests...');
-
     try {
         // Fetch from both tables
         const [regRequests, updateRequests, users, roles] = await Promise.all([
@@ -3457,8 +3406,6 @@ async function loadRequests() {
     } catch (err) {
         console.error('Failed to load requests:', err);
         tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Error loading data.</td></tr>';
-    } finally {
-        hideLoadingModal();
     }
 }
 

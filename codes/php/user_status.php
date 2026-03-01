@@ -12,8 +12,8 @@ header('Content-Type: application/json');
 // Include Supabase API helper
 require_once 'supabase-api.php';
 
-// Initialize Supabase database
-$usersDB = new SupabaseDB('users');
+// Initialize Supabase API (global $supabase is already created in supabase-api.php)
+global $supabase;
 
 // Get request method
 $method = $_SERVER['REQUEST_METHOD'];
@@ -39,9 +39,9 @@ try {
         }
 
         // Get all users with selected fields
-        $users = $usersDB->select(['id', 'username', 'full_name', 'status', 'last_login', 'updated_at']);
+        $users = $supabase->select('users', ['select' => 'id,username,full_name,status,last_login,updated_at']);
         
-        if ($users === null) {
+        if (!is_array($users) || isset($users['error'])) {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to fetch users']);
             exit;
@@ -82,7 +82,6 @@ try {
 
         // Update user status
         $updateData = [
-            'id' => $userId,
             'status' => $status,
             'updated_at' => $now
         ];
@@ -92,9 +91,9 @@ try {
             $updateData['last_login'] = $now;
         }
 
-        $result = $usersDB->edit($updateData);
+        $result = $supabase->update('users', $updateData, ['id' => 'eq.' . $userId]);
 
-        if ($result === null || (isset($result['error']) && $result['error'])) {
+        if (!is_array($result) || isset($result['error'])) {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to update user status']);
             exit;

@@ -101,7 +101,7 @@ function createBackup() {
     }
     
     // Tables to backup
-    $tables = ['users', 'roles', 'menu_items', 'categories', 'ingredients', 'recipes', 'orders', 'order_items', 'activity_logs'];
+    $tables = ['users', 'roles', 'menu_items', 'menu_categories', 'ingredients', 'ingredient_categories', 'recipes', 'sales', 'sale_items', 'activity_logs', 'units', 'system_settings', 'requests_tbl'];
     
     // Collect data from all tables
     $allData = [];

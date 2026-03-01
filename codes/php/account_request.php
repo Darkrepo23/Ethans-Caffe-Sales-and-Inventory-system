@@ -10,18 +10,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
-// Load secure configuration
-require_once __DIR__ . '/config.php';
+// Load Supabase API helper
+require_once __DIR__ . '/supabase-api.php';
 
-try {
-    $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8", DB_USER, DB_PASS);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(["error" => "Database connection failed"]);
-    exit();
-}
+global $supabase;
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -36,6 +28,7 @@ $username  = trim($data['username'] ?? '');
 $email     = trim($data['email'] ?? '');
 $password  = trim($data['password'] ?? '');
 $roleId    = intval($data['requested_role_id'] ?? 0);
+$ipAddress = $_SERVER['REMOTE_ADDR'] ?? '';
 
 // Validate required fields
 if (empty($fullName) || empty($username) || empty($email) || empty($password) || !$roleId) {
@@ -73,30 +66,32 @@ if (strlen($password) < 6) {
 }
 
 // Check username uniqueness in users table
-$stmt = $pdo->prepare("SELECT id FROM users WHERE username = ? LIMIT 1");
-$stmt->execute([$username]);
-if ($stmt->fetch()) {
+$existingUsers = $supabase->select('users', ['username' => 'eq.' . $username]);
+if (is_array($existingUsers) && !isset($existingUsers['error']) && count($existingUsers) > 0) {
     http_response_code(409);
     echo json_encode(["error" => "Username already exists. Please choose a different username."]);
     exit();
 }
 
-// Check username uniqueness in account_requests table
-$stmt = $pdo->prepare("SELECT id FROM account_requests WHERE username = ? AND status = 'Pending' LIMIT 1");
-$stmt->execute([$username]);
-if ($stmt->fetch()) {
+// Check username uniqueness in account_requests table (pending requests)
+$existingRequests = $supabase->select('account_requests', ['username' => 'eq.' . $username, 'status' => 'eq.Pending']);
+if (is_array($existingRequests) && !isset($existingRequests['error']) && count($existingRequests) > 0) {
     http_response_code(409);
     echo json_encode(["error" => "A pending request with this username already exists."]);
     exit();
 }
 
 // Validate role exists and is not admin
-$stmt = $pdo->prepare("SELECT id, name FROM roles WHERE id = ? LIMIT 1");
-$stmt->execute([$roleId]);
-$role = $stmt->fetch(PDO::FETCH_ASSOC);
-if (!$role || strtolower($role['name']) === 'admin') {
+$roles = $supabase->select('roles', ['id' => 'eq.' . $roleId]);
+if (!is_array($roles) || isset($roles['error']) || count($roles) === 0) {
     http_response_code(403);
-    echo json_encode(["error" => "Invalid or unauthorized role requested."]);
+    echo json_encode(["error" => "Invalid role requested."]);
+    exit();
+}
+$role = $roles[0];
+if (strtolower($role['name'] ?? '') === 'admin' || strtolower($role['name'] ?? '') === 'owner') {
+    http_response_code(403);
+    echo json_encode(["error" => "Unauthorized role requested."]);
     exit();
 }
 
@@ -104,10 +99,23 @@ if (!$role || strtolower($role['name']) === 'admin') {
 $passwordHash = password_hash($password, PASSWORD_BCRYPT);
 
 // Insert account request
-$stmt = $pdo->prepare("
-    INSERT INTO account_requests (full_name, username, email, password_hash, requested_role_id, status, requested_at)
-    VALUES (?, ?, ?, ?, ?, 'Pending', NOW())
-");
-$stmt->execute([$fullName, $username, $email, $passwordHash, $roleId]);
+$requestData = [
+    'full_name' => $fullName,
+    'username' => $username,
+    'email' => $email,
+    'password_hash' => $passwordHash,
+    'requested_role_id' => $roleId,
+    'status' => 'Pending',
+    'requested_at' => date('Y-m-d H:i:s'),
+    'ip_address' => $ipAddress
+];
+
+$result = $supabase->insert('account_requests', $requestData);
+
+if (isset($result['error'])) {
+    http_response_code(500);
+    echo json_encode(["error" => "Failed to submit account request"]);
+    exit();
+}
 
 echo json_encode(["success" => true, "message" => "Account request submitted successfully."]);
