@@ -59,10 +59,10 @@ $TABLES = [
 	'menu_items' => ['id', 'name', 'category_id', 'description', 'recipe', 'price_reference', 'status', 'image_path', 'created_at', 'updated_at'],
 	'ingredient_categories' => ['id', 'name'],
 	'units' => ['id', 'name'],
-	'ingredients' => ['id', 'name', 'category_id', 'unit_id', 'current_quantity', 'low_stock_threshold', 'status', 'created_at', 'updated_at'],
+	'ingredients' => ['id', 'name', 'category_id', 'unit_id', 'current_quantity', 'low_stock_threshold', 'status', 'expiry_date', 'created_at', 'updated_at'],
 	'recipes' => ['id', 'menu_item_id', 'ingredient_id', 'qty_per_sale', 'unit_id'],
-	'sales' => ['id', 'receipt_no', 'sale_datetime', 'staff_id', 'total_items', 'notes', 'created_at'],
-	'sale_items' => ['id', 'sale_id', 'menu_item_id', 'quantity'],
+	'sales' => ['id', 'receipt_no', 'sale_datetime', 'staff_id', 'total_items', 'total_amount', 'notes', 'status', 'adjusted_total', 'adjusted_by', 'adjusted_at', 'adjustment_reason', 'created_at', 'customer_name', 'order_type', 'discount_amount', 'discount_percent', 'coupon_code', 'coupon_value', 'taxes', 'subtotal'],
+	'sale_items' => ['id', 'sale_id', 'menu_item_id', 'quantity', 'unit_price', 'item_name', 'category_name'],
 	'inventory_transactions' => ['id', 'ingredient_id', 'change_qty', 'transaction_type', 'reason', 'performed_by', 'prev_qty', 'new_qty', 'timestamp'],
 	'activity_logs' => ['id', 'user_id', 'role_label', 'action', 'reference', 'status', 'ip_address', 'created_at'],
 	'requests_tbl' => ['id', 'type', 'requester_id', 'target_id', 'payload', 'status', 'created_at', 'handled_by', 'handled_at'],
@@ -71,7 +71,9 @@ $TABLES = [
 	'system_settings' => ['key', 'value', 'updated_at'],
 	'temp_accounts' => ['id', 'role_id', 'username', 'password_hash', 'ip_address', 'reason', 'created_by', 'created_at', 'expires_at', 'status'],
 	'account_lockout' => ['id', 'user_id', 'lockout_at'],
-	'login_attempts' => ['id', 'username', 'attempt_count', 'last_attempt_at']
+	'login_attempts' => ['id', 'username', 'attempt_count', 'last_attempt_at'],
+	'notifications' => ['id', 'user_id', 'action_type', 'target_table', 'target_id', 'description', 'reason', 'is_read', 'created_at'],
+	'held_orders' => ['id', 'hold_ref', 'customer_name', 'order_type', 'items_json', 'subtotal', 'discount_amount', 'discount_percent', 'coupon_code', 'coupon_value', 'taxes', 'total_amount', 'staff_id', 'notes', 'created_at', 'expires_at', 'status', 'restored_at', 'restored_by']
 ];
 
 // Get table name from query string or body

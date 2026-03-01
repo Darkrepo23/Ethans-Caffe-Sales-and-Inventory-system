@@ -469,6 +469,29 @@
     }
 }
 
+/* Transactions Table */
+#transactionsTable .receipt-row {
+    transition: background-color 0.15s ease;
+}
+
+#transactionsTable .receipt-row:hover {
+    background-color: rgba(128, 0, 0, 0.08) !important;
+}
+
+#transactionsTable .receipt-row.table-primary {
+    background-color: rgba(128, 0, 0, 0.15) !important;
+}
+
+#transactionsTable .receipt-row td {
+    vertical-align: middle;
+}
+
+#transactionsTable thead th {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 /* Print Styles for Receipts */
 @media print {
     .receipt-container {

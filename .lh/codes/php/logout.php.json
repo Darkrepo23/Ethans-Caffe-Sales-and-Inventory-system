@@ -1,0 +1,18 @@
+{
+    "sourceFile": "codes/php/logout.php",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1772347294366,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1772347294366,
+            "name": "Commit-0",
+            "content": "<?php\r\n/**\r\n * Logout API\r\n * Destroys the user's session in the database and clears cookies\r\n */\r\n\r\nob_start();\r\n\r\nheader(\"Access-Control-Allow-Origin: *\");\r\nheader(\"Content-Type: application/json\");\r\nheader(\"Access-Control-Allow-Headers: Content-Type, Authorization\");\r\nheader(\"Access-Control-Allow-Methods: POST, OPTIONS\");\r\nheader(\"Access-Control-Allow-Credentials: true\");\r\n\r\n// Handle preflight\r\nif ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {\r\n    http_response_code(200);\r\n    exit();\r\n}\r\n\r\n// Only accept POST\r\nif ($_SERVER['REQUEST_METHOD'] !== 'POST') {\r\n    ob_end_clean();\r\n    http_response_code(405);\r\n    echo json_encode([\"error\" => \"Method not allowed\"]);\r\n    exit();\r\n}\r\n\r\nsession_start();\r\nrequire_once 'supabase-api.php';\r\nrequire_once 'session.php';\r\n\r\n$token = getSessionToken();\r\n$userId = $_SESSION['user_id'] ?? null;\r\n\r\n// Get action (single logout or logout everywhere)\r\n$raw = file_get_contents(\"php://input\");\r\n$data = json_decode($raw, true);\r\n$logoutAll = isset($data['logout_all']) && $data['logout_all'] === true;\r\n\r\nif ($logoutAll && $userId) {\r\n    // Logout from all devices\r\n    destroyAllUserSessions($supabase, $userId);\r\n    \r\n    // Log activity\r\n    try {\r\n        $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';\r\n        $supabase->insert('activity_logs', [\r\n            'user_id' => $userId,\r\n            'role_label' => 'user',\r\n            'action' => 'Logged out from all devices',\r\n            'reference' => 'Security Action',\r\n            'status' => 'Success',\r\n            'ip_address' => $ip,\r\n            'created_at' => date('Y-m-d H:i:s')\r\n        ]);\r\n    } catch (Exception $e) {}\r\n    \r\n} else if ($token) {\r\n    // Single device logout\r\n    destroySession($supabase, $token);\r\n    \r\n    // Log activity\r\n    try {\r\n        $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';\r\n        $supabase->insert('activity_logs', [\r\n            'user_id' => $userId,\r\n            'role_label' => 'user',\r\n            'action' => 'Logged out',\r\n            'reference' => 'System',\r\n            'status' => 'Success',\r\n            'ip_address' => $ip,\r\n            'created_at' => date('Y-m-d H:i:s')\r\n        ]);\r\n    } catch (Exception $e) {}\r\n}\r\n\r\n// Clear PHP session\r\n$_SESSION = [];\r\nif (ini_get(\"session.use_cookies\")) {\r\n    $params = session_get_cookie_params();\r\n    setcookie(session_name(), '', time() - 42000,\r\n        $params[\"path\"], $params[\"domain\"],\r\n        $params[\"secure\"], $params[\"httponly\"]\r\n    );\r\n}\r\nsession_destroy();\r\n\r\nob_end_clean();\r\necho json_encode([\r\n    \"success\" => true,\r\n    \"message\" => $logoutAll ? \"Logged out from all devices\" : \"Logged out successfully\"\r\n]);\r\n?>\r\n"
+        }
+    ]
+}

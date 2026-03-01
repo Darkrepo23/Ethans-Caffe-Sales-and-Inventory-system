@@ -1,0 +1,18 @@
+{
+    "sourceFile": "sql/add_phone_column.sql",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1772372631217,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1772372631217,
+            "name": "Commit-0",
+            "content": "-- Add phone column to users table\r\n-- Run this in Supabase SQL Editor or your database\r\n\r\nALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);\r\n\r\n-- Verify the column was added\r\n-- SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'phone';\r\n"
+        }
+    ]
+}

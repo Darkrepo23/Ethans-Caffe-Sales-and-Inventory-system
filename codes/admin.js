@@ -144,6 +144,10 @@ const requestsTblDB = createDB('requests_tbl');
 const backupsDB = createDB('backups');
 const systemSettingsDB = createDB('system_settings');
 const temporaryAccountLogDB = createDB('temporary_account_log');
+const notificationsDB = createDB('notifications');
+
+// Notifications API URL
+const NOTIFICATIONS_API = 'php/notifications.php';
 
 // Global variables
 let tempAccountActive = false;
@@ -221,6 +225,146 @@ function loadDashboardStats() {
 
 // Call on page load
 loadDashboardStats();
+
+// Revenue & Sales Statistics
+let revenuePeriodIndex = 0;
+let salesPeriodIndex = 0;
+const periods = ['Today', 'This Week', 'This Month', 'This Year'];
+
+// Store calculated values for toggle
+let revenueData = { today: 0, week: 0, month: 0, year: 0 };
+let salesData = { today: 0, week: 0, month: 0, year: 0 };
+
+function loadRevenueStats() {
+    salesDB.show().then(function(sales) {
+        if (!sales || !Array.isArray(sales)) return;
+        
+        // Filter completed sales only
+        const completedSales = sales.filter(function(sale) {
+            return (sale.status || '').toLowerCase() === 'completed';
+        });
+        
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        // Get start of week (Sunday)
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+        
+        // Get start of month
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        
+        // Get start of year
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        
+        revenueData = { today: 0, week: 0, month: 0, year: 0 };
+        salesData = { today: 0, week: 0, month: 0, year: 0 };
+        
+        completedSales.forEach(function(sale) {
+            const saleDate = new Date(sale.sale_datetime);
+            const amount = parseFloat(sale.total_amount) || 0;
+            
+            // Today
+            if (saleDate >= today) {
+                revenueData.today += amount;
+                salesData.today++;
+            }
+            
+            // This Week
+            if (saleDate >= startOfWeek) {
+                revenueData.week += amount;
+                salesData.week++;
+            }
+            
+            // This Month
+            if (saleDate >= startOfMonth) {
+                revenueData.month += amount;
+                salesData.month++;
+            }
+            
+            // This Year
+            if (saleDate >= startOfYear) {
+                revenueData.year += amount;
+                salesData.year++;
+            }
+        });
+        
+        // Update both cards
+        updateRevenueCard();
+        updateSalesCard();
+        
+    }).catch(function(err) {
+        console.error('Failed to load revenue stats:', err);
+    });
+}
+
+function formatPeso(amount) {
+    return '₱' + amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function updateRevenueCard() {
+    const revenueEl = document.getElementById('totalRevenue');
+    const periodLabelEl = document.getElementById('revenuePeriodLabel');
+    
+    if (!revenueEl) return;
+    
+    const values = [revenueData.today, revenueData.week, revenueData.month, revenueData.year];
+    revenueEl.textContent = formatPeso(values[revenuePeriodIndex]);
+    if (periodLabelEl) periodLabelEl.textContent = periods[revenuePeriodIndex];
+}
+
+function updateSalesCard() {
+    const salesCountEl = document.getElementById('totalSalesRecords');
+    const periodLabelEl = document.getElementById('salesPeriodLabel');
+    
+    if (!salesCountEl) return;
+    
+    const counts = [salesData.today, salesData.week, salesData.month, salesData.year];
+    salesCountEl.textContent = counts[salesPeriodIndex];
+    if (periodLabelEl) periodLabelEl.textContent = periods[salesPeriodIndex];
+}
+
+function initPeriodToggles() {
+    // Revenue toggle
+    const revPrevBtn = document.getElementById('revenuePrevBtn');
+    const revNextBtn = document.getElementById('revenueNextBtn');
+    
+    if (revPrevBtn) {
+        revPrevBtn.addEventListener('click', function() {
+            revenuePeriodIndex = (revenuePeriodIndex - 1 + periods.length) % periods.length;
+            updateRevenueCard();
+        });
+    }
+    
+    if (revNextBtn) {
+        revNextBtn.addEventListener('click', function() {
+            revenuePeriodIndex = (revenuePeriodIndex + 1) % periods.length;
+            updateRevenueCard();
+        });
+    }
+    
+    // Sales toggle
+    const salesPrevBtn = document.getElementById('salesPrevBtn');
+    const salesNextBtn = document.getElementById('salesNextBtn');
+    
+    if (salesPrevBtn) {
+        salesPrevBtn.addEventListener('click', function() {
+            salesPeriodIndex = (salesPeriodIndex - 1 + periods.length) % periods.length;
+            updateSalesCard();
+        });
+    }
+    
+    if (salesNextBtn) {
+        salesNextBtn.addEventListener('click', function() {
+            salesPeriodIndex = (salesPeriodIndex + 1) % periods.length;
+            updateSalesCard();
+        });
+    }
+}
+
+// Initialize on page load
+loadRevenueStats();
+initPeriodToggles();
 
 
 async function loadUnits() {
@@ -360,30 +504,44 @@ function initializeCommonAdminFeatures() {
             e.stopPropagation();
             console.log('🔄 Admin logout initiated - showing confirmation dialog');
             
-            showConfirm('Are you sure you want to logout?', function () {
+            showConfirm('Are you sure you want to logout?', async function () {
                 console.log('✅ Admin logout confirmed by user');
                 
-                // Get user info before clearing
-                const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+                try {
+                    // Call server-side logout to destroy session
+                    const response = await fetch('php/logout.php', {
+                        method: 'POST',
+                        credentials: 'include'
+                    });
+                    const result = await response.json();
+                    console.log('🔐 Server logout result:', result);
+                } catch (err) {
+                    console.error('❌ Server logout failed, proceeding with local cleanup:', err);
+                }
                 
-                // Log the logout activity
-                logAdminActivity('Logged out', 'Admin session terminated', 'Success');
-                
-                // Mark user as inactive
-                updateUserStatus(user.id, 'inactive').then(() => {
-                    console.log('✅ Admin user marked as inactive');
-                    localStorage.removeItem('loggedInRole');
-                    localStorage.removeItem('loggedInUser');
-                    console.log('🔐 Session cleared, redirecting to login...');
-                    window.location.href = 'index.html';
-                }).catch(err => {
-                    console.error('❌ Failed to update status, but proceeding with logout:', err);
-                    localStorage.removeItem('loggedInRole');
-                    localStorage.removeItem('loggedInUser');
-                    window.location.href = 'index.html';
-                });
+                // Clear local storage
+                localStorage.removeItem('loggedInRole');
+                localStorage.removeItem('loggedInUser');
+                localStorage.removeItem('loggedInUserId');
+                console.log('🔐 Session cleared, redirecting to login...');
+                window.location.href = 'index.html';
             });
         });
+    }
+
+    // Mark all notifications as read
+    const markAllReadBtn = document.getElementById('markAllReadBtn');
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            markAllNotificationsRead();
+        });
+    }
+    
+    // Load notifications on page load
+    if (document.getElementById('notificationBell')) {
+        loadNotifications();
     }
 
     // Load sidebar badges
@@ -487,6 +645,15 @@ let dashboardRefreshInterval;
 
 function loadAdminDashboardData() {
     loadLowStockData().catch(err => console.error('Error loading low stock data:', err));
+    
+    // Load notifications
+    loadNotifications();
+    
+    // Load expiring/expired ingredients counts
+    loadExpiryStats();
+    
+    // Load active users count
+    loadActiveUsersCount();
 
     ingredientsDB.show().then(allIngredients => {
         if (allIngredients && Array.isArray(allIngredients)) {
@@ -507,14 +674,202 @@ function loadAdminDashboardData() {
         }
     }).catch(err => console.error('Error loading users:', err));
 
-    const salesCount = document.getElementById('totalSalesRecords');
-    if (salesCount) salesCount.textContent = '85';
+    // Load revenue statistics (includes sales records)
+    loadRevenueStats();
 
     // Set up auto-refresh if not already set (every 30 seconds)
     if (!dashboardRefreshInterval) {
         dashboardRefreshInterval = setInterval(() => {
             loadAdminDashboardData();
         }, 30000);
+    }
+}
+
+// ===== Notification Functions =====
+
+async function loadNotifications() {
+    try {
+        const response = await fetch(`${NOTIFICATIONS_API}?unread=true&limit=20`);
+        const data = await response.json();
+        
+        if (!data.success) return;
+        
+        const notifications = data.notifications || [];
+        const unreadCount = notifications.length;
+        
+        // Update badge
+        const countBadge = document.getElementById('notificationCount');
+        if (countBadge) {
+            countBadge.textContent = unreadCount;
+            countBadge.classList.toggle('d-none', unreadCount === 0);
+        }
+        
+        // Update dashboard card
+        const dashboardCount = document.getElementById('unreadNotificationsCount');
+        if (dashboardCount) {
+            dashboardCount.textContent = unreadCount;
+        }
+        
+        // Update notification list
+        const notificationList = document.getElementById('notificationList');
+        if (notificationList) {
+            if (notifications.length === 0) {
+                notificationList.innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-bell-slash me-2"></i>No new notifications</div>';
+            } else {
+                notificationList.innerHTML = notifications.map(n => {
+                    const timeAgo = getTimeAgo(new Date(n.created_at));
+                    const iconClass = getNotificationIcon(n.action_type);
+                    return `
+                        <div class="dropdown-item notification-item py-2 border-bottom" data-id="${n.id}" style="cursor: pointer;">
+                            <div class="d-flex align-items-start">
+                                <div class="notification-icon ${iconClass.bg} text-white rounded-circle p-2 me-2">
+                                    <i class="fas ${iconClass.icon}" style="font-size: 12px;"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="small fw-bold">${n.user_name || 'System'}</div>
+                                    <div class="small text-truncate" style="max-width: 250px;">${n.description}</div>
+                                    <div class="small text-muted">${timeAgo}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Add click handlers to mark as read
+                notificationList.querySelectorAll('.notification-item').forEach(item => {
+                    item.addEventListener('click', () => markNotificationRead(item.dataset.id));
+                });
+            }
+        }
+        
+    } catch (error) {
+        console.error('Failed to load notifications:', error);
+    }
+}
+
+function getNotificationIcon(actionType) {
+    const icons = {
+        'add': { icon: 'fa-plus', bg: 'bg-success' },
+        'edit': { icon: 'fa-edit', bg: 'bg-primary' },
+        'delete': { icon: 'fa-trash', bg: 'bg-danger' },
+        'restock': { icon: 'fa-boxes', bg: 'bg-info' },
+        'adjust': { icon: 'fa-sliders-h', bg: 'bg-warning' },
+        'refund': { icon: 'fa-undo', bg: 'bg-secondary' },
+        'void': { icon: 'fa-ban', bg: 'bg-dark' }
+    };
+    return icons[actionType] || { icon: 'fa-bell', bg: 'bg-secondary' };
+}
+
+function getTimeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
+
+async function markNotificationRead(id) {
+    try {
+        await fetch(NOTIFICATIONS_API, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        loadNotifications();
+    } catch (error) {
+        console.error('Failed to mark notification as read:', error);
+    }
+}
+
+async function markAllNotificationsRead() {
+    try {
+        await fetch(NOTIFICATIONS_API, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mark_all: true })
+        });
+        loadNotifications();
+        showModalNotification('All notifications marked as read', 'success', 'Done');
+    } catch (error) {
+        console.error('Failed to mark all as read:', error);
+    }
+}
+
+async function createNotification(userId, actionType, targetTable, targetId, description, reason = null) {
+    try {
+        await fetch(NOTIFICATIONS_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: userId,
+                action_type: actionType,
+                target_table: targetTable,
+                target_id: targetId,
+                description: description,
+                reason: reason
+            })
+        });
+    } catch (error) {
+        console.error('Failed to create notification:', error);
+    }
+}
+
+// ===== Expiry Stats Functions =====
+
+async function loadExpiryStats() {
+    try {
+        const ingredients = await ingredientsDB.show();
+        if (!ingredients || !Array.isArray(ingredients)) return;
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const sevenDaysFromNow = new Date(today);
+        sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+        
+        let expiredCount = 0;
+        let expiringSoonCount = 0;
+        
+        ingredients.forEach(ing => {
+            if (ing.expiry_date) {
+                const expiryDate = new Date(ing.expiry_date);
+                expiryDate.setHours(0, 0, 0, 0);
+                
+                if (expiryDate < today) {
+                    expiredCount++;
+                } else if (expiryDate <= sevenDaysFromNow) {
+                    expiringSoonCount++;
+                }
+            }
+        });
+        
+        // Update dashboard cards
+        const expiredEl = document.getElementById('ingredientsExpired');
+        if (expiredEl) expiredEl.textContent = expiredCount;
+        
+        const expiringSoonEl = document.getElementById('ingredientsExpiringSoon');
+        if (expiringSoonEl) expiringSoonEl.textContent = expiringSoonCount;
+        
+    } catch (error) {
+        console.error('Failed to load expiry stats:', error);
+    }
+}
+
+// ===== Active Users Functions =====
+
+async function loadActiveUsersCount() {
+    try {
+        const response = await fetch(`${NOTIFICATIONS_API}?action=active_users`);
+        const data = await response.json();
+        
+        if (data.success && data.users) {
+            const activeCount = document.getElementById('activeUsersCount');
+            if (activeCount) activeCount.textContent = data.users.length;
+        }
+    } catch (error) {
+        console.error('Failed to load active users count:', error);
     }
 }
 
@@ -1828,6 +2183,121 @@ async function loadIngredientsMasterlist() {
         </td>
     `;
     });
+    
+    // Load expired and expiring soon tables
+    loadExpiryTables(results[0], categories, units);
+}
+
+// Load expired and expiring soon ingredients tables
+function loadExpiryTables(allIngredients, categories, units) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sevenDaysFromNow = new Date(today);
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    
+    const getCategoryName = function (id) {
+        const cat = categories.find(function (c) { return c.id == id; });
+        return cat ? cat.name : 'Unknown';
+    };
+
+    const getUnitName = function (id) {
+        const unit = units.find(function (u) { return u.id == id; });
+        return unit ? (unit.short_name || unit.name) : 'Unknown';
+    };
+    
+    const expiredIngredients = [];
+    const expiringSoonIngredients = [];
+    
+    allIngredients.forEach(ing => {
+        if (ing.expiry_date) {
+            const expiryDate = new Date(ing.expiry_date);
+            expiryDate.setHours(0, 0, 0, 0);
+            
+            if (expiryDate < today) {
+                const daysOverdue = Math.floor((today - expiryDate) / (1000 * 60 * 60 * 24));
+                expiredIngredients.push({ ...ing, daysOverdue, expiryDate });
+            } else if (expiryDate <= sevenDaysFromNow) {
+                const daysLeft = Math.floor((expiryDate - today) / (1000 * 60 * 60 * 24));
+                expiringSoonIngredients.push({ ...ing, daysLeft, expiryDate });
+            }
+        }
+    });
+    
+    // Update counters
+    const expiredCount = document.getElementById('masterExpiredCount');
+    if (expiredCount) expiredCount.textContent = expiredIngredients.length;
+    
+    const expiringSoonCount = document.getElementById('masterExpiringSoonCount');
+    if (expiringSoonCount) expiringSoonCount.textContent = expiringSoonIngredients.length;
+    
+    const expiredBadge = document.getElementById('expiredBadge');
+    if (expiredBadge) expiredBadge.textContent = expiredIngredients.length;
+    
+    const expiringSoonBadge = document.getElementById('expiringSoonBadge');
+    if (expiringSoonBadge) expiringSoonBadge.textContent = expiringSoonIngredients.length;
+    
+    // Populate Expiring Soon Table
+    const expiringSoonTable = document.getElementById('expiringSoonTable');
+    if (expiringSoonTable) {
+        const tbody = expiringSoonTable.querySelector('tbody');
+        if (tbody) {
+            if (expiringSoonIngredients.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3"><i class="fas fa-check-circle text-success me-2"></i>No ingredients expiring soon</td></tr>';
+            } else {
+                tbody.innerHTML = expiringSoonIngredients.map(ing => {
+                    const unitName = getUnitName(ing.unit_id);
+                    const expiryStr = ing.expiryDate.toLocaleDateString();
+                    const urgency = ing.daysLeft <= 2 ? 'table-danger' : 'table-warning';
+                    return `
+                        <tr class="${urgency} animate__animated animate__fadeIn">
+                            <td>${ing.id}</td>
+                            <td><strong>${ing.name}</strong></td>
+                            <td><span class="badge bg-secondary">${getCategoryName(ing.category_id)}</span></td>
+                            <td>${ing.current_quantity} ${unitName}</td>
+                            <td>${expiryStr}</td>
+                            <td><span class="badge ${ing.daysLeft <= 2 ? 'bg-danger' : 'bg-warning'}">${ing.daysLeft} day${ing.daysLeft !== 1 ? 's' : ''}</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteIngredient(${ing.id})" title="Remove">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+    }
+    
+    // Populate Expired Table
+    const expiredTable = document.getElementById('expiredIngredientsTable');
+    if (expiredTable) {
+        const tbody = expiredTable.querySelector('tbody');
+        if (tbody) {
+            if (expiredIngredients.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3"><i class="fas fa-check-circle text-success me-2"></i>No expired ingredients</td></tr>';
+            } else {
+                tbody.innerHTML = expiredIngredients.map(ing => {
+                    const unitName = getUnitName(ing.unit_id);
+                    const expiryStr = ing.expiryDate.toLocaleDateString();
+                    return `
+                        <tr class="table-danger animate__animated animate__fadeIn">
+                            <td>${ing.id}</td>
+                            <td><strong>${ing.name}</strong></td>
+                            <td><span class="badge bg-secondary">${getCategoryName(ing.category_id)}</span></td>
+                            <td>${ing.current_quantity} ${unitName}</td>
+                            <td>${expiryStr}</td>
+                            <td><span class="badge bg-danger">${ing.daysOverdue} day${ing.daysOverdue !== 1 ? 's' : ''} overdue</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="deleteIngredient(${ing.id})" title="Remove Expired">
+                                    <i class="fas fa-trash me-1"></i>Remove
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+    }
 }
 
 
@@ -1891,6 +2361,12 @@ async function showAddIngredientModal() {
                     if (thresholdUnit) thresholdUnit.textContent = unitSelect.selectedOptions[0]?.dataset.short || '';
                 }
                 document.getElementById('lowStockThreshold').value = ing.low_stock_threshold;
+                
+                // Set expiry date if exists
+                const expiryInput = document.getElementById('ingredientExpiryDate');
+                if (expiryInput && ing.expiry_date) {
+                    expiryInput.value = ing.expiry_date.split('T')[0]; // Format as YYYY-MM-DD
+                }
             }
         }
 
@@ -1932,6 +2408,7 @@ async function saveIngredient() {
     const unit_id = parseInt(document.getElementById('ingredientUnit')?.value);
     const threshold = parseFloat(document.getElementById('lowStockThreshold')?.value) || 0;
     const quantity = parseFloat(document.getElementById('ingredientQuantity')?.value) || 0;
+    const expiry_date = document.getElementById('ingredientExpiryDate')?.value || null;
 
     if (!name || !category_id || !unit_id) {
         showModalNotification('Please fill in all required fields', 'warning', 'Validation Error');
@@ -1961,17 +2438,40 @@ async function saveIngredient() {
             unit_id,
             current_quantity: quantity,
             low_stock_threshold: threshold,
+            expiry_date: expiry_date,
             status: 'active',
             created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
             updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
         };
 
+        const userId = localStorage.getItem('loggedInUserId') || 1;
+        const userName = localStorage.getItem('loggedInUser') || 'Admin';
+
         if (editingIngredientId) {
             ingredientData.id = editingIngredientId;
             await ingredientsDB.edit(ingredientData);
+            
+            // Create notification for edit
+            await createNotification(
+                userId,
+                'edit',
+                'ingredients',
+                editingIngredientId,
+                `${userName} updated ingredient: ${name}`
+            );
+            
             editingIngredientId = null;
         } else {
-            await ingredientsDB.add(ingredientData);
+            const result = await ingredientsDB.add(ingredientData);
+            
+            // Create notification for add
+            await createNotification(
+                userId,
+                'add',
+                'ingredients',
+                result?.data?.[0]?.id || null,
+                `${userName} added new ingredient: ${name} (${quantity} units)`
+            );
         }
 
         const modalElem = document.getElementById('addIngredientModal');
@@ -1988,60 +2488,106 @@ async function saveIngredient() {
 }
 
 function showSetThresholdsModal() {
-    ingredientCategoriesDB.show().then(function (categories) {
+    // Fetch both categories and ingredients to get current thresholds
+    Promise.all([
+        ingredientCategoriesDB.show(),
+        ingredientsDB.show()
+    ]).then(function ([categories, ingredients]) {
+        // Calculate average threshold per category from existing ingredients
+        const categoryThresholds = {};
+        categories.forEach(cat => {
+            const catIngredients = ingredients.filter(ing => ing.category_id === cat.id);
+            if (catIngredients.length > 0) {
+                const avgThreshold = catIngredients.reduce((sum, ing) => sum + (parseFloat(ing.low_stock_threshold) || 0), 0) / catIngredients.length;
+                categoryThresholds[cat.id] = Math.round(avgThreshold * 100) / 100;
+            }
+        });
+
         const inputs = categories.map(function (cat) {
+            const currentVal = categoryThresholds[cat.id] || '';
+            const ingredientCount = ingredients.filter(ing => ing.category_id === cat.id).length;
             return `
                 <div class="mb-3">
-                    <label class="form-label">${cat.name}</label>
-                    <input type="number" id="swal-cat-${cat.id}" class="swal2-input mt-0" placeholder="Threshold" min="0" step="0.01">
+                    <label class="form-label d-flex justify-content-between">
+                        <span>${cat.name}</span>
+                        <small class="text-muted">${ingredientCount} items</small>
+                    </label>
+                    <input type="number" id="swal-cat-${cat.id}" class="swal2-input mt-0" 
+                           placeholder="Enter threshold" min="0" step="0.01" value="${currentVal}">
                 </div>
             `;
         }).join('');
 
         Swal.fire({
-            title: 'Global Stock Thresholds',
+            title: '<i class="fas fa-sliders-h me-2"></i>Global Stock Thresholds',
             html: `
                 <div class="text-start">
-                    <p class="small text-muted mb-3">Update warning thresholds for all categories.</p>
+                    <p class="small text-muted mb-3">Set low stock warning thresholds for each category. Leave blank to skip.</p>
                     ${inputs}
-                    <p class="small text-danger">Note: This will reset all individual thresholds in these categories.</p>
+                    <div class="alert alert-warning small mt-3 mb-0">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        This will update thresholds for all ingredients in the selected categories.
+                    </div>
                 </div>
             `,
             showCancelButton: true,
-            confirmButtonText: 'Update All',
-            confirmButtonColor: '#dc3545',
+            confirmButtonText: '<i class="fas fa-save me-1"></i>Update Thresholds',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#800000',
+            width: '500px',
             preConfirm: function () {
                 const values = {};
+                let hasValues = false;
                 categories.forEach(function (cat) {
-                    const val = parseFloat(document.getElementById('swal-cat-' + cat.id)?.value);
-                    if (!isNaN(val)) values[cat.id] = val;
+                    const inputEl = document.getElementById('swal-cat-' + cat.id);
+                    const val = parseFloat(inputEl?.value);
+                    if (!isNaN(val) && val >= 0) {
+                        values[cat.id] = val;
+                        hasValues = true;
+                    }
                 });
+                
+                if (!hasValues) {
+                    Swal.showValidationMessage('Please enter at least one threshold value');
+                    return false;
+                }
                 return values;
             }
         }).then(function (result) {
-            if (!result.isConfirmed) return;
+            if (!result.isConfirmed || !result.value) return;
 
-            ingredientsDB.show().then(function (ingredients) {
-                const updates = ingredients
-                    .filter(function (ing) {
-                        return result.value[ing.category_id] !== undefined;
-                    })
-                    .map(function (ing) {
-                        return ingredientsDB.edit({
-                            id: ing.id,
-                            low_stock_threshold: result.value[ing.category_id]
-                        });
+            // Show loading
+            Swal.fire({
+                title: 'Updating...',
+                html: 'Applying thresholds to ingredients...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            const updates = ingredients
+                .filter(function (ing) {
+                    return result.value[ing.category_id] !== undefined;
+                })
+                .map(function (ing) {
+                    return ingredientsDB.edit({
+                        id: ing.id,
+                        low_stock_threshold: result.value[ing.category_id]
                     });
-
-                Promise.all(updates).then(function () {
-                    showModalNotification('Thresholds updated successfully', 'success', 'Bulk Update');
-                    loadIngredientsMasterlist();
-                }).catch(function (err) {
-                    console.error('Failed to update thresholds:', err);
-                    showModalNotification('Failed to update thresholds', 'danger', 'Error');
                 });
+
+            Promise.all(updates).then(function () {
+                Swal.close();
+                showModalNotification(`Updated thresholds for ${updates.length} ingredients`, 'success', 'Bulk Update');
+                loadIngredientsMasterlist();
+            }).catch(function (err) {
+                Swal.close();
+                console.error('Failed to update thresholds:', err);
+                showModalNotification('Failed to update thresholds', 'danger', 'Error');
             });
         });
+    }).catch(function (err) {
+        console.error('Failed to load data:', err);
+        showModalNotification('Failed to load categories', 'danger', 'Error');
     });
 }
 
@@ -2056,28 +2602,95 @@ async function deleteIngredient(id) {
         if (!ingredients || ingredients.length === 0) return;
         const ing = Array.isArray(ingredients) ? ingredients[0] : ingredients;
 
-        showConfirm(`Are you sure you want to delete "${ing.name}"? This will also remove it from any assigned recipes.`, async function () {
-            try {
-                // Delete related recipe rows first
-                const recipeRows = await recipesDB.show({ ingredient_id: id });
-                if (recipeRows && recipeRows.length > 0) {
-                    await Promise.all(recipeRows.map(function (r) {
-                        return recipesDB.delete(r.id);
-                    }));
+        // Show delete confirmation with reason input
+        const { value: formValues } = await Swal.fire({
+            title: `Delete "${ing.name}"?`,
+            html: `
+                <p class="text-muted">This will also remove it from any assigned recipes.</p>
+                <div class="mb-3 text-start">
+                    <label class="form-label fw-bold">Reason for deletion <span class="text-danger">*</span></label>
+                    <select class="form-select" id="deleteReasonSelect">
+                        <option value="">Select a reason...</option>
+                        <option value="Expired">Expired</option>
+                        <option value="Spoiled">Spoiled / Contaminated</option>
+                        <option value="No longer needed">No longer needed</option>
+                        <option value="Duplicate entry">Duplicate entry</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="mb-3 text-start" id="otherReasonDiv" style="display: none;">
+                    <label class="form-label">Specify reason</label>
+                    <input type="text" class="form-control" id="otherReasonInput" placeholder="Enter reason...">
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Delete',
+            cancelButtonText: 'Cancel',
+            didOpen: () => {
+                const select = Swal.getPopup().querySelector('#deleteReasonSelect');
+                const otherDiv = Swal.getPopup().querySelector('#otherReasonDiv');
+                select.addEventListener('change', () => {
+                    otherDiv.style.display = select.value === 'Other' ? 'block' : 'none';
+                });
+            },
+            preConfirm: () => {
+                const select = Swal.getPopup().querySelector('#deleteReasonSelect');
+                const otherInput = Swal.getPopup().querySelector('#otherReasonInput');
+                let reason = select.value;
+                
+                if (!reason) {
+                    Swal.showValidationMessage('Please select a reason for deletion');
+                    return false;
                 }
-
-                // Then delete the ingredient
-                await ingredientsDB.delete(id);
-
-                showModalNotification(`"${ing.name}" has been deleted`, 'success', 'Ingredient Deleted');
-                logAdminActivity('Deleted ingredient', ing.name, 'Success');
-                loadIngredientsMasterlist();
-
-            } catch (err) {
-                console.error('Failed to delete ingredient:', err);
-                showModalNotification('Failed to delete ingredient', 'danger', 'Error');
+                
+                if (reason === 'Other') {
+                    reason = otherInput.value.trim();
+                    if (!reason) {
+                        Swal.showValidationMessage('Please specify the reason');
+                        return false;
+                    }
+                }
+                
+                return { reason };
             }
         });
+
+        if (!formValues) return; // User cancelled
+
+        try {
+            // Delete related recipe rows first
+            const recipeRows = await recipesDB.show({ ingredient_id: id });
+            if (recipeRows && recipeRows.length > 0) {
+                await Promise.all(recipeRows.map(function (r) {
+                    return recipesDB.delete(r.id);
+                }));
+            }
+
+            // Then delete the ingredient
+            await ingredientsDB.delete(id);
+
+            // Create notification
+            const userId = localStorage.getItem('loggedInUserId') || 1;
+            const userName = localStorage.getItem('loggedInUser') || 'Admin';
+            await createNotification(
+                userId,
+                'delete',
+                'ingredients',
+                id,
+                `${userName} deleted ingredient: ${ing.name}`,
+                formValues.reason
+            );
+
+            showModalNotification(`"${ing.name}" has been deleted`, 'success', 'Ingredient Deleted');
+            logAdminActivity('Deleted ingredient', `${ing.name} - Reason: ${formValues.reason}`, 'Success');
+            loadIngredientsMasterlist();
+
+        } catch (err) {
+            console.error('Failed to delete ingredient:', err);
+            showModalNotification('Failed to delete ingredient', 'danger', 'Error');
+        }
 
     } catch (err) {
         console.error('Failed to fetch ingredient:', err);
@@ -2526,6 +3139,9 @@ async function permanentlyDeleteUser(id) {
 
 // Reports Functions
 let reportsChart = null;
+let allReportSales = [];
+let allReportSaleItems = [];
+let staffMap = {};
 
 function initializeReports() {
     // Generate button
@@ -2552,20 +3168,20 @@ function initializeReports() {
         });
     }
 
+    // Initialize transaction edit modal
+    initializeTransactionEditModal();
+
     // Set default dates (today)
     const dateFrom = document.getElementById('reportDateFrom');
     const dateTo = document.getElementById('reportDateTo');
     if (dateFrom && dateTo) {
         const today = new Date().toISOString().split('T')[0];
-        // Set dateFrom to 7 days ago by default
-        const lastWeek = new Date();
-        lastWeek.setDate(lastWeek.getDate() - 7);
-        dateFrom.value = lastWeek.toISOString().split('T')[0];
+        // Set dateFrom to 30 days ago by default
+        const lastMonth = new Date();
+        lastMonth.setDate(lastMonth.getDate() - 30);
+        dateFrom.value = lastMonth.toISOString().split('T')[0];
         dateTo.value = today;
     }
-
-    // Seed sample sales if none exist
-    ensureSampleSalesExist();
 
     // Initial load
     generateReport();
@@ -2578,77 +3194,118 @@ function initializeReports() {
     }, 30000);
 }
 
-function ensureSampleSalesExist() {
-    let sales = loadFromLocalStorage('sales');
-    if (!sales || sales.length === 0) {
-        const today = new Date();
-        const sampleSales = [];
-
-        // Generate some sales for the last 7 days
-        for (let i = 0; i < 7; i++) {
-            const date = new Date();
-            date.setDate(today.getDate() - i);
-            const dateStr = date.toISOString().split('T')[0];
-
-            // 2-4 sales per day
-            const salesPerDay = Math.floor(Math.random() * 3) + 2;
-            for (let j = 0; j < salesPerDay; j++) {
-                const total = Math.floor(Math.random() * 500) + 100;
-                sampleSales.push({
-                    id: 'SALE-' + (1000 + sampleSales.length),
-                    date: dateStr,
-                    time: '12:00:00',
-                    timestamp: date.getTime(),
-                    items: [
-                        { name: 'Beef Steak', quantity: 2, price: 24.99, subtotal: 49.98 },
-                        { name: 'Chicken Curry', quantity: 1, price: 18.99, subtotal: 18.99 }
-                    ],
-                    total: total,
-                    staff: 'Staff Member'
-                });
-            }
-        }
-        saveToLocalStorage('sales', sampleSales);
-    }
-}
-
-function generateReport(silent = false) {
+async function generateReport(silent = false) {
     if (!silent) {
         showModalNotification('Generating report data...', 'info', 'Loading');
     }
 
-    setTimeout(() => {
+    try {
         const reportType = document.getElementById('reportType')?.value || 'Daily';
         const dateFrom = document.getElementById('reportDateFrom')?.value;
         const dateTo = document.getElementById('reportDateTo')?.value;
 
-        let sales = loadFromLocalStorage('sales') || [];
+        // Fetch data from database (including menu items for name lookup)
+        const [sales, saleItems, users, menuItems] = await Promise.all([
+            salesDB.show(),
+            saleItemsDB.show(),
+            usersDB.show(),
+            menuItemsDB.show()
+        ]);
 
-        // Filter sales by date
+        // Build staff map
+        staffMap = {};
+        users.forEach(u => {
+            staffMap[u.id] = u.full_name || u.username || 'Unknown';
+        });
+
+        // Build menu item map for name lookup
+        const menuItemMap = {};
+        (menuItems || []).forEach(m => {
+            menuItemMap[m.id] = m.name || 'Item';
+        });
+
+        // Store for later use
+        allReportSaleItems = saleItems || [];
+
+        // Process sales data
+        let processedSales = (sales || []).map(sale => {
+            const saleDate = new Date(sale.sale_datetime || sale.created_at);
+            const dateStr = saleDate.toISOString().split('T')[0];
+            const timeStr = saleDate.toTimeString().split(' ')[0];
+            
+            // Get items for this sale (use parseInt for type consistency)
+            const saleId = parseInt(sale.id);
+            const matchedItems = allReportSaleItems.filter(item => parseInt(item.sale_id) === saleId);
+            
+            const items = matchedItems.map(item => {
+                // Lookup item name: first try item_name column, then lookup from menu items
+                const itemName = item.item_name || menuItemMap[item.menu_item_id] || 'Unknown Item';
+                return {
+                    name: itemName,
+                    quantity: parseInt(item.quantity) || 1,
+                    price: parseFloat(item.unit_price) || 0,
+                    subtotal: (parseFloat(item.unit_price) || 0) * (parseInt(item.quantity) || 1)
+                };
+            });
+
+            return {
+                id: sale.id,
+                receipt_no: sale.receipt_no || `SALE-${sale.id}`,
+                date: dateStr,
+                time: timeStr,
+                timestamp: saleDate.getTime(),
+                items: items,
+                total: parseFloat(sale.total_amount) || 0,
+                adjusted_total: sale.adjusted_total !== null ? parseFloat(sale.adjusted_total) : null,
+                status: sale.status || 'completed',
+                staff: staffMap[sale.staff_id] || 'Staff',
+                staff_id: sale.staff_id,
+                customer: sale.customer_name || 'Walk-in',
+                order_type: sale.order_type || 'walk-in',
+                adjustment_reason: sale.adjustment_reason || '',
+                adjusted_at: sale.adjusted_at
+            };
+        });
+
+        // Filter by date range
         if (dateFrom && dateTo) {
-            sales = sales.filter(sale => {
-                const saleDate = sale.date; // yyyy-mm-dd
-                return saleDate >= dateFrom && saleDate <= dateTo;
+            processedSales = processedSales.filter(sale => {
+                return sale.date >= dateFrom && sale.date <= dateTo;
             });
         }
 
+        // Store for detail view
+        allReportSales = processedSales;
+
         // Update Summary Metrics
-        updateSummaryMetrics(sales);
+        updateSummaryMetrics(processedSales, reportType);
 
         // Update Graph
-        updateReportsChart(sales, reportType);
+        updateReportsChart(processedSales, reportType);
 
         // Update Detailed Table
-        updateReportsDetailTable(sales);
+        updateReportsDetailTable(processedSales);
 
         if (!silent) {
-            showModalNotification('Report generated successfully', 'success', 'Complete');
-            logAdminActivity('Generated report', `${reportType} (${dateFrom} to ${dateTo})`, 'Success');
+            Swal.fire({
+                icon: 'success',
+                title: 'Report Generated',
+                text: `Found ${processedSales.length} transactions`,
+                timer: 1500,
+                showConfirmButton: false
+            });
+            logAdminActivity('Generated report', `${reportType} (${dateFrom} to ${dateTo}) - ${processedSales.length} transactions`, 'Success');
         }
-    }, silent ? 0 : 800);
+
+    } catch (err) {
+        console.error('Failed to generate report:', err);
+        if (!silent) {
+            Swal.fire('Error', 'Failed to generate report: ' + err.message, 'error');
+        }
+    }
 }
 
-function updateSummaryMetrics(sales) {
+function updateSummaryMetrics(sales, reportType) {
     const totalNetSalesElem = document.getElementById('totalNetSales');
     const totalTransactionsElem = document.getElementById('totalReportTransactions');
     const topSellingItemElem = document.getElementById('topSellingItem');
@@ -2656,11 +3313,17 @@ function updateSummaryMetrics(sales) {
 
     if (!totalNetSalesElem) return;
 
+    // Only count completed sales for revenue
+    const completedSales = sales.filter(s => s.status === 'completed' || s.status === 'partial_refund');
+    
     let totalSales = 0;
     let itemCounts = {};
 
-    sales.forEach(sale => {
-        totalSales += sale.total;
+    completedSales.forEach(sale => {
+        // Use adjusted_total if available (for partial refunds), else use total
+        const saleAmount = sale.adjusted_total !== null ? sale.adjusted_total : sale.total;
+        totalSales += saleAmount;
+        
         sale.items.forEach(item => {
             itemCounts[item.name] = (itemCounts[item.name] || 0) + item.quantity;
         });
@@ -2676,10 +3339,13 @@ function updateSummaryMetrics(sales) {
         }
     }
 
-    totalNetSalesElem.textContent = formatCurrency(totalSales);
+    // Format as peso
+    const formatPeso = (amount) => '₱' + amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    totalNetSalesElem.textContent = formatPeso(totalSales);
     totalTransactionsElem.textContent = sales.length;
-    topSellingItemElem.textContent = topItem === '-' ? '-' : `${topItem} (${maxCount})`;
-    avgOrderValueElem.textContent = sales.length > 0 ? formatCurrency(totalSales / sales.length) : formatCurrency(0);
+    topSellingItemElem.textContent = topItem === '-' ? '-' : `${topItem} (${maxCount} sold)`;
+    avgOrderValueElem.textContent = completedSales.length > 0 ? formatPeso(totalSales / completedSales.length) : formatPeso(0);
 }
 
 function updateReportsChart(sales, reportType) {
@@ -2691,32 +3357,82 @@ function updateReportsChart(sales, reportType) {
         reportsChart.destroy();
     }
 
-    // Group sales by date for the labels
-    const salesByDate = {};
-    sales.forEach(sale => {
-        const date = sale.date;
-        salesByDate[date] = (salesByDate[date] || 0) + sale.total;
-    });
+    // Only count completed sales for chart
+    const completedSales = sales.filter(s => s.status === 'completed' || s.status === 'partial_refund');
 
-    // Sort dates
-    const sortedDates = Object.keys(salesByDate).sort();
-    const data = sortedDates.map(date => salesByDate[date]);
+    let chartLabels = [];
+    let chartData = [];
+    let label = 'Sales Amount (₱)';
+    let chartType = 'line';
 
-    // If no data, show sample data for the graph as requested
-    let chartLabels = sortedDates.length > 0 ? sortedDates : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    let chartData = data.length > 0 ? data : [120, 190, 300, 500, 200, 300, 450];
-    let label = sortedDates.length > 0 ? 'Sales Amount' : 'Sample Sales Data (No Actual Sales)';
+    if (reportType === 'Daily' || reportType === 'Monthly') {
+        // Group sales by date
+        const salesByDate = {};
+        completedSales.forEach(sale => {
+            const date = reportType === 'Monthly' ? sale.date.substring(0, 7) : sale.date; // YYYY-MM for monthly
+            const amount = sale.adjusted_total !== null ? sale.adjusted_total : sale.total;
+            salesByDate[date] = (salesByDate[date] || 0) + amount;
+        });
+
+        // Sort dates
+        const sortedDates = Object.keys(salesByDate).sort();
+        chartLabels = sortedDates.map(d => {
+            if (reportType === 'Monthly') {
+                const [year, month] = d.split('-');
+                return new Date(year, month - 1).toLocaleDateString('en-PH', { month: 'short', year: 'numeric' });
+            }
+            return new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+        });
+        chartData = sortedDates.map(date => salesByDate[date]);
+        label = reportType === 'Monthly' ? 'Monthly Revenue (₱)' : 'Daily Revenue (₱)';
+        
+    } else if (reportType === 'Staff') {
+        // Group by staff
+        const salesByStaff = {};
+        completedSales.forEach(sale => {
+            const staff = sale.staff || 'Unknown';
+            const amount = sale.adjusted_total !== null ? sale.adjusted_total : sale.total;
+            salesByStaff[staff] = (salesByStaff[staff] || 0) + amount;
+        });
+        
+        chartLabels = Object.keys(salesByStaff);
+        chartData = Object.values(salesByStaff);
+        label = 'Sales by Staff (₱)';
+        chartType = 'bar';
+        
+    } else if (reportType === 'Inventory') {
+        // Group by item
+        const itemSales = {};
+        completedSales.forEach(sale => {
+            sale.items.forEach(item => {
+                itemSales[item.name] = (itemSales[item.name] || 0) + item.quantity;
+            });
+        });
+        
+        // Get top 10 items
+        const sorted = Object.entries(itemSales).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        chartLabels = sorted.map(s => s[0]);
+        chartData = sorted.map(s => s[1]);
+        label = 'Items Sold (Qty)';
+        chartType = 'bar';
+    }
+
+    // Show message if no data
+    if (chartLabels.length === 0) {
+        chartLabels = ['No Data'];
+        chartData = [0];
+    }
 
     reportsChart = new Chart(ctx, {
-        type: 'line',
+        type: chartType,
         data: {
             labels: chartLabels,
             datasets: [{
                 label: label,
                 data: chartData,
-                backgroundColor: 'rgba(128, 0, 0, 0.1)',
+                backgroundColor: chartType === 'bar' ? 'rgba(128, 0, 0, 0.7)' : 'rgba(128, 0, 0, 0.1)',
                 borderColor: 'rgba(128, 0, 0, 1)',
-                borderWidth: 3,
+                borderWidth: chartType === 'bar' ? 1 : 3,
                 tension: 0.4,
                 fill: true,
                 pointBackgroundColor: 'rgba(128, 0, 0, 1)',
@@ -2731,7 +3447,7 @@ function updateReportsChart(sales, reportType) {
                     beginAtZero: true,
                     ticks: {
                         callback: function (value) {
-                            return '$' + value;
+                            return '₱' + value.toLocaleString();
                         }
                     }
                 }
@@ -2740,6 +3456,13 @@ function updateReportsChart(sales, reportType) {
                 legend: {
                     display: true,
                     position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ₱' + context.raw.toLocaleString();
+                        }
+                    }
                 }
             }
         }
@@ -2760,19 +3483,40 @@ function updateReportsDetailTable(sales) {
     // Sort sales by date decending (newest first)
     const sortedSales = [...sales].sort((a, b) => b.timestamp - a.timestamp);
 
+    // Format peso helper
+    const formatPeso = (amount) => '₱' + (amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
     sortedSales.forEach(sale => {
         const row = tableBody.insertRow();
-        const itemsList = sale.items.map(i => `${i.name} x${i.quantity}`).join(', ');
+        const itemsList = sale.items.length > 0 ? sale.items.map(i => `${i.name} x${i.quantity}`).join(', ') : '<em class="text-muted">No items</em>';
+        
+        // Determine status badge
+        let statusBadge = '';
+        if (sale.status === 'voided') {
+            statusBadge = '<span class="badge bg-dark ms-2">VOIDED</span>';
+        } else if (sale.status === 'refunded') {
+            statusBadge = '<span class="badge bg-warning text-dark ms-2">REFUNDED</span>';
+        } else if (sale.status === 'partial_refund') {
+            statusBadge = '<span class="badge bg-info ms-2">PARTIAL</span>';
+        } else {
+            statusBadge = '<span class="badge bg-success ms-2">COMPLETED</span>';
+        }
+
+        // Display amount
+        const displayAmount = sale.adjusted_total !== null ? sale.adjusted_total : sale.total;
 
         row.innerHTML = `
             <td>${sale.date} ${sale.time}</td>
-            <td><code>${sale.id}</code></td>
+            <td><code>${sale.receipt_no || sale.id}</code>${statusBadge}</td>
             <td>${sale.staff}</td>
             <td><small>${itemsList}</small></td>
-            <td class="fw-bold">${formatCurrency(sale.total)}</td>
+            <td class="fw-bold ${sale.status === 'voided' || sale.status === 'refunded' ? 'text-decoration-line-through text-muted' : ''}">${formatPeso(displayAmount)}</td>
             <td>
-                <button class="btn btn-sm btn-outline-danger" onclick="viewSaleDetails('${sale.id}')">
+                <button class="btn btn-sm btn-outline-danger me-1" onclick="viewSaleDetails(${sale.id})" title="View Details">
                     <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="openTransactionEditModal(${sale.id})" title="Edit/Refund/Void" ${sale.status === 'voided' || sale.status === 'refunded' ? 'disabled' : ''}>
+                    <i class="fas fa-edit"></i>
                 </button>
             </td>
         `;
@@ -2780,40 +3524,260 @@ function updateReportsDetailTable(sales) {
 }
 
 function viewSaleDetails(saleId) {
-    const sales = loadFromLocalStorage('sales') || [];
-    const sale = sales.find(s => s.id === saleId);
-    if (!sale) return;
+    const sale = allReportSales.find(s => s.id === saleId || s.id === parseInt(saleId));
+    if (!sale) {
+        Swal.fire('Error', 'Transaction not found', 'error');
+        return;
+    }
+
+    const formatPeso = (amount) => '₱' + (amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     let itemsHtml = sale.items.map(item => `
         <tr>
             <td>${item.name}</td>
-            <td>${item.quantity}</td>
-            <td>${formatCurrency(item.price)}</td>
-            <td>${formatCurrency(item.subtotal)}</td>
+            <td class="text-center">${item.quantity}</td>
+            <td class="text-end">${formatPeso(item.price)}</td>
+            <td class="text-end">${formatPeso(item.subtotal)}</td>
         </tr>
     `).join('');
 
+    if (sale.items.length === 0) {
+        itemsHtml = '<tr><td colspan="4" class="text-center text-muted">No item details available</td></tr>';
+    }
+
+    // Status info
+    let statusInfo = '';
+    if (sale.status === 'voided') {
+        statusInfo = `<div class="alert alert-dark mb-3"><i class="fas fa-ban me-2"></i>VOIDED${sale.adjustment_reason ? ': ' + sale.adjustment_reason : ''}</div>`;
+    } else if (sale.status === 'refunded') {
+        statusInfo = `<div class="alert alert-warning mb-3"><i class="fas fa-undo me-2"></i>REFUNDED${sale.adjustment_reason ? ': ' + sale.adjustment_reason : ''}</div>`;
+    } else if (sale.status === 'partial_refund') {
+        statusInfo = `<div class="alert alert-info mb-3"><i class="fas fa-minus-circle me-2"></i>PARTIAL REFUND - Adjusted: ${formatPeso(sale.adjusted_total)}${sale.adjustment_reason ? '<br>' + sale.adjustment_reason : ''}</div>`;
+    }
+
     Swal.fire({
-        title: `Transaction Details: ${sale.id}`,
+        title: `Transaction: ${sale.receipt_no || sale.id}`,
         html: `
             <div class="text-start">
+                ${statusInfo}
                 <p><strong>Date:</strong> ${sale.date} ${sale.time}</p>
                 <p><strong>Staff:</strong> ${sale.staff}</p>
+                <p><strong>Customer:</strong> ${sale.customer}</p>
+                <p><strong>Order Type:</strong> ${sale.order_type === 'dine-in' ? 'Dine-in' : 'Walk-in'}</p>
                 <table class="table table-sm table-bordered mt-3">
-                    <thead>
-                        <tr><th>Item</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr>
+                    <thead class="table-light">
+                        <tr><th>Item</th><th class="text-center">Qty</th><th class="text-end">Price</th><th class="text-end">Subtotal</th></tr>
                     </thead>
                     <tbody>
                         ${itemsHtml}
                     </tbody>
-                    <tfoot>
-                        <tr><th colspan="3" class="text-end">Total:</th><th>${formatCurrency(sale.total)}</th></tr>
+                    <tfoot class="table-light">
+                        <tr><th colspan="3" class="text-end">Total:</th><th class="text-end">${formatPeso(sale.total)}</th></tr>
+                        ${sale.adjusted_total !== null && sale.adjusted_total !== sale.total ? `<tr class="table-warning"><th colspan="3" class="text-end">Adjusted Total:</th><th class="text-end">${formatPeso(sale.adjusted_total)}</th></tr>` : ''}
                     </tfoot>
                 </table>
             </div>
         `,
+        width: 600,
         confirmButtonColor: '#800000'
     });
+}
+
+/**
+ * Open transaction edit modal for refund/void operations
+ */
+function openTransactionEditModal(saleId) {
+    const sale = allReportSales.find(s => s.id === saleId || s.id === parseInt(saleId));
+    if (!sale) {
+        Swal.fire('Error', 'Transaction not found', 'error');
+        return;
+    }
+
+    const formatPeso = (amount) => '₱' + (amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // Populate modal fields
+    document.getElementById('editTransactionId').value = sale.id;
+    document.getElementById('txnReference').value = sale.receipt_no || sale.id;
+    document.getElementById('txnOriginalTotal').value = formatPeso(sale.total);
+    document.getElementById('txnDateTime').value = `${sale.date} ${sale.time}`;
+    document.getElementById('txnStaff').value = sale.staff;
+    
+    // Populate items list
+    const itemsBody = document.getElementById('txnItemsList');
+    if (sale.items.length > 0) {
+        itemsBody.innerHTML = sale.items.map(item => `
+            <tr>
+                <td>${item.name}</td>
+                <td class="text-center">${item.quantity}</td>
+                <td class="text-end">${formatPeso(item.price)}</td>
+                <td class="text-end">${formatPeso(item.subtotal)}</td>
+            </tr>
+        `).join('');
+    } else {
+        itemsBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No item details available</td></tr>';
+    }
+    
+    // Reset form fields
+    document.getElementById('txnActionType').value = '';
+    document.getElementById('txnAdjustedTotal').value = '';
+    document.getElementById('txnAdjustmentReason').value = '';
+    document.getElementById('adjustedTotalContainer').style.display = 'none';
+    
+    // Show current status if exists
+    const statusAlert = document.getElementById('txnCurrentStatusAlert');
+    const statusText = document.getElementById('txnCurrentStatusText');
+    if (sale.status && sale.status !== 'completed') {
+        statusAlert.classList.remove('d-none');
+        let statusMsg = '';
+        if (sale.status === 'voided') {
+            statusMsg = `This transaction was VOIDED on ${sale.adjusted_at || 'N/A'} by ${sale.adjusted_by || 'Unknown'}. Reason: ${sale.adjustment_reason || 'N/A'}`;
+        } else if (sale.status === 'refunded') {
+            statusMsg = `This transaction was REFUNDED on ${sale.adjusted_at || 'N/A'}. Reason: ${sale.adjustment_reason || 'N/A'}`;
+        } else if (sale.status === 'partial_refund') {
+            statusMsg = `Partial refund applied. Adjusted total: ${formatPeso(sale.adjusted_total)}. Reason: ${sale.adjustment_reason || 'N/A'}`;
+        }
+        statusText.textContent = statusMsg;
+    } else {
+        statusAlert.classList.add('d-none');
+    }
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('transactionEditModal'));
+    modal.show();
+}
+
+/**
+ * Initialize transaction edit modal events
+ */
+function initializeTransactionEditModal() {
+    // Action type change handler
+    const actionType = document.getElementById('txnActionType');
+    if (actionType) {
+        actionType.addEventListener('change', function() {
+            const adjustedContainer = document.getElementById('adjustedTotalContainer');
+            if (this.value === 'partial_refund') {
+                adjustedContainer.style.display = 'block';
+            } else {
+                adjustedContainer.style.display = 'none';
+            }
+        });
+    }
+    
+    // Save adjustment button
+    const saveBtn = document.getElementById('saveTransactionAdjustment');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveTransactionAdjustment);
+    }
+}
+
+/**
+ * Save transaction adjustment (refund/void)
+ */
+async function saveTransactionAdjustment() {
+    const saleId = document.getElementById('editTransactionId').value;
+    const actionType = document.getElementById('txnActionType').value;
+    const reason = document.getElementById('txnAdjustmentReason').value.trim();
+    const adjustedTotal = parseFloat(document.getElementById('txnAdjustedTotal').value) || 0;
+    
+    const formatPeso = (amount) => '₱' + (amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // Validation
+    if (!actionType) {
+        Swal.fire('Error', 'Please select an action type', 'warning');
+        return;
+    }
+    if (!reason) {
+        Swal.fire('Error', 'Please provide a reason for this adjustment', 'warning');
+        return;
+    }
+    if (actionType === 'partial_refund' && adjustedTotal <= 0) {
+        Swal.fire('Error', 'Please enter a valid adjusted total for partial refund', 'warning');
+        return;
+    }
+    
+    // Confirm action
+    const actionText = actionType === 'void' ? 'VOID this transaction' : 
+                       actionType === 'refund' ? 'issue a FULL REFUND' : 
+                       'issue a PARTIAL REFUND';
+    
+    const result = await Swal.fire({
+        title: 'Confirm Action',
+        text: `Are you sure you want to ${actionText}? This action will be logged.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#800000',
+        confirmButtonText: 'Yes, proceed'
+    });
+    
+    if (!result.isConfirmed) return;
+    
+    try {
+        const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+        
+        // Find sale from cached report data
+        const sale = allReportSales.find(s => s.id === parseInt(saleId) || s.id === saleId);
+        
+        if (!sale) {
+            Swal.fire('Error', 'Transaction not found', 'error');
+            return;
+        }
+        
+        const originalTotal = sale.total;
+        const statusValue = actionType === 'partial_refund' ? 'partial_refund' : 
+                            actionType === 'void' ? 'voided' : 'refunded';
+        const adjustedValue = actionType === 'void' ? 0 : 
+                              actionType === 'partial_refund' ? adjustedTotal : 0;
+        const adjustedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        
+        // Update in database
+        await salesDB.edit({
+            id: parseInt(saleId) || saleId,
+            status: statusValue,
+            adjusted_total: adjustedValue,
+            adjusted_by: user.id,
+            adjusted_at: adjustedAt,
+            adjustment_reason: reason
+        });
+        
+        // Update cached data
+        sale.status = statusValue;
+        sale.adjusted_total = adjustedValue;
+        sale.adjusted_by = user.full_name || user.username || 'Admin';
+        sale.adjusted_at = adjustedAt;
+        sale.adjustment_reason = reason;
+        
+        // Create notification
+        const receiptNo = sale.receipt_no || saleId;
+        const notifDesc = actionType === 'void' ? 
+            `Transaction #${receiptNo} VOIDED. Original: ${formatPeso(originalTotal)}` :
+            actionType === 'refund' ?
+            `Transaction #${receiptNo} REFUNDED. Amount: ${formatPeso(originalTotal)}` :
+            `Transaction #${receiptNo} PARTIAL REFUND. ${formatPeso(originalTotal)} → ${formatPeso(adjustedTotal)}`;
+        
+        await createNotification(user.id, actionType, 'sales', saleId, notifDesc, reason);
+        
+        // Log activity
+        logAdminActivity('sales', `${actionType.toUpperCase()}: Transaction #${receiptNo} - ${reason}`);
+        
+        // Close modal and refresh
+        const modal = bootstrap.Modal.getInstance(document.getElementById('transactionEditModal'));
+        if (modal) modal.hide();
+        
+        // Refresh report
+        generateReport(true);
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: `Transaction ${actionType === 'void' ? 'voided' : 'adjusted'} successfully`,
+            timer: 2000,
+            showConfirmButton: false
+        });
+        
+    } catch (error) {
+        console.error('Failed to save adjustment:', error);
+        Swal.fire('Error', 'Failed to save adjustment: ' + error.message, 'error');
+    }
 }
 
 function printReport() {
@@ -2880,24 +3844,25 @@ function printReport() {
 }
 
 function exportToExcel() {
-    const sales = loadFromLocalStorage('sales') || [];
-    if (sales.length === 0) {
-        showModalNotification('No data to export', 'warning', 'Export Empty');
+    if (!allReportSales || allReportSales.length === 0) {
+        showModalNotification('No data to export. Please generate a report first.', 'warning', 'Export Empty');
         return;
     }
 
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Date,Time,Reference,Staff,Items,Total\n";
+    csvContent += "Date,Time,Receipt No,Staff,Items,Total,Status\n";
 
-    sales.forEach(sale => {
+    allReportSales.forEach(sale => {
         const itemsList = sale.items.map(i => `${i.name} (${i.quantity})`).join('|');
+        const displayTotal = sale.adjusted_total !== null ? sale.adjusted_total : sale.total;
         const row = [
             sale.date,
             sale.time,
-            sale.id,
-            sale.staff,
+            `"${sale.receipt_no || sale.id}"`,
+            `"${sale.staff}"`,
             `"${itemsList}"`,
-            sale.total
+            displayTotal,
+            sale.status || 'completed'
         ].join(",");
         csvContent += row + "\n";
     });
@@ -3399,6 +4364,13 @@ async function loadRequests() {
         if (pageBadge) {
             const pendingCount = allRequests.filter(r => r.status === 'Pending').length;
             pageBadge.textContent = `${pendingCount} Pending Request${pendingCount !== 1 ? 's' : ''}`;
+        }
+        
+        // Update tab badge count
+        const requestsCountBadge = document.getElementById('requestsCountBadge');
+        if (requestsCountBadge) {
+            const pendingCount = allRequests.filter(r => r.status === 'Pending').length;
+            requestsCountBadge.textContent = pendingCount;
         }
 
         updateRequestSidebarBadge();

@@ -170,67 +170,78 @@
                     </div>
                 </div>
 
-                <!-- Requests Table -->
+                <!-- Tabbed Tables -->
                 <div class="card shadow">
                     <div class="card-header bg-black text-white px-3">
-                        <h6 class="m-0 font-weight-bold"><i class="fas fa-list-alt me-1"></i>Staff Request Log</h6>
+                        <ul class="nav nav-tabs card-header-tabs" id="requestsTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active text-dark" id="requests-tab" data-bs-toggle="tab" data-bs-target="#requests-panel" type="button" role="tab">
+                                    <i class="fas fa-list-alt me-1"></i>Staff Requests <span class="badge bg-warning text-dark ms-1" id="requestsCountBadge">0</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link text-danger" id="locked-tab" data-bs-toggle="tab" data-bs-target="#locked-panel" type="button" role="tab">
+                                    <i class="fas fa-lock me-1"></i>Locked Accounts <span class="badge bg-danger ms-1" id="lockedCountBadge">0</span>
+                                </button>
+                            </li>
+                        </ul>
                     </div>
                     <div class="card-body">
-                        <div class="table-responsive scroll-container">
-                            <table class="table table-hover align-middle" id="requestsTable">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Staff Name</th>
-                                        <th>Request Type</th>
-                                        <th>Action/Target</th>
-                                        <th>Details</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td colspan="7" class="text-center">Loading requests...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Locked Accounts Section -->
-                <div class="card shadow mt-4">
-                    <div class="card-header bg-danger text-white px-3 d-flex justify-content-between align-items-center">
-                        <h6 class="m-0 font-weight-bold"><i class="fas fa-lock me-1"></i>Locked Accounts (Brute Force Protection)</h6>
-                        <button class="btn btn-sm btn-light" id="refreshLockedAccounts">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                    </div>
-                    <div class="card-body">
-                        <div class="alert alert-info mb-3">
-                            <i class="fas fa-info-circle me-2"></i>
-                            Accounts below were locked after 5 failed login attempts. Unlock them to allow the user to login again.
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle" id="lockedAccountsTable">
-                                <thead>
-                                    <tr>
-                                        <th>Username</th>
-                                        <th>Full Name</th>
-                                        <th>Role</th>
-                                        <th>Locked At</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td colspan="5" class="text-center py-3">
-                                            <i class="fas fa-spinner fa-spin me-2"></i>Loading locked accounts...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="tab-content" id="requestsTabsContent">
+                            <!-- Staff Requests Tab -->
+                            <div class="tab-pane fade show active" id="requests-panel" role="tabpanel">
+                                <div class="table-responsive scroll-container">
+                                    <table class="table table-hover align-middle" id="requestsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Staff Name</th>
+                                                <th>Request Type</th>
+                                                <th>Action/Target</th>
+                                                <th>Details</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="7" class="text-center">Loading requests...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- Locked Accounts Tab -->
+                            <div class="tab-pane fade" id="locked-panel" role="tabpanel">
+                                <div class="alert alert-info mb-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Accounts below were locked after 5 failed login attempts. Unlock them to allow the user to login again.
+                                    <button class="btn btn-sm btn-outline-primary float-end" id="refreshLockedAccounts">
+                                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                                    </button>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle" id="lockedAccountsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Username</th>
+                                                <th>Full Name</th>
+                                                <th>Role</th>
+                                                <th>Locked At</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="5" class="text-center py-3">
+                                                    <i class="fas fa-spinner fa-spin me-2"></i>Loading locked accounts...
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -256,6 +267,11 @@
             try {
                 const response = await fetch('php/account_lockout.php?action=list');
                 const data = await response.json();
+                
+                // Update badge count
+                const lockedCount = data.accounts?.length || 0;
+                const lockedBadge = document.getElementById('lockedCountBadge');
+                if (lockedBadge) lockedBadge.textContent = lockedCount;
                 
                 if (!data.success || !data.accounts || data.accounts.length === 0) {
                     tbody.innerHTML = `<tr><td colspan="5" class="text-center text-success py-3">

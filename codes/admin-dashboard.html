@@ -27,7 +27,7 @@
                 html.classList.add('sidebar-active');
             }
 
-            // Auth Guard
+            // Fast Auth Guard using localStorage (for immediate redirect)
             try {
                 const role = localStorage.getItem('loggedInRole');
                 if (role !== 'admin' && role !== 'owner') {
@@ -37,6 +37,7 @@
                 window.location.href = 'index.html';
             }
         })();
+        // Server-side session validation is handled automatically by auth.js
     </script>
 </head>
 
@@ -52,6 +53,31 @@
             </button>
             <div class="collapse navbar-collapse" id="headerNav">
                 <ul class="navbar-nav ms-auto">
+                    <!-- Notification Bell -->
+                    <li class="nav-item dropdown me-3">
+                        <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown" id="notificationBell">
+                            <i class="fas fa-bell fa-lg"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="notificationCount">
+                                0
+                            </span>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-end shadow-lg notification-dropdown" style="width: 350px; max-height: 400px; overflow-y: auto;">
+                            <div class="dropdown-header d-flex justify-content-between align-items-center bg-danger text-white py-2 px-3">
+                                <span><i class="fas fa-bell me-2"></i>Notifications</span>
+                                <button class="btn btn-sm btn-outline-light" id="markAllReadBtn" title="Mark all as read">
+                                    <i class="fas fa-check-double"></i>
+                                </button>
+                            </div>
+                            <div id="notificationList">
+                                <div class="text-center py-4 text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading...
+                                </div>
+                            </div>
+                            <div class="dropdown-footer text-center py-2 border-top">
+                                <a href="#" class="text-danger small" id="viewAllNotifications">View All Notifications</a>
+                            </div>
+                        </div>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-user-shield me-1"></i>Administrator
@@ -130,6 +156,9 @@
                 <a href="admin-temp-account.html" class="sidebar-link">
                     <i class="fas fa-user-clock"></i>Temp Staff Account
                 </a>
+                <a href="admin-active-users.html" class="sidebar-link">
+                    <i class="fas fa-user-check"></i>Active Users
+                </a>
             </div>
         </aside>
 
@@ -150,8 +179,28 @@
                     </div>
                 </div>
 
-                <!-- Info Cards -->
+                <!-- System Stats Row -->
                 <div class="row">
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-success shadow h-100 py-2 bg-white text-dark">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: black;">
+                                            Total Revenue
+                                            <button class="btn btn-link btn-sm p-0 ms-2" id="revenuePrevBtn" title="Previous" tabindex="0"><i class="fas fa-chevron-up"></i></button>
+                                            <button class="btn btn-link btn-sm p-0 ms-1" id="revenueNextBtn" title="Next" tabindex="0"><i class="fas fa-chevron-down"></i></button>
+                                            <span class="badge bg-success ms-2" id="revenuePeriodLabel">Today</span>
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold" id="totalRevenue" style="color: black;">₱0.00</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-peso-sign fa-2x text-success"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="col-xl-3 col-md-6 mb-4">
                         <div class="card border-left-danger shadow h-100 py-2 bg-white text-dark">
                             <div class="card-body">
@@ -231,6 +280,92 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Second Row - Expiry & Active Users -->
+                <div class="row">
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-warning shadow h-100 py-2 bg-white text-dark">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #856404;">
+                                            Expiring Soon (7 days)
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold" id="ingredientsExpiringSoon" style="color: #856404;">
+                                            0
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-clock fa-2x text-warning"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <a href="admin-ingredients-masterlist.html" class="text-decoration-none">
+                            <div class="card border-left-danger shadow h-100 py-2 bg-white text-dark" style="cursor: pointer;">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #721c24;">
+                                                Expired Ingredients
+                                            </div>
+                                            <div class="h5 mb-0 font-weight-bold" id="ingredientsExpired" style="color: #721c24;">
+                                                0
+                                            </div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-exclamation-circle fa-2x text-danger"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <a href="admin-active-users.html" class="text-decoration-none">
+                            <div class="card border-left-success shadow h-100 py-2 bg-white text-dark">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #155724;">
+                                                Active Users Now
+                                            </div>
+                                            <div class="h5 mb-0 font-weight-bold" id="activeUsersCount" style="color: #155724;">
+                                                0
+                                            </div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-user-check fa-2x text-success"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <a href="admin-activity-log.html" class="text-decoration-none">
+                            <div class="card border-left-info shadow h-100 py-2 bg-white text-dark" style="cursor: pointer;">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #0c5460;">
+                                                Unread Notifications
+                                            </div>
+                                            <div class="h5 mb-0 font-weight-bold" id="unreadNotificationsCount" style="color: #0c5460;">
+                                                0
+                                            </div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-envelope fa-2x text-info"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
                     </div>
                 </div>
 

@@ -127,6 +127,25 @@ class SupabaseAPI {
     }
 
     /**
+     * Get user by ID with role information
+     */
+    public function getUserById($userId) {
+        $result = $this->select('users', ['id' => 'eq.' . $userId]);
+        if (is_array($result) && count($result) > 0) {
+            $user = $result[0];
+            // Get role info if role_id exists
+            if (isset($user['role_id'])) {
+                $roles = $this->select('roles', ['id' => 'eq.' . $user['role_id']]);
+                if (is_array($roles) && count($roles) > 0) {
+                    $user['role_name'] = $roles[0]['name'] ?? 'unknown';
+                }
+            }
+            return $user;
+        }
+        return null;
+    }
+
+    /**
      * Get admin or owner user for master unlock
      */
     public function getAdminOrOwnerUser() {

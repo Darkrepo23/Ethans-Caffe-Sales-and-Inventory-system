@@ -1,0 +1,18 @@
+{
+    "sourceFile": "codes/php/verify_manager_pin.php",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1772372631210,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1772372631210,
+            "name": "Commit-0",
+            "content": "<?php\r\n/**\r\n * Verify Manager PIN for sensitive operations\r\n * Validates PIN against admin or manager accounts\r\n */\r\n\r\nheader('Content-Type: application/json');\r\n\r\nrequire_once 'config.php';\r\nrequire_once 'session.php';\r\n\r\ntry {\r\n    // Only accept POST requests\r\n    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {\r\n        http_response_code(405);\r\n        echo json_encode(['success' => false, 'message' => 'Method not allowed']);\r\n        exit;\r\n    }\r\n    \r\n    // Get JSON input\r\n    $input = json_decode(file_get_contents('php://input'), true);\r\n    $pin = $input['pin'] ?? '';\r\n    \r\n    if (empty($pin)) {\r\n        echo json_encode(['success' => false, 'message' => 'PIN is required']);\r\n        exit;\r\n    }\r\n    \r\n    // Connect to database\r\n    $pdo = new PDO(\r\n        \"pgsql:host=\" . SUPABASE_HOST . \";port=\" . SUPABASE_PORT . \";dbname=\" . SUPABASE_DB,\r\n        SUPABASE_USER,\r\n        SUPABASE_PASSWORD\r\n    );\r\n    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);\r\n    \r\n    // Get admin and manager users\r\n    $stmt = $pdo->prepare(\"\r\n        SELECT u.id, u.full_name, u.password_hash, u.manager_pin, r.name as role_name\r\n        FROM users u\r\n        JOIN roles r ON u.role_id = r.id\r\n        WHERE r.name IN ('Admin', 'Manager', 'admin', 'manager')\r\n        AND u.status = 'active'\r\n    \");\r\n    $stmt->execute();\r\n    $managers = $stmt->fetchAll(PDO::FETCH_ASSOC);\r\n    \r\n    // Check PIN against each manager\r\n    foreach ($managers as $manager) {\r\n        // Check against manager_pin field if it exists\r\n        if (!empty($manager['manager_pin']) && $pin === $manager['manager_pin']) {\r\n            echo json_encode([\r\n                'success' => true, \r\n                'manager_name' => $manager['full_name'],\r\n                'manager_id' => $manager['id']\r\n            ]);\r\n            exit;\r\n        }\r\n        \r\n        // Also check against password hash\r\n        if (!empty($manager['password_hash']) && password_verify($pin, $manager['password_hash'])) {\r\n            echo json_encode([\r\n                'success' => true, \r\n                'manager_name' => $manager['full_name'],\r\n                'manager_id' => $manager['id']\r\n            ]);\r\n            exit;\r\n        }\r\n    }\r\n    \r\n    // No match found\r\n    echo json_encode(['success' => false, 'message' => 'Invalid manager PIN or password']);\r\n    \r\n} catch (PDOException $e) {\r\n    error_log('Manager PIN verification error: ' . $e->getMessage());\r\n    http_response_code(500);\r\n    echo json_encode(['success' => false, 'message' => 'Database error']);\r\n} catch (Exception $e) {\r\n    error_log('Manager PIN verification error: ' . $e->getMessage());\r\n    http_response_code(500);\r\n    echo json_encode(['success' => false, 'message' => 'Server error']);\r\n}\r\n"
+        }
+    ]
+}

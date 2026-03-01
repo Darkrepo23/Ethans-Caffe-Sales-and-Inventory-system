@@ -18,9 +18,8 @@
 define('SUPABASE_URL', 'https://kpuyiaadnirvnvzjugqz.supabase.co');
 define('SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwdXlpYWFkbmlydm52emp1Z3F6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MjU1NzAsImV4cCI6MjA4NzQwMTU3MH0.BdeFCxm3m4s_EgIJ8GVbBMzGIM8sWIy6FZwprA87aUc');
 
-// REPLACE WITH YOUR SERVICE_ROLE KEY FOR BETTER SECURITY:
-// This bypasses RLS and should ONLY be used server-side
-// define('SUPABASE_SERVICE_KEY', 'your-service-role-key-here');
+// Service Role Key - Bypasses RLS for server-side operations
+define('SUPABASE_SERVICE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwdXlpYWFkbmlydm52emp1Z3F6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTgyNTU3MCwiZXhwIjoyMDg3NDAxNTcwfQ.j9xKF31en8cs3cazuJxkr0p9KVcZo7CFelXIZbeiaPA');
 
 // Master Unlock Access Code
 // Change this to your own secure code

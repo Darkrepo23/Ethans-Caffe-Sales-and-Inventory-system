@@ -2,6 +2,7 @@
 
 // API URL for database operations (relative path works on any server)
 const API_URL = "php/app.php";
+const NOTIFICATIONS_API = 'php/notifications.php';
 
 // Loading modal helper functions
 function showLoadingModal(message = 'Loading data...') {
@@ -60,12 +61,28 @@ function createDB(table) {
         },
         delete: async (id) => {
             try {
+                console.log(`[${table}] DELETE request - ID:`, id);
+                const requestBody = { id, table };
+                console.log(`[${table}] Request body:`, JSON.stringify(requestBody));
+                
                 const res = await fetch(API_URL, {
                     method: "DELETE",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id, table })
+                    body: JSON.stringify(requestBody)
                 });
-                return await res.json();
+                
+                console.log(`[${table}] Response status:`, res.status, res.statusText);
+                const responseText = await res.text();
+                console.log(`[${table}] Raw response:`, responseText);
+                
+                try {
+                    const jsonResponse = JSON.parse(responseText);
+                    console.log(`[${table}] Parsed response:`, jsonResponse);
+                    return jsonResponse;
+                } catch (parseErr) {
+                    console.error(`[${table}] JSON parse error:`, parseErr);
+                    return { error: 'Invalid JSON response', raw: responseText };
+                }
             } catch (err) {
                 console.error(`Delete failed [${table}]:`, err);
                 return { error: err.message };
@@ -84,6 +101,8 @@ const salesDB = createDB('sales');
 const saleItemsDB = createDB('sale_items');
 const inventoryTransactionsDB = createDB('inventory_transactions');
 const recipesDB = createDB('recipes');
+const heldOrdersDB = createDB('held_orders');
+const systemSettingsDB = createDB('system_settings');
 
 // Global variables
 let currentSaleItems = [];
@@ -94,6 +113,98 @@ let allIngredients = [];
 let currentCustomer = null;
 let currentDiscount = 0;
 let currentCoupon = null;
+let currentOrderType = 'walk-in';
+let systemSettings = {};
+let idleTimer = null;
+let lastActivityTime = Date.now();
+
+/**
+ * Create a notification for admin to track staff actions
+ */
+async function createNotification(userId, actionType, targetTable, targetId, description, reason = null) {
+    try {
+        const response = await fetch(NOTIFICATIONS_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: userId,
+                action_type: actionType,
+                target_table: targetTable,
+                target_id: targetId,
+                description: description,
+                reason: reason
+            })
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to create notification:', error);
+    }
+}
+
+/**
+ * Send email notification for system events
+ * @param {string} eventType - Type of event (low_stock, expiring_ingredients, void_transaction, refund_transaction)
+ * @param {object} eventData - Data related to the event
+ */
+async function sendEmailNotification(eventType, eventData) {
+    // Only proceed if email notifications are enabled
+    if (systemSettings.enable_email_notifications !== 'true') {
+        return { success: true, sent: false, message: 'Email notifications disabled' };
+    }
+    
+    try {
+        const response = await fetch('php/send_notification.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                event_type: eventType,
+                event_data: eventData
+            })
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to send email notification:', error);
+        return { success: false, message: error.message };
+    }
+}
+
+/**
+ * Check for low stock and expiring ingredients and send notifications
+ */
+async function checkAndNotifyInventoryAlerts() {
+    if (systemSettings.enable_email_notifications !== 'true') return;
+    
+    const lowStockItems = [];
+    const expiringItems = [];
+    
+    allIngredients.forEach(ing => {
+        if (ing.status === 'Low') {
+            lowStockItems.push({
+                name: ing.name,
+                quantity: ing.quantity,
+                unit: ing.unit,
+                threshold: ing.minLevel
+            });
+        }
+        if (ing.expiryStatus === 'expired' || ing.expiryStatus === 'expiring') {
+            expiringItems.push({
+                name: ing.name,
+                status: ing.expiryStatus,
+                days: Math.abs(ing.daysUntilExpiry)
+            });
+        }
+    });
+    
+    // Send low stock notification if any
+    if (lowStockItems.length > 0) {
+        await sendEmailNotification('low_stock', { items: lowStockItems });
+    }
+    
+    // Send expiring notification if any
+    if (expiringItems.length > 0) {
+        await sendEmailNotification('expiring_ingredients', { items: expiringItems });
+    }
+}
 
 // DOM Ready
 document.addEventListener('DOMContentLoaded', function () {
@@ -103,10 +214,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     initializeCommonStaffFeatures();
+    initializeAutoLogout();
 
     if (document.getElementById('menuItemsGrid'))                                       initializeMenuFunctionality();
     if (document.getElementById('ingredientsListTable') || document.getElementById('ingredientsTable')) initializeIngredientsFunctionality();
-    if (document.getElementById('recentReceipts'))                                      initializeReceiptsFunctionality();
+    if (document.getElementById('recentReceipts') || document.getElementById('receiptsList')) initializeReceiptsFunctionality();
     if (document.getElementById('changePasswordForm'))                                  initializeAccountFunctionality();
     if (document.getElementById('activityLogTable'))                                    initializeActivityLogFunctionality();
 
@@ -135,18 +247,185 @@ function initializeCommonStaffFeatures() {
 }
 
 function performStaffLogout() {
-    showConfirm('Are you sure you want to logout?', function () {
-        const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
-
-        logStaffActivity('Logged out', 'User session terminated', 'Success');
-
-        updateUserStatus(user.id, 'inactive')
-            .catch(err => console.error('Failed to update status on logout:', err))
-            .finally(() => {
-                localStorage.removeItem('loggedInRole');
-                localStorage.removeItem('loggedInUser');
-                window.location.href = 'index.html';
+    showConfirm('Are you sure you want to logout?', async function () {
+        try {
+            // Call server-side logout to destroy session
+            const response = await fetch('php/logout.php', {
+                method: 'POST',
+                credentials: 'include'
             });
+            const result = await response.json();
+            console.log('🔐 Server logout result:', result);
+        } catch (err) {
+            console.error('❌ Server logout failed, proceeding with local cleanup:', err);
+        }
+        
+        // Clear local storage
+        localStorage.removeItem('loggedInRole');
+        localStorage.removeItem('loggedInUser');
+        localStorage.removeItem('loggedInUserId');
+        window.location.href = 'index.html';
+    });
+}
+
+// ─── Auto Logout Timer ────────────────────────────────────────────────────────
+
+/**
+ * Initialize auto-logout functionality based on system settings
+ */
+function initializeAutoLogout() {
+    // Reset activity timer on user interaction
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+    activityEvents.forEach(event => {
+        document.addEventListener(event, resetIdleTimer, { passive: true });
+    });
+    
+    // Start checking idle time after settings are loaded
+    startIdleCheck();
+}
+
+/**
+ * Reset the idle timer on user activity
+ */
+function resetIdleTimer() {
+    lastActivityTime = Date.now();
+}
+
+/**
+ * Start periodic idle check
+ */
+function startIdleCheck() {
+    // Check every 30 seconds
+    setInterval(() => {
+        const autoLogoutMinutes = parseInt(systemSettings.auto_logout_minutes) || 0;
+        
+        // If auto logout is disabled (0 or not set), don't do anything
+        if (autoLogoutMinutes <= 0) return;
+        
+        const idleTime = (Date.now() - lastActivityTime) / 1000 / 60; // in minutes
+        const warningTime = autoLogoutMinutes - 1; // Show warning 1 minute before
+        
+        if (idleTime >= autoLogoutMinutes) {
+            // Auto logout
+            performAutoLogout();
+        } else if (idleTime >= warningTime && idleTime < warningTime + 0.5) {
+            // Show warning (only once in the 30 second window)
+            showIdleWarning(Math.ceil((autoLogoutMinutes - idleTime) * 60));
+        }
+    }, 30000);
+}
+
+/**
+ * Show warning before auto logout
+ */
+function showIdleWarning(secondsLeft) {
+    Swal.fire({
+        title: 'Session Expiring',
+        html: `<p>You will be logged out due to inactivity in <strong>${secondsLeft} seconds</strong>.</p><p>Move your mouse or press any key to stay logged in.</p>`,
+        icon: 'warning',
+        timer: 30000,
+        timerProgressBar: true,
+        showConfirmButton: true,
+        confirmButtonText: 'Stay Logged In',
+        confirmButtonColor: '#800000'
+    }).then(() => {
+        resetIdleTimer();
+    });
+}
+
+/**
+ * Perform automatic logout due to inactivity
+ */
+async function performAutoLogout() {
+    try {
+        await fetch('php/logout.php', {
+            method: 'POST',
+            credentials: 'include'
+        });
+    } catch (err) {
+        console.error('Auto logout server call failed:', err);
+    }
+    
+    localStorage.removeItem('loggedInRole');
+    localStorage.removeItem('loggedInUser');
+    localStorage.removeItem('loggedInUserId');
+    
+    // Show message and redirect
+    Swal.fire({
+        title: 'Session Expired',
+        text: 'You have been logged out due to inactivity.',
+        icon: 'info',
+        confirmButtonColor: '#800000'
+    }).then(() => {
+        window.location.href = 'index.html';
+    });
+}
+
+// ─── Manager Approval ─────────────────────────────────────────────────────────
+
+/**
+ * Request manager approval for sensitive operations
+ * Prompts for manager PIN and validates against admin/manager accounts
+ */
+async function requestManagerApproval(actionDescription) {
+    return new Promise(async (resolve) => {
+        const result = await Swal.fire({
+            title: 'Manager Approval Required',
+            html: `
+                <p class="mb-3">A manager must authorize: <strong>${actionDescription}</strong></p>
+                <div class="form-group">
+                    <label class="form-label">Manager PIN or Password:</label>
+                    <input type="password" id="managerPinInput" class="form-control" placeholder="Enter manager PIN" autocomplete="off">
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#800000',
+            confirmButtonText: 'Authorize',
+            cancelButtonText: 'Cancel',
+            preConfirm: () => {
+                return document.getElementById('managerPinInput').value;
+            }
+        });
+        
+        if (!result.isConfirmed || !result.value) {
+            resolve(false);
+            return;
+        }
+        
+        const pin = result.value;
+        
+        try {
+            // Validate PIN against admin/manager accounts
+            const response = await fetch('php/verify_manager_pin.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pin: pin })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Log the manager authorization
+                logStaffActivity('Manager Authorization', `${actionDescription} - Approved by ${data.manager_name}`, 'Success');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Authorized',
+                    text: `Approved by ${data.manager_name}`,
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                resolve(true);
+            } else {
+                Swal.fire('Invalid PIN', data.message || 'The PIN entered is not valid.', 'error');
+                logStaffActivity('Manager Authorization', `${actionDescription} - FAILED`, 'Failed');
+                resolve(false);
+            }
+        } catch (err) {
+            console.error('Manager verification failed:', err);
+            Swal.fire('Error', 'Failed to verify manager credentials.', 'error');
+            resolve(false);
+        }
     });
 }
 
@@ -188,6 +467,7 @@ function initializeMenuFunctionality() {
     document.getElementById('clearSaleBtn')?.addEventListener('click', () =>
         showConfirm('Are you sure you want to clear the cart?', clearCurrentSale)
     );
+    document.getElementById('printerSetupBtn')?.addEventListener('click', showPrinterSetup);
     document.getElementById('checkoutBtn')?.addEventListener('click', processCheckout);
     document.getElementById('selectCustomerBtn')?.addEventListener('click', selectCustomer);
     document.getElementById('discountBtn')?.addEventListener('click', applyDiscount);
@@ -195,10 +475,118 @@ function initializeMenuFunctionality() {
     document.getElementById('holdOrderBtn')?.addEventListener('click', holdOrder);
     document.getElementById('returnOrderBtn')?.addEventListener('click', handleReturn);
 
+    // Order type toggle listeners
+    document.querySelectorAll('input[name="orderType"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            currentOrderType = this.value;
+        });
+    });
+
+    // Load system settings for discount/coupon visibility
+    loadSystemSettings();
+
     // Load categories first, then menu items
     loadCategoryTabs();
     loadMenuItems();
     updateSaleDisplay();
+
+    // Check for restore parameter in URL (from held orders page)
+    checkRestoreFromURL();
+}
+
+// Check URL for restore parameter and restore held order
+async function checkRestoreFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const restoreId = urlParams.get('restore');
+
+    if (!restoreId) return;
+
+    // Clear URL parameter
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    showLoadingModal('Restoring held order...');
+
+    try {
+        const allHeldOrders = await heldOrdersDB.show();
+        const order = allHeldOrders.find(o => o.id == restoreId);
+
+        if (!order) {
+            hideLoadingModal();
+            Swal.fire('Error', 'Held order not found.', 'error');
+            return;
+        }
+
+        // Restore cart from held order
+        currentSaleItems = JSON.parse(order.items_json || '[]');
+        currentCustomer = order.customer_name !== 'Walk-in Customer' ? order.customer_name : null;
+        currentDiscount = parseFloat(order.discount_percent) || 0;
+        currentOrderType = order.order_type || 'walk-in';
+
+        // Update order type toggle
+        const orderTypeRadio = document.querySelector(`input[name="orderType"][value="${currentOrderType}"]`);
+        if (orderTypeRadio) orderTypeRadio.checked = true;
+
+        // Restore coupon if present
+        if (order.coupon_code) {
+            currentCoupon = {
+                code: order.coupon_code,
+                value: parseFloat(order.coupon_value) || 0,
+                type: 'fixed',
+                label: `${getCurrency()}${parseFloat(order.coupon_value).toFixed(2)} Off`
+            };
+        } else {
+            currentCoupon = null;
+        }
+
+        // Mark held order as restored
+        const staffUser = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+        await heldOrdersDB.edit({
+            id: order.id,
+            status: 'restored',
+            restored_at: new Date().toISOString(),
+            restored_by: staffUser.id || null
+        });
+
+        hideLoadingModal();
+        updateSaleDisplay();
+        showModalNotification(`Order ${order.hold_ref} restored to cart.`, 'success', 'Order Restored');
+        logStaffActivity('Restored Held Order', order.hold_ref, 'Success');
+
+    } catch (err) {
+        hideLoadingModal();
+        console.error('Failed to restore held order:', err);
+        Swal.fire('Error', 'Failed to restore held order.', 'error');
+    }
+}
+
+// Load system settings from database
+async function loadSystemSettings() {
+    try {
+        const settings = await systemSettingsDB.show();
+        
+        // Ensure settings is an array before iterating
+        if (!Array.isArray(settings)) {
+            console.warn('System settings response is not an array:', settings);
+            return;
+        }
+        
+        settings.forEach(s => {
+            systemSettings[s.key] = s.value;
+        });
+
+        // Hide/show discount and coupon buttons based on settings
+        const discountBtn = document.getElementById('discountBtn');
+        const couponBtn = document.getElementById('couponBtn');
+
+        if (discountBtn && systemSettings.enable_discount === 'false') {
+            discountBtn.style.display = 'none';
+        }
+        if (couponBtn && systemSettings.enable_coupon === 'false') {
+            couponBtn.style.display = 'none';
+        }
+    } catch (err) {
+        console.error('Failed to load system settings:', err);
+    }
 }
 
 // Load category tabs from database
@@ -280,7 +668,7 @@ function applyCoupon() {
         const code = result.value.toUpperCase();
         const coupons = {
             SAVE10: { code: 'SAVE10', type: 'percentage', value: 10, label: '10% Off' },
-            FREE50: { code: 'FREE50', type: 'fixed',      value: 50, label: 'P50 Off' },
+            FREE50: { code: 'FREE50', type: 'fixed',      value: 50, label: `${getCurrency()}50 Off` },
         };
 
         if (coupons[code]) {
@@ -294,69 +682,132 @@ function applyCoupon() {
     });
 }
 
-function holdOrder() {
+async function holdOrder() {
     if (currentSaleItems.length === 0) {
         Swal.fire('Error', 'Cart is empty. Nothing to hold.', 'error');
         return;
     }
 
-    const heldOrders = JSON.parse(localStorage.getItem('heldOrders') || '[]');
-    const newHold = {
-        id: 'HOLD-' + Date.now(),
-        timestamp: Date.now(),
-        items: [...currentSaleItems],
-        customer: currentCustomer,
-        discount: currentDiscount,
-        coupon: currentCoupon
+    const { subtotal, discountAmount, taxes, total } = calcTotals();
+    const expiryHours = parseInt(systemSettings.hold_order_expiry_hours) || 5;
+    const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
+    const staffUser = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+
+    const holdData = {
+        hold_ref: 'HOLD-' + Date.now(),
+        customer_name: currentCustomer || 'Walk-in Customer',
+        order_type: currentOrderType,
+        items_json: JSON.stringify(currentSaleItems),
+        subtotal: subtotal,
+        discount_amount: discountAmount,
+        discount_percent: currentDiscount,
+        coupon_code: currentCoupon?.code || null,
+        coupon_value: currentCoupon?.value || 0,
+        taxes: taxes,
+        total_amount: total,
+        staff_id: staffUser.id || null,
+        expires_at: expiresAt,
+        status: 'active'
     };
 
-    heldOrders.push(newHold);
-    localStorage.setItem('heldOrders', JSON.stringify(heldOrders));
+    showLoadingModal('Holding order...');
 
-    showModalNotification('Order has been put on hold.', 'info', 'Order Held');
-    logStaffActivity('Held Order', newHold.id, 'Success');
-    clearCurrentSale();
+    try {
+        const result = await heldOrdersDB.add(holdData);
+        hideLoadingModal();
+
+        if (result.error) {
+            Swal.fire('Error', result.error, 'error');
+            return;
+        }
+
+        showModalNotification(`Order held until ${new Date(expiresAt).toLocaleTimeString()}. Expires in ${expiryHours} hours.`, 'info', 'Order Held');
+        logStaffActivity('Held Order', holdData.hold_ref, 'Success');
+        clearCurrentSale();
+    } catch (err) {
+        hideLoadingModal();
+        console.error('Failed to hold order:', err);
+        Swal.fire('Error', 'Failed to hold order. Please try again.', 'error');
+    }
 }
 
-function handleReturn() {
-    const sales = JSON.parse(localStorage.getItem('sales') || '[]');
-    if (sales.length === 0) {
-        Swal.fire('No Transactions', 'No recent transactions found to return.', 'info');
-        return;
-    }
+async function handleReturn() {
+    showLoadingModal('Loading held orders...');
 
-    const inputOptions = {};
-    sales.slice(0, 10).forEach(s => {
-        inputOptions[s.id] = `${s.id} - P${parseFloat(s.total).toFixed(2)} (${s.time})`;
-    });
+    try {
+        // Get active held orders only
+        const allHeldOrders = await heldOrdersDB.show();
+        const activeOrders = allHeldOrders.filter(o => o.status === 'active');
+        hideLoadingModal();
 
-    Swal.fire({
-        title: 'Select Transaction to Return',
-        input: 'select',
-        inputOptions,
-        inputPlaceholder: 'Select a receipt...',
-        showCancelButton: true,
-        confirmButtonColor: '#800000',
-    }).then(result => {
+        if (activeOrders.length === 0) {
+            Swal.fire('No Held Orders', 'No active held orders found to restore.', 'info');
+            return;
+        }
+
+        // Build select options
+        const inputOptions = {};
+        activeOrders.forEach(order => {
+            const createdAt = new Date(order.created_at).toLocaleTimeString();
+            const expiresAt = new Date(order.expires_at).toLocaleTimeString();
+            inputOptions[order.id] = `${order.hold_ref} - ${order.customer_name} - ${getCurrency()}${parseFloat(order.total_amount).toFixed(2)} (Created: ${createdAt})`;
+        });
+
+        const result = await Swal.fire({
+            title: 'Restore Held Order',
+            input: 'select',
+            inputOptions,
+            inputPlaceholder: 'Select an order to restore...',
+            showCancelButton: true,
+            confirmButtonColor: '#800000',
+            confirmButtonText: 'Restore to Cart'
+        });
+
         if (!result.isConfirmed || !result.value) return;
 
-        const saleId = result.value;
-        Swal.fire({
-            title: 'Confirm Return',
-            text: `Are you sure you want to process a return for ${saleId}?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            confirmButtonText: 'Yes, Return'
-        }).then(confirm => {
-            if (confirm.isConfirmed) {
-                const updated = sales.filter(s => s.id !== saleId);
-                localStorage.setItem('sales', JSON.stringify(updated));
-                showModalNotification('Transaction successfully returned and voided.', 'success', 'Return Processed');
-                logStaffActivity('Processed Return', saleId, 'Success');
-            }
+        const selectedOrder = activeOrders.find(o => o.id == result.value);
+        if (!selectedOrder) return;
+
+        // Restore cart from held order
+        currentSaleItems = JSON.parse(selectedOrder.items_json || '[]');
+        currentCustomer = selectedOrder.customer_name !== 'Walk-in Customer' ? selectedOrder.customer_name : null;
+        currentDiscount = parseFloat(selectedOrder.discount_percent) || 0;
+        currentOrderType = selectedOrder.order_type || 'walk-in';
+
+        // Update order type toggle
+        const orderTypeRadio = document.querySelector(`input[name="orderType"][value="${currentOrderType}"]`);
+        if (orderTypeRadio) orderTypeRadio.checked = true;
+
+        // Restore coupon if present
+        if (selectedOrder.coupon_code) {
+            currentCoupon = {
+                code: selectedOrder.coupon_code,
+                value: parseFloat(selectedOrder.coupon_value) || 0,
+                type: 'fixed', // Simplified for restoration
+                label: `${getCurrency()}${parseFloat(selectedOrder.coupon_value).toFixed(2)} Off`
+            };
+        } else {
+            currentCoupon = null;
+        }
+
+        // Mark held order as restored
+        const staffUser = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+        await heldOrdersDB.edit({
+            id: selectedOrder.id,
+            status: 'restored',
+            restored_at: new Date().toISOString(),
+            restored_by: staffUser.id || null
         });
-    });
+
+        updateSaleDisplay();
+        showModalNotification('Order restored to cart.', 'success', 'Order Restored');
+        logStaffActivity('Restored Held Order', selectedOrder.hold_ref, 'Success');
+
+    } catch (err) {
+        hideLoadingModal();
+        console.error('Failed to restore held order:', err);
+        Swal.fire('Error', 'Failed to load held orders. Please try again.', 'error');
+    }
 }
 
 async function loadMenuItems() {
@@ -425,7 +876,7 @@ function displayMenuItems(items) {
                 <div class="menu-item-card" data-id="${item.id}" onclick="addItemToSale(${item.id})">
                     <div class="menu-item-img-container">
                         <img src="${imgSrc}" alt="${item.name}" class="menu-item-img">
-                        <div class="price-tag">P${parseFloat(item.price).toFixed(2)}</div>
+                        <div class="price-tag">${getCurrency()}${parseFloat(item.price).toFixed(2)}</div>
                     </div>
                     <div class="p-2 text-center">
                         <div class="fw-bold mb-0 text-truncate" style="font-size:0.85rem">${item.name}</div>
@@ -470,6 +921,21 @@ function addItemToSale(itemId) {
     }
 }
 
+// Get tax rate from system settings (default 12%)
+function getTaxRate() {
+    return parseFloat(systemSettings.tax_rate) || 12;
+}
+
+// Get currency symbol from system settings (default 'P')
+function getCurrency() {
+    return systemSettings.currency_symbol || 'P';
+}
+
+// Format currency with symbol
+function formatCurrency(amount) {
+    return `${getCurrency()}${parseFloat(amount).toFixed(2)}`;
+}
+
 function calcTotals() {
     const subtotal = currentSaleItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
@@ -481,10 +947,11 @@ function calcTotals() {
     }
 
     const discountedSubtotal = Math.max(0, subtotal - discountAmount);
-    const taxes = discountedSubtotal * 0.12;
+    const taxRate = getTaxRate() / 100; // Convert percentage to decimal
+    const taxes = discountedSubtotal * taxRate;
     const total = discountedSubtotal + taxes;
 
-    return { subtotal, discountAmount, taxes, total };
+    return { subtotal, discountAmount, taxes, total, taxRate: getTaxRate() };
 }
 
 function updateSaleDisplay() {
@@ -500,24 +967,26 @@ function updateSaleDisplay() {
     const customerDisplay = document.querySelector('.customer-name-display');
     if (customerDisplay) customerDisplay.textContent = currentCustomer || 'Walk-in Customer';
 
+    const currency = getCurrency();
+    
     if (currentSaleItems.length === 0) {
         container.innerHTML = `<div class="text-center py-5 empty-cart-msg"><p class="text-muted">No items in cart</p></div>`;
-        subtotalEl.textContent = 'P0.00';
-        taxEl.textContent      = 'P0.00';
-        totalEl.textContent    = 'P0.00';
+        subtotalEl.textContent = `${currency}0.00`;
+        taxEl.textContent      = `${currency}0.00`;
+        totalEl.textContent    = `${currency}0.00`;
         cartCountEl.textContent = '0';
         checkoutBtn.disabled   = true;
         return;
     }
 
-    const { subtotal, discountAmount, taxes, total } = calcTotals();
+    const { subtotal, discountAmount, taxes, total, taxRate } = calcTotals();
     const itemsCount = currentSaleItems.reduce((acc, item) => acc + item.quantity, 0);
 
     container.innerHTML = currentSaleItems.map((item, index) => `
         <div class="cart-item">
             <div class="cart-item-details">
                 <span class="cart-item-name">${item.name}</span>
-                <span class="cart-item-price">P${(item.price * item.quantity).toFixed(2)}</span>
+                <span class="cart-item-price">${currency}${(item.price * item.quantity).toFixed(2)}</span>
             </div>
             <div class="qty-controls">
                 <button class="btn-qty" onclick="changeQty(${index}, -1)"><i class="fas fa-minus"></i></button>
@@ -528,12 +997,16 @@ function updateSaleDisplay() {
         </div>`
     ).join('');
 
-    subtotalEl.innerHTML = `P${subtotal.toFixed(2)}` +
-        (discountAmount > 0 ? ` <span class="text-danger small">(-P${discountAmount.toFixed(2)})</span>` : '');
-    taxEl.textContent       = `P${taxes.toFixed(2)}`;
-    totalEl.textContent     = `P${total.toFixed(2)}`;
+    subtotalEl.innerHTML = `${currency}${subtotal.toFixed(2)}` +
+        (discountAmount > 0 ? ` <span class="text-danger small">(-${currency}${discountAmount.toFixed(2)})</span>` : '');
+    taxEl.textContent       = `${currency}${taxes.toFixed(2)}`;
+    totalEl.textContent     = `${currency}${total.toFixed(2)}`;
     cartCountEl.textContent = itemsCount;
     checkoutBtn.disabled    = false;
+    
+    // Update tax label with current rate
+    const taxLabel = document.querySelector('#cartTaxes')?.closest('.d-flex')?.querySelector('.text-muted');
+    if (taxLabel) taxLabel.textContent = `Taxes (${taxRate}%)`;
 }
 
 function changeQty(index, delta) {
@@ -552,50 +1025,717 @@ function clearCurrentSale() {
     currentCustomer  = null;
     currentDiscount  = 0;
     currentCoupon    = null;
+    currentOrderType = 'walk-in';
+    
+    // Reset order type toggle
+    const walkInRadio = document.getElementById('orderTypeWalkIn');
+    if (walkInRadio) walkInRadio.checked = true;
+    
     updateSaleDisplay();
 }
 
 function processCheckout() {
     if (currentSaleItems.length === 0) return;
 
+    const { subtotal, discountAmount, taxes, total } = calcTotals();
+
     Swal.fire({
         title: 'Confirm Checkout',
-        text: `Total Amount: ${document.getElementById('cartTotal').textContent}`,
+        html: `
+            <div class="text-start">
+                <p><strong>Customer:</strong> ${currentCustomer || 'Walk-in Customer'}</p>
+                <p><strong>Order Type:</strong> ${currentOrderType === 'dine-in' ? 'Dine-in' : 'Walk-in'}</p>
+                <p><strong>Items:</strong> ${currentSaleItems.length}</p>
+                <hr>
+                <p class="h4 text-center"><strong>Total: ${getCurrency()}${total.toFixed(2)}</strong></p>
+            </div>
+        `,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#800000',
         cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Confirm'
+        confirmButtonText: 'Confirm & Complete'
     }).then(result => {
         if (result.isConfirmed) recordSale();
     });
 }
 
-function recordSale() {
-    const { subtotal, discountAmount, taxes, total } = calcTotals();
+async function recordSale() {
+    const { subtotal, discountAmount, taxes, total, taxRate } = calcTotals();
+    const staffUser = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+    const receiptNo = 'SALE-' + Date.now();
 
-    const newSale = {
-        id: 'SALE-' + Date.now(),
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString(),
-        timestamp: Date.now(),
-        items: [...currentSaleItems],
-        subtotal,
-        discount: discountAmount,
-        taxes,
-        total,
-        customer: currentCustomer || 'Walk-in',
-        staff: JSON.parse(localStorage.getItem('loggedInUser') || '{}').full_name || 'Staff'
-    };
+    showLoadingModal('Processing transaction...');
 
-    const sales = JSON.parse(localStorage.getItem('sales') || '[]');
-    sales.unshift(newSale);
-    localStorage.setItem('sales', JSON.stringify(sales));
+    try {
+        // Create sale record in database
+        const saleData = {
+            receipt_no: receiptNo,
+            sale_datetime: new Date().toISOString(),
+            staff_id: staffUser.id || null,
+            total_items: currentSaleItems.reduce((acc, item) => acc + item.quantity, 0),
+            total_amount: total,
+            subtotal: subtotal,
+            discount_amount: discountAmount,
+            discount_percent: currentDiscount,
+            coupon_code: currentCoupon?.code || null,
+            coupon_value: currentCoupon?.value || 0,
+            taxes: taxes,
+            customer_name: currentCustomer || 'Walk-in Customer',
+            order_type: currentOrderType,
+            status: 'completed',
+            created_at: new Date().toISOString()
+        };
 
-    logStaffActivity('Recorded Sale', `${newSale.id} - Total: P${total.toFixed(2)} - Customer: ${newSale.customer}`, 'Success');
+        const saleResult = await salesDB.add(saleData);
+        
+        if (saleResult.error) {
+            hideLoadingModal();
+            Swal.fire('Error', saleResult.error, 'error');
+            return;
+        }
 
-    Swal.fire('Success!', 'Transaction recorded.', 'success');
-    clearCurrentSale();
+        // Get the sale ID from result - handle different response structures
+        const saleId = saleResult.data?.[0]?.id || saleResult.id || saleResult[0]?.id;
+
+        // Save sale items if we have a sale ID
+        if (saleId) {
+            for (const item of currentSaleItems) {
+                const itemCategory = allMenuItems.find(m => m.id === item.id)?.category || 'Uncategorized';
+                await saleItemsDB.add({
+                    sale_id: saleId,
+                    menu_item_id: item.id,
+                    quantity: item.quantity,
+                    unit_price: item.price,
+                    item_name: item.name,
+                    category_name: itemCategory
+                });
+            }
+
+            // Deduct ingredients from inventory based on recipes
+            await deductIngredients(currentSaleItems);
+        }
+
+        hideLoadingModal();
+
+        logStaffActivity('Recorded Sale', `${receiptNo} - Total: ${getCurrency()}${total.toFixed(2)} - Customer: ${saleData.customer_name}`, 'Success');
+
+        // Create notification for successful payment
+        await createNotification(
+            staffUser.id || 1,
+            'payment',
+            'sales',
+            saleId,
+            `Payment completed: ${receiptNo} - ${getCurrency()}${total.toFixed(2)} (${saleData.customer_name})`
+        );
+
+        // Show receipt modal with print option
+        showReceiptModal({
+            receiptNo,
+            saleDateTime: new Date().toLocaleString(),
+            customer: currentCustomer || 'Walk-in Customer',
+            orderType: currentOrderType,
+            items: [...currentSaleItems],
+            subtotal,
+            discountAmount,
+            taxes,
+            total,
+            taxRate,
+            staff: staffUser.full_name || 'Staff'
+        });
+
+    } catch (err) {
+        hideLoadingModal();
+        console.error('Failed to record sale:', err);
+        Swal.fire('Error', 'Failed to process transaction. Please try again.', 'error');
+    }
+}
+
+// Deduct ingredients from inventory based on recipes
+async function deductIngredients(saleItems) {
+    try {
+        for (const item of saleItems) {
+            // Get recipes for this menu item
+            const recipes = await recipesDB.show({ menu_item_id: item.id });
+            
+            for (const recipe of recipes) {
+                const ingredient = allIngredients.find(i => i.id === recipe.ingredient_id);
+                if (!ingredient) continue;
+
+                const deductQty = (parseFloat(recipe.qty_per_sale) || 0) * item.quantity;
+                const newQty = Math.max(0, ingredient.quantity - deductQty);
+
+                // Update ingredient quantity
+                await ingredientsDB.edit({
+                    id: recipe.ingredient_id,
+                    current_quantity: newQty,
+                    updated_at: new Date().toISOString()
+                });
+
+                // Log inventory transaction
+                const staffUser = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+                await inventoryTransactionsDB.add({
+                    ingredient_id: recipe.ingredient_id,
+                    change_qty: -deductQty,
+                    transaction_type: 'Sale Deduction',
+                    reason: `Sold ${item.quantity}x ${item.name}`,
+                    performed_by: staffUser.id || null,
+                    prev_qty: ingredient.quantity,
+                    new_qty: newQty,
+                    timestamp: new Date().toISOString()
+                });
+
+                // Check for low stock and create notification
+                const threshold = parseFloat(ingredient.low_stock_threshold) || 0;
+                if (newQty <= threshold && newQty > 0) {
+                    await createNotification(
+                        staffUser.id || 1,
+                        'low_stock',
+                        'ingredients',
+                        recipe.ingredient_id,
+                        `Low stock alert: ${ingredient.name} is at ${newQty} ${ingredient.unit || 'units'} (threshold: ${threshold})`
+                    );
+                } else if (newQty === 0) {
+                    await createNotification(
+                        staffUser.id || 1,
+                        'out_of_stock',
+                        'ingredients',
+                        recipe.ingredient_id,
+                        `Out of stock: ${ingredient.name} is now depleted!`
+                    );
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Failed to deduct ingredients:', err);
+    }
+}
+
+// Show receipt modal with print option
+function showReceiptModal(receiptData) {
+    const { receiptNo, saleDateTime, customer, orderType, items, subtotal, discountAmount, taxes, total, staff, taxRate } = receiptData;
+    const currency = getCurrency();
+    const displayTaxRate = taxRate || getTaxRate();
+
+    // Build items list HTML
+    let itemsHtml = items.map(item => {
+        const itemCategory = allMenuItems.find(m => m.id === item.id)?.category || '';
+        return `
+            <tr>
+                <td>${item.name}<br><small class="text-muted">${itemCategory}</small></td>
+                <td class="text-center">${item.quantity}</td>
+                <td class="text-end">${currency}${(item.price * item.quantity).toFixed(2)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    const receiptHtml = `
+        <div id="receiptContent" style="font-family: 'Courier New', monospace; max-width: 300px; margin: 0 auto; padding: 15px; border: 1px dashed #000;">
+            <div class="text-center mb-3">
+                <h5 class="mb-1"><strong>ETHAN'S CAFE</strong></h5>
+                <small>Receipt #${receiptNo}</small><br>
+                <small>${saleDateTime}</small>
+            </div>
+            
+            <div class="mb-2">
+                <small><strong>Customer:</strong> ${customer}</small><br>
+                <small><strong>Order Type:</strong> ${orderType === 'dine-in' ? 'Dine-in' : 'Walk-in'}</small><br>
+                <small><strong>Staff:</strong> ${staff}</small>
+            </div>
+            
+            <hr style="border-style: dashed;">
+            
+            <table class="w-100" style="font-size: 0.85rem;">
+                <thead>
+                    <tr>
+                        <th class="text-start">Item</th>
+                        <th class="text-center">Qty</th>
+                        <th class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHtml}
+                </tbody>
+            </table>
+            
+            <hr style="border-style: dashed;">
+            
+            <div style="font-size: 0.85rem;">
+                <div class="d-flex justify-content-between">
+                    <span>Subtotal:</span>
+                    <span>${currency}${subtotal.toFixed(2)}</span>
+                </div>
+                ${discountAmount > 0 ? `
+                <div class="d-flex justify-content-between text-danger">
+                    <span>Discount:</span>
+                    <span>-${currency}${discountAmount.toFixed(2)}</span>
+                </div>` : ''}
+                <div class="d-flex justify-content-between">
+                    <span>Tax (${displayTaxRate}%):</span>
+                    <span>${currency}${taxes.toFixed(2)}</span>
+                </div>
+                <hr style="border-style: dashed;">
+                <div class="d-flex justify-content-between fw-bold" style="font-size: 1.1rem;">
+                    <span>TOTAL:</span>
+                    <span>${currency}${total.toFixed(2)}</span>
+                </div>
+            </div>
+            
+            <div class="text-center mt-3" style="border-top: 2px dashed #000; border-bottom: 2px dashed #000; padding: 8px 0; margin: 10px 0;">
+                <strong>✂ - - - CUT HERE - - - ✂</strong>
+            </div>
+            
+            <div class="text-center" style="font-size: 0.75rem;">
+                <p class="mb-1"><strong>KITCHEN COPY</strong></p>
+                <p class="mb-1">Order #${receiptNo.replace('SALE-', '')}</p>
+                <p class="mb-0">${orderType === 'dine-in' ? '🪑 DINE-IN' : '🚶 WALK-IN'}</p>
+                ${items.map(item => `<p class="mb-0">${item.quantity}x ${item.name}</p>`).join('')}
+            </div>
+            
+            <div class="text-center mt-3">
+                <small>Thank you for dining with us!</small>
+            </div>
+        </div>
+    `;
+
+    // Check if auto-print is enabled
+    if (systemSettings.auto_print_receipt === 'true') {
+        // Auto print without showing modal
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = receiptHtml;
+        document.body.appendChild(tempDiv);
+        printReceiptFromElement(tempDiv.querySelector('#receiptContent'));
+        document.body.removeChild(tempDiv);
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Transaction Complete',
+            text: 'Receipt sent to printer automatically.',
+            timer: 2000,
+            showConfirmButton: false
+        });
+        clearCurrentSale();
+        return;
+    }
+
+    Swal.fire({
+        title: 'Transaction Complete',
+        html: receiptHtml,
+        width: '400px',
+        showCancelButton: true,
+        confirmButtonColor: '#800000',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-print me-2"></i>Print Receipt',
+        cancelButtonText: 'Close'
+    }).then(result => {
+        if (result.isConfirmed) {
+            printReceipt();
+        }
+        clearCurrentSale();
+    });
+}
+
+// ─── Printer Detection & Print Functions ───────────────────────────────────────
+
+/**
+ * Check if printing is available
+ * Note: Browser APIs cannot detect specific printers or paper status
+ * For thermal printers, you would need a local print server or desktop app
+ */
+async function checkPrinterStatus() {
+    // Check if print API is available
+    if (!window.print) {
+        return { available: false, message: 'Printing not supported in this browser' };
+    }
+    
+    // Check for any connected printers using experimental API (Chrome only)
+    // Note: This requires user gesture and may not be available in all browsers
+    try {
+        // Try to get printer info using the experimental API
+        if ('queryLocalFonts' in window) {
+            // Browser supports some advanced APIs, likely has print support
+        }
+    } catch (e) {
+        console.log('Cannot detect printers:', e);
+    }
+    
+    return { available: true, message: 'Print ready' };
+}
+
+/**
+ * Print receipt using inline printing (most reliable method)
+ * Opens Chrome's native print dialog with status feedback
+ */
+function printReceipt() {
+    const receiptContent = document.getElementById('receiptContent');
+    if (!receiptContent) {
+        Swal.fire({
+            icon: 'error',
+            title: 'No Receipt',
+            text: 'No receipt content found to print.',
+            confirmButtonColor: '#800000'
+        }).then(() => {
+            window.location.href = 'staff-receipts.html';
+        });
+        return;
+    }
+
+    // Try to print directly
+    attemptPrint(receiptContent);
+}
+
+/**
+ * Attempt to print and show appropriate status
+ */
+function attemptPrint(receiptContent) {
+    // Check if print is available
+    if (!window.print) {
+        showNoPrinterModal('Browser does not support printing');
+        return;
+    }
+
+    // Create a hidden iframe for printing (avoids popup blockers)
+    let printFrame = document.getElementById('printFrame');
+    if (!printFrame) {
+        printFrame = document.createElement('iframe');
+        printFrame.id = 'printFrame';
+        printFrame.name = 'printFrame';
+        printFrame.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:0;height:0;border:0;';
+        document.body.appendChild(printFrame);
+    }
+
+    try {
+        const printDocument = printFrame.contentWindow || printFrame.contentDocument;
+        const doc = printDocument.document || printDocument;
+
+        doc.open();
+        doc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Receipt - Ethan's Cafe</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { 
+                        font-family: 'Courier New', Courier, monospace; 
+                        padding: 5mm; 
+                        font-size: 12px;
+                        line-height: 1.4;
+                    }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { padding: 2px 0; vertical-align: top; }
+                    .text-center { text-align: center; }
+                    .text-end, .text-right { text-align: right; }
+                    .text-start, .text-left { text-align: left; }
+                    .d-flex { display: flex; }
+                    .justify-content-between { justify-content: space-between; }
+                    .fw-bold, strong { font-weight: bold; }
+                    .text-muted { color: #666; }
+                    .text-danger { color: #dc3545; }
+                    hr { border: none; border-top: 1px dashed #000; margin: 5px 0; }
+                    .mb-0 { margin-bottom: 0; }
+                    .mb-1 { margin-bottom: 2px; }
+                    .mb-2 { margin-bottom: 5px; }
+                    .mb-3 { margin-bottom: 8px; }
+                    .mt-3 { margin-top: 8px; }
+                    small { font-size: 10px; }
+                    h5 { font-size: 16px; margin-bottom: 3px; }
+                    
+                    @media print {
+                        @page {
+                            size: 80mm auto; /* Thermal receipt paper width */
+                            margin: 0;
+                        }
+                        body { 
+                            -webkit-print-color-adjust: exact !important; 
+                            print-color-adjust: exact !important;
+                            padding: 2mm;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                ${receiptContent.innerHTML}
+            </body>
+            </html>
+        `);
+        doc.close();
+
+        // Wait for content to render then print
+        setTimeout(() => {
+            try {
+                // Open print dialog directly
+                printFrame.contentWindow.focus();
+                printFrame.contentWindow.print();
+                
+                // Log and redirect after print dialog closes
+                logStaffActivity('Print Receipt', 'Receipt printed', 'Success');
+                
+                // Show success and redirect
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Print Sent',
+                    html: `
+                        <p class="mb-2">Print command sent to printer.</p>
+                        <p class="text-muted small">Redirecting to receipts...</p>
+                    `,
+                    timer: 2000,
+                    timerProgressBar: true,
+                    showConfirmButton: false,
+                    confirmButtonColor: '#800000'
+                }).then(() => {
+                    window.location.href = 'staff-receipts.html';
+                });
+                
+            } catch (err) {
+                console.error('Print failed:', err);
+                showNoPrinterModal(err.message);
+            }
+        }, 300);
+        
+    } catch (err) {
+        console.error('Print setup failed:', err);
+        showNoPrinterModal(err.message);
+    }
+}
+
+/**
+ * Show no printer modal and redirect to receipts
+ */
+function showNoPrinterModal(errorMsg) {
+    Swal.fire({
+        icon: 'error',
+        title: 'No Printer',
+        html: `
+            <div class="text-center">
+                <i class="fas fa-print fa-3x text-danger mb-3"></i>
+                <p class="fw-bold text-danger">No printer detected or printing failed</p>
+                <p class="text-muted small">${errorMsg || 'Please check your printer connection'}</p>
+                <hr>
+                <p class="small">Transaction has been saved. You can print from the Receipts page later.</p>
+            </div>
+        `,
+        confirmButtonText: 'Go to Receipts',
+        confirmButtonColor: '#800000',
+        allowOutsideClick: false
+    }).then(() => {
+        window.location.href = 'staff-receipts.html';
+    });
+    logStaffActivity('Print Receipt', 'Print failed: ' + (errorMsg || 'No printer'), 'Failed');
+}
+
+/**
+ * Print receipt from an element (for auto-print feature)
+ * Uses the same iframe method for reliability
+ */
+function printReceiptFromElement(element) {
+    if (!element) {
+        console.error('No element provided for printing');
+        return;
+    }
+
+    // Create a hidden iframe for printing
+    let printFrame = document.getElementById('printFrame');
+    if (!printFrame) {
+        printFrame = document.createElement('iframe');
+        printFrame.id = 'printFrame';
+        printFrame.name = 'printFrame';
+        printFrame.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:0;height:0;border:0;';
+        document.body.appendChild(printFrame);
+    }
+
+    const printDocument = printFrame.contentWindow || printFrame.contentDocument;
+    const doc = printDocument.document || printDocument;
+
+    doc.open();
+    doc.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Receipt - Ethan's Cafe</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: 'Courier New', Courier, monospace; 
+                    padding: 5mm; 
+                    font-size: 12px;
+                    line-height: 1.4;
+                }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { padding: 2px 0; vertical-align: top; }
+                .text-center { text-align: center; }
+                .text-end, .text-right { text-align: right; }
+                .text-start, .text-left { text-align: left; }
+                .d-flex { display: flex; }
+                .justify-content-between { justify-content: space-between; }
+                .fw-bold, strong { font-weight: bold; }
+                .text-muted { color: #666; }
+                .text-danger { color: #dc3545; }
+                hr { border: none; border-top: 1px dashed #000; margin: 5px 0; }
+                .mb-0 { margin-bottom: 0; }
+                .mb-1 { margin-bottom: 2px; }
+                .mb-2 { margin-bottom: 5px; }
+                .mb-3 { margin-bottom: 8px; }
+                .mt-3 { margin-top: 8px; }
+                small { font-size: 10px; }
+                h5 { font-size: 16px; margin-bottom: 3px; }
+                
+                @media print {
+                    @page {
+                        size: 80mm auto;
+                        margin: 0;
+                    }
+                    body { 
+                        -webkit-print-color-adjust: exact !important; 
+                        print-color-adjust: exact !important;
+                        padding: 2mm;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            ${element.innerHTML}
+        </body>
+        </html>
+    `);
+    doc.close();
+
+    // Print after content loads
+    setTimeout(() => {
+        try {
+            printFrame.contentWindow.focus();
+            printFrame.contentWindow.print();
+        } catch (err) {
+            console.error('Auto-print failed:', err);
+        }
+    }, 250);
+}
+
+/**
+ * Show printer setup/test dialog
+ */
+function showPrinterSetup() {
+    Swal.fire({
+        title: '<i class="fas fa-print me-2"></i>Printer Setup',
+        html: `
+            <div class="text-start">
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Printer Status Check</strong>
+                </div>
+                
+                <div id="printerStatusCheck" class="mb-3">
+                    <p><i class="fas fa-spinner fa-spin me-2"></i>Checking printer...</p>
+                </div>
+                
+                <hr>
+                
+                <h6 class="mb-2">Recommended Settings:</h6>
+                <ul class="small text-muted">
+                    <li>Paper size: 80mm (for thermal printers)</li>
+                    <li>Margins: None or Minimum</li>
+                    <li>Scale: 100%</li>
+                    <li>Background graphics: ON</li>
+                </ul>
+                
+                <hr>
+                
+                <h6 class="mb-2">Print a Test Receipt:</h6>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="printTestReceipt()">
+                    <i class="fas fa-print me-2"></i>Print Test
+                </button>
+                
+                <hr class="mt-3">
+                
+                <div class="alert alert-warning small mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Note:</strong> Detecting paper status requires a dedicated thermal printer driver or POS software. 
+                    Web browsers cannot detect paper levels.
+                </div>
+            </div>
+        `,
+        showConfirmButton: true,
+        confirmButtonText: 'Close',
+        confirmButtonColor: '#800000',
+        width: 500,
+        didOpen: async () => {
+            // Check printer status
+            const status = await checkPrinterStatus();
+            const statusDiv = document.getElementById('printerStatusCheck');
+            if (statusDiv) {
+                if (status.available) {
+                    statusDiv.innerHTML = `
+                        <p class="text-success mb-1">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Print Service Available</strong>
+                        </p>
+                        <p class="small text-muted mb-0">
+                            Click "Print Test" below to verify your printer is working.
+                        </p>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `
+                        <p class="text-danger mb-1">
+                            <i class="fas fa-times-circle me-2"></i>
+                            <strong>${status.message}</strong>
+                        </p>
+                    `;
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Print a test receipt to verify printer setup
+ */
+function printTestReceipt() {
+    const testHtml = `
+        <div style="font-family: 'Courier New', monospace; max-width: 300px; margin: 0 auto; padding: 15px; border: 1px dashed #000;">
+            <div class="text-center mb-3">
+                <h5 class="mb-1"><strong>ETHAN'S CAFE</strong></h5>
+                <small>*** PRINTER TEST ***</small><br>
+                <small>${new Date().toLocaleString()}</small>
+            </div>
+            
+            <hr style="border-style: dashed;">
+            
+            <div style="font-size: 0.85rem;">
+                <p><strong>Test Line 1:</strong> ABCDEFGHIJKLMNOP</p>
+                <p><strong>Test Line 2:</strong> 1234567890</p>
+                <p><strong>Test Line 3:</strong> !@#$%^&*()</p>
+            </div>
+            
+            <hr style="border-style: dashed;">
+            
+            <div class="d-flex justify-content-between fw-bold">
+                <span>TOTAL:</span>
+                <span>${getCurrency()}123.45</span>
+            </div>
+            
+            <hr style="border-style: dashed;">
+            
+            <div class="text-center">
+                <small>If you can read this, your printer is working!</small>
+            </div>
+        </div>
+    `;
+    
+    // Create temporary element
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = testHtml;
+    document.body.appendChild(tempDiv);
+    
+    // Print it
+    printReceiptFromElement(tempDiv);
+    
+    // Remove temp element after a delay
+    setTimeout(() => {
+        document.body.removeChild(tempDiv);
+    }, 1000);
+    
+    // Close the setup dialog
+    Swal.close();
 }
 
 // Sync menu when admin makes changes
@@ -644,11 +1784,38 @@ async function loadIngredients() {
         const unitMap = {};
         units.forEach(unit => { unitMap[unit.id] = unit.abbreviation || unit.name; });
 
+        // Get system default for low stock threshold
+        const defaultLowStockThreshold = parseFloat(systemSettings.low_stock_threshold) || 10;
+        const expiryWarningDays = parseInt(systemSettings.expiry_warning_days) || 7;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const warningDate = new Date(today.getTime() + (expiryWarningDays * 24 * 60 * 60 * 1000));
+
         // Map ingredients with proper display info
         allIngredients = ingredients.map(ing => {
             const qty = parseFloat(ing.current_quantity) || 0;
-            const threshold = parseFloat(ing.low_stock_threshold) || 0;
-            const status = qty <= threshold ? 'Low' : 'Normal';
+            // Use ingredient's own threshold, or fall back to system default
+            const threshold = ing.low_stock_threshold !== null && ing.low_stock_threshold !== undefined 
+                ? parseFloat(ing.low_stock_threshold) 
+                : defaultLowStockThreshold;
+            
+            let status = qty <= threshold ? 'Low' : 'Normal';
+            let expiryStatus = null;
+            let daysUntilExpiry = null;
+            
+            // Check expiry date
+            if (ing.expiry_date) {
+                const expiryDate = new Date(ing.expiry_date);
+                expiryDate.setHours(0, 0, 0, 0);
+                
+                if (expiryDate < today) {
+                    expiryStatus = 'expired';
+                    daysUntilExpiry = Math.floor((today - expiryDate) / (1000 * 60 * 60 * 24)) * -1;
+                } else if (expiryDate <= warningDate) {
+                    expiryStatus = 'expiring';
+                    daysUntilExpiry = Math.floor((expiryDate - today) / (1000 * 60 * 60 * 24));
+                }
+            }
 
             return {
                 id: ing.id,
@@ -659,12 +1826,21 @@ async function loadIngredients() {
                 unit: unitMap[ing.unit_id] || '',
                 unit_id: ing.unit_id,
                 status: status,
-                minLevel: threshold
+                minLevel: threshold,
+                expiry_date: ing.expiry_date,
+                expiryStatus: expiryStatus,
+                daysUntilExpiry: daysUntilExpiry
             };
         });
 
         displayIngredients(allIngredients);
         populateCategoryFilter(categories);
+        
+        // Check for alerts and send email notifications (once per session)
+        if (!sessionStorage.getItem('inventoryAlertsChecked')) {
+            sessionStorage.setItem('inventoryAlertsChecked', 'true');
+            checkAndNotifyInventoryAlerts();
+        }
 
     } catch (error) {
         console.error('Failed to load ingredients:', error);
@@ -699,9 +1875,29 @@ function displayIngredients(ingredients) {
     const tbody = tableElem.querySelector('tbody');
     if (!tbody) return;
 
-    tbody.innerHTML = ingredients.map(ing => `
-        <tr class="${ing.status === 'Low' ? 'table-warning' : ''}">
-            <td><strong>${ing.name}</strong></td>
+    tbody.innerHTML = ingredients.map(ing => {
+        // Determine row class based on status
+        let rowClass = '';
+        if (ing.expiryStatus === 'expired') {
+            rowClass = 'table-danger';
+        } else if (ing.status === 'Low' || ing.expiryStatus === 'expiring') {
+            rowClass = 'table-warning';
+        }
+        
+        // Build expiry badge if applicable
+        let expiryBadge = '';
+        if (ing.expiryStatus === 'expired') {
+            expiryBadge = `<span class="badge bg-danger ms-1" title="Expired ${Math.abs(ing.daysUntilExpiry)} days ago"><i class="fas fa-skull-crossbones me-1"></i>EXPIRED</span>`;
+        } else if (ing.expiryStatus === 'expiring') {
+            expiryBadge = `<span class="badge bg-warning text-dark ms-1" title="Expires in ${ing.daysUntilExpiry} days"><i class="fas fa-clock me-1"></i>${ing.daysUntilExpiry}d</span>`;
+        }
+        
+        return `
+        <tr class="${rowClass}">
+            <td>
+                <strong>${ing.name}</strong>
+                ${expiryBadge}
+            </td>
             <td><span class="badge bg-secondary">${ing.category}</span></td>
             <td>
                 <span class="fw-bold ${ing.status === 'Low' ? 'text-danger' : 'text-success'}">${ing.quantity}</span> 
@@ -726,8 +1922,8 @@ function displayIngredients(ingredients) {
                     </button>
                 </div>
             </td>
-        </tr>`
-    ).join('');
+        </tr>`;
+    }).join('');
 
     // Update total count if element exists
     const totalCount = document.getElementById('ingredientsTotalCount');
@@ -922,6 +2118,11 @@ async function saveIngredientUpdate() {
             timestamp: new Date().toISOString().slice(0, 19).replace('T', ' ')
         });
 
+        // Create notification for admin
+        const actionType = isIncrease ? 'restock' : 'usage';
+        const description = `${isIncrease ? 'Restocked' : 'Used'} ${currentEditingIngredient.name}: ${isIncrease ? '+' : '-'}${changeQty} ${currentEditingIngredient.unit} (${prevQty} → ${newQty})`;
+        await createNotification(user.id, actionType, 'ingredients', currentEditingIngredient.id, description, reason);
+
         // Close modal
         const modalEl = document.getElementById('updateQuantityModal');
         const modal = bootstrap.Modal.getInstance(modalEl);
@@ -963,15 +2164,970 @@ function filterIngredients() {
 }
 
 // ─── Receipts ─────────────────────────────────────────────────────────────────
+let allSales = [];
+let currentSelectedSale = null;
 
 function initializeReceiptsFunctionality() {
+    // Load system settings for refund/void rules
+    loadSystemSettings();
+    
+    // Load receipts list (for staff-receipts.html)
+    if (document.getElementById('receiptsList')) {
+        loadReceiptsList();
+        
+        // Filter button
+        document.getElementById('filterReceipts')?.addEventListener('click', filterReceipts);
+        
+        // Set default dates
+        const dateFrom = document.getElementById('receiptDateFrom');
+        const dateTo = document.getElementById('receiptDateTo');
+        if (dateFrom && dateTo) {
+            const today = new Date().toISOString().split('T')[0];
+            dateFrom.value = today;
+            dateTo.value = today;
+        }
+        
+        // Print receipt button
+        document.getElementById('printReceiptBtn')?.addEventListener('click', printReceipt);
+        
+        // Initialize refund/void modal (action buttons are per-row in table)
+        initializeTransactionEditModal();
+    }
+    
+    // Load recent receipts sidebar (for dashboard)
     loadRecentReceipts();
+}
+
+async function loadReceiptsList() {
+    const container = document.getElementById('receiptsList');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-maroon" role="status"></div>
+            <p class="mt-2 text-muted">Loading transactions...</p>
+        </div>
+    `;
+    
+    try {
+        // Load from database
+        const dbSales = await salesDB.show();
+        const saleItems = await saleItemsDB.show();
+        const menuItems = await menuItemsDB.show();
+        
+        // Map sale items to sales
+        allSales = (Array.isArray(dbSales) ? dbSales : []).map(sale => {
+            const saleId = parseInt(sale.id);
+            const matchedItems = saleItems.filter(si => parseInt(si.sale_id) === saleId);
+            
+            const items = matchedItems.map(si => {
+                const menuItemId = parseInt(si.menu_item_id);
+                const menuItem = menuItems.find(mi => parseInt(mi.id) === menuItemId);
+                return {
+                    name: si.item_name || menuItem?.name || 'Unknown Item',
+                    quantity: si.quantity,
+                    price: parseFloat(si.unit_price) || 0,
+                    subtotal: (parseFloat(si.unit_price) || 0) * (parseInt(si.quantity) || 1)
+                };
+            });
+            
+            const saleDate = new Date(sale.sale_datetime || sale.created_at);
+            return {
+                id: sale.id,
+                date: saleDate.toLocaleDateString(),
+                time: saleDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                timestamp: saleDate.getTime(),
+                total: parseFloat(sale.total_amount),
+                staff: sale.staff_name || 'Staff',
+                items: items,
+                status: sale.status || 'completed',
+                adjusted_total: sale.adjusted_total ? parseFloat(sale.adjusted_total) : null,
+                adjustment_reason: sale.adjustment_reason
+            };
+        });
+        
+        // Also load from localStorage as fallback
+        const localSales = JSON.parse(localStorage.getItem('sales') || '[]');
+        localSales.forEach(ls => {
+            if (!allSales.find(s => s.id === ls.id)) {
+                allSales.push(ls);
+            }
+        });
+        
+        displayReceipts(allSales);
+    } catch (error) {
+        console.error('Failed to load receipts:', error);
+        container.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-5 text-danger">
+                    <i class="fas fa-exclamation-circle fa-2x mb-2"></i>
+                    <p class="mb-0">Failed to load transactions</p>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function displayReceipts(sales) {
+    const container = document.getElementById('receiptsList');
+    if (!container) return;
+    
+    if (sales.length === 0) {
+        container.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-5">
+                    <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">No transactions found</p>
+                </td>
+            </tr>
+        `;
+        updateDeleteButtonsState();
+        return;
+    }
+    
+    // Sort by date descending
+    const sorted = [...sales].sort((a, b) => b.timestamp - a.timestamp);
+    
+    container.innerHTML = sorted.map(sale => {
+        let statusBadge = '<span class="badge bg-success">Completed</span>';
+        let rowClass = '';
+        let totalClass = '';
+        
+        if (sale.status === 'voided') {
+            statusBadge = '<span class="badge bg-dark">VOIDED</span>';
+            rowClass = 'table-secondary';
+            totalClass = 'text-decoration-line-through text-muted';
+        } else if (sale.status === 'refunded') {
+            statusBadge = '<span class="badge bg-warning text-dark">REFUNDED</span>';
+            rowClass = 'table-warning';
+            totalClass = 'text-decoration-line-through text-muted';
+        } else if (sale.status === 'partial_refund') {
+            statusBadge = '<span class="badge bg-info">PARTIAL</span>';
+            rowClass = 'table-info';
+        }
+        
+        // Calculate display total based on status
+        let displayTotal = parseFloat(sale.total) || 0;
+        if (sale.status === 'voided' || sale.status === 'refunded') {
+            displayTotal = 0;
+        } else if (sale.status === 'partial_refund' && sale.adjusted_total !== null && sale.adjusted_total !== undefined) {
+            displayTotal = parseFloat(sale.adjusted_total);
+        }
+        
+        const itemsPreview = sale.items.slice(0, 2).map(i => i.name).join(', ') + (sale.items.length > 2 ? '...' : '');
+        
+        // Disable refund/void button if already processed
+        const isProcessed = sale.status === 'voided' || sale.status === 'refunded';
+        const actionBtnDisabled = isProcessed ? 'disabled' : '';
+        const actionBtnTitle = isProcessed ? 'Already processed' : 'Refund or Void';
+        
+        return `
+            <tr class="${rowClass} receipt-row" style="cursor: pointer;" data-sale-id="${sale.id}">
+                <td onclick="event.stopPropagation();"><input type="checkbox" class="form-check-input receipt-checkbox" value="${sale.id}" onchange="updateDeleteButtonsState()"></td>
+                <td onclick="selectReceipt('${sale.id}')">#${sale.id}</td>
+                <td onclick="selectReceipt('${sale.id}')">${sale.time}</td>
+                <td onclick="selectReceipt('${sale.id}')"><small>${itemsPreview}</small></td>
+                <td onclick="selectReceipt('${sale.id}')" class="fw-bold ${totalClass}">₱${displayTotal.toFixed(2)}</td>
+                <td onclick="selectReceipt('${sale.id}')">${statusBadge}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-warning" onclick="openRefundVoidModalById('${sale.id}')" ${actionBtnDisabled} title="${actionBtnTitle}">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    updateDeleteButtonsState();
+}
+
+// Toggle select all checkboxes
+function toggleSelectAllReceipts() {
+    const selectAll = document.getElementById('selectAllReceipts');
+    const checkboxes = document.querySelectorAll('.receipt-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    updateDeleteButtonsState();
+}
+
+// Update delete buttons state based on selection
+function updateDeleteButtonsState() {
+    const checkboxes = document.querySelectorAll('.receipt-checkbox:checked');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const deleteAllBtn = document.getElementById('deleteAllBtn');
+    const totalReceipts = document.querySelectorAll('.receipt-checkbox').length;
+    
+    if (deleteSelectedBtn) {
+        deleteSelectedBtn.disabled = checkboxes.length === 0;
+        if (checkboxes.length > 0) {
+            deleteSelectedBtn.innerHTML = `<i class="fas fa-trash-alt me-1"></i>Delete Selected (${checkboxes.length})`;
+        } else {
+            deleteSelectedBtn.innerHTML = `<i class="fas fa-trash-alt me-1"></i>Delete Selected`;
+        }
+    }
+    
+    if (deleteAllBtn) {
+        deleteAllBtn.disabled = totalReceipts === 0;
+    }
+    
+    // Update select all checkbox state
+    const selectAll = document.getElementById('selectAllReceipts');
+    if (selectAll && totalReceipts > 0) {
+        selectAll.checked = checkboxes.length === totalReceipts;
+        selectAll.indeterminate = checkboxes.length > 0 && checkboxes.length < totalReceipts;
+    }
+}
+
+// Delete selected receipts
+async function deleteSelectedReceipts() {
+    const checkboxes = document.querySelectorAll('.receipt-checkbox:checked');
+    if (checkboxes.length === 0) return;
+    
+    const saleIds = Array.from(checkboxes).map(cb => cb.value);
+    
+    const result = await Swal.fire({
+        title: 'Delete Selected Transactions?',
+        html: `Are you sure you want to delete <strong>${saleIds.length}</strong> transaction(s)?<br><small class="text-danger">This action cannot be undone.</small>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Yes, Delete',
+        cancelButtonText: 'Cancel'
+    });
+    
+    if (!result.isConfirmed) return;
+    
+    showLoadingModal('Deleting transactions...');
+    
+    try {
+        // Remove from localStorage first
+        const localSales = JSON.parse(localStorage.getItem('sales') || '[]');
+        const updatedLocalSales = localSales.filter(s => !saleIds.includes(String(s.id)));
+        localStorage.setItem('sales', JSON.stringify(updatedLocalSales));
+        console.log('Updated localStorage, removed', saleIds.length, 'sales');
+        
+        // Also try to delete from database
+        for (const saleId of saleIds) {
+            console.log('Deleting sale ID:', saleId);
+            
+            // Delete sale items first
+            const saleItems = await saleItemsDB.show();
+            const saleItemsArr = Array.isArray(saleItems) ? saleItems : [];
+            const itemsToDelete = saleItemsArr.filter(si => parseInt(si.sale_id) === parseInt(saleId));
+            console.log('Items to delete for sale', saleId, ':', itemsToDelete);
+            
+            for (const item of itemsToDelete) {
+                const itemDeleteResult = await saleItemsDB.delete(item.id);
+                console.log('Delete item result:', itemDeleteResult);
+            }
+            
+            // Delete the sale
+            const saleDeleteResult = await salesDB.delete(parseInt(saleId));
+            console.log('Delete sale result:', saleDeleteResult);
+        }
+        
+        // Update allSales array
+        allSales = allSales.filter(s => !saleIds.includes(String(s.id)));
+        
+        hideLoadingModal();
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Deleted!',
+            text: `${saleIds.length} transaction(s) deleted successfully`,
+            timer: 2000,
+            showConfirmButton: false
+        });
+        
+        logStaffActivity('Deleted Transactions', `Deleted ${saleIds.length} transactions`, 'Success');
+        
+        // Reload receipts
+        loadReceiptsList();
+    } catch (error) {
+        hideLoadingModal();
+        console.error('Delete error:', error);
+        Swal.fire('Error', 'Failed to delete some transactions', 'error');
+    }
+}
+
+// Delete all receipts
+async function deleteAllReceipts() {
+    console.log('=== DELETE ALL RECEIPTS STARTED ===');
+    const totalReceipts = document.querySelectorAll('.receipt-checkbox').length;
+    console.log('Total receipts found in UI:', totalReceipts);
+    if (totalReceipts === 0) {
+        console.log('No receipts to delete, exiting');
+        return;
+    }
+    
+    const result = await Swal.fire({
+        title: 'Delete ALL Transactions?',
+        html: `Are you sure you want to delete <strong>ALL ${totalReceipts}</strong> transaction(s)?<br><small class="text-danger">This action cannot be undone!</small>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Yes, Delete All',
+        cancelButtonText: 'Cancel',
+        input: 'text',
+        inputPlaceholder: 'Type DELETE to confirm',
+        inputValidator: (value) => {
+            if (value !== 'DELETE') {
+                return 'Please type DELETE to confirm';
+            }
+        }
+    });
+    
+    console.log('Swal result:', result);
+    if (!result.isConfirmed) {
+        console.log('User cancelled, exiting');
+        return;
+    }
+    
+    console.log('User confirmed deletion, proceeding...');
+    showLoadingModal('Deleting all transactions...');
+    
+    try {
+        // Clear localStorage sales first (since this is the fallback source)
+        console.log('Clearing localStorage sales...');
+        localStorage.removeItem('sales');
+        localStorage.removeItem('sale_items');
+        console.log('localStorage cleared');
+        
+        // Get all sales and sale items from database
+        console.log('Fetching all sales from database...');
+        const dbSales = await salesDB.show();
+        const sales = Array.isArray(dbSales) ? dbSales : [];
+        console.log('Sales fetched:', sales);
+        console.log('Number of sales:', sales.length);
+        
+        console.log('Fetching all sale items from database...');
+        const dbSaleItems = await saleItemsDB.show();
+        const saleItems = Array.isArray(dbSaleItems) ? dbSaleItems : [];
+        console.log('Sale items fetched:', saleItems);
+        console.log('Number of sale items:', saleItems.length);
+        
+        // Delete all sale items first
+        console.log('=== DELETING SALE ITEMS ===');
+        let itemDeleteCount = 0;
+        for (const item of saleItems) {
+            console.log(`Deleting sale item ID: ${item.id}`);
+            const itemResult = await saleItemsDB.delete(item.id);
+            console.log(`Delete item ${item.id} result:`, itemResult);
+            itemDeleteCount++;
+        }
+        console.log(`Finished deleting ${itemDeleteCount} sale items`);
+        
+        // Delete all sales
+        console.log('=== DELETING SALES ===');
+        let saleDeleteCount = 0;
+        for (const sale of sales) {
+            console.log(`Deleting sale ID: ${sale.id}, Receipt: ${sale.receipt_no}`);
+            const saleResult = await salesDB.delete(sale.id);
+            console.log(`Delete sale ${sale.id} result:`, saleResult);
+            saleDeleteCount++;
+        }
+        console.log(`Finished deleting ${saleDeleteCount} sales`);
+        
+        // Also clear allSales array
+        allSales = [];
+        
+        hideLoadingModal();
+        console.log('=== DELETE ALL COMPLETED SUCCESSFULLY ===');
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Deleted!',
+            text: 'All transactions deleted successfully',
+            timer: 2000,
+            showConfirmButton: false
+        });
+        
+        logStaffActivity('Deleted All Transactions', `Deleted ${sales.length} transactions`, 'Success');
+        
+        // Reload receipts
+        console.log('Reloading receipts list...');
+        loadReceiptsList();
+    } catch (error) {
+        hideLoadingModal();
+        console.error('=== DELETE ALL ERROR ===');
+        console.error('Error object:', error);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        Swal.fire('Error', 'Failed to delete transactions: ' + error.message, 'error');
+    }
+}
+
+function filterReceipts() {
+    const dateFrom = document.getElementById('receiptDateFrom')?.value;
+    const dateTo = document.getElementById('receiptDateTo')?.value;
+    
+    if (!dateFrom || !dateTo) {
+        displayReceipts(allSales);
+        return;
+    }
+    
+    const fromDate = new Date(dateFrom);
+    fromDate.setHours(0, 0, 0, 0);
+    const toDate = new Date(dateTo);
+    toDate.setHours(23, 59, 59, 999);
+    
+    const filtered = allSales.filter(sale => {
+        const saleDate = new Date(sale.timestamp);
+        return saleDate >= fromDate && saleDate <= toDate;
+    });
+    
+    displayReceipts(filtered);
+}
+
+function selectReceipt(saleId) {
+    const sale = allSales.find(s => String(s.id) === String(saleId));
+    if (!sale) return;
+    
+    currentSelectedSale = sale;
+    
+    // Render receipt preview
+    const preview = document.getElementById('receiptPreview');
+    if (preview) {
+        let statusText = '';
+        if (sale.status === 'voided') {
+            statusText = '<div class="text-center text-danger fw-bold mb-2">*** VOIDED ***</div>';
+        } else if (sale.status === 'refunded') {
+            statusText = '<div class="text-center text-warning fw-bold mb-2">*** REFUNDED ***</div>';
+        } else if (sale.status === 'partial_refund') {
+            statusText = '<div class="text-center text-info fw-bold mb-2">*** PARTIAL REFUND ***</div>';
+        }
+        
+        const itemsHtml = sale.items.map(item => {
+            const subtotal = parseFloat(item.subtotal) || (parseFloat(item.price) * (item.quantity || 1)) || 0;
+            return `
+                <div class="d-flex justify-content-between">
+                    <span>${item.name || 'Unknown'} x${item.quantity || 1}</span>
+                    <span>₱${subtotal.toFixed(2)}</span>
+                </div>
+            `;
+        }).join('');
+        
+        // Calculate display total based on status
+        const originalTotal = parseFloat(sale.total) || 0;
+        let displayTotal = originalTotal;
+        if (sale.status === 'voided' || sale.status === 'refunded') {
+            displayTotal = 0;
+        } else if (sale.status === 'partial_refund' && sale.adjusted_total !== null && sale.adjusted_total !== undefined) {
+            displayTotal = parseFloat(sale.adjusted_total);
+        }
+        
+        // Calculate refund amount for partial
+        const refundedAmount = originalTotal - displayTotal;
+        
+        preview.innerHTML = `
+            <div class="text-center mb-3">
+                <strong>ETHAN'S CAFE</strong><br>
+                <small>Receipt #${sale.id}</small>
+            </div>
+            ${statusText}
+            <hr class="my-2">
+            <small class="text-muted">${sale.date} ${sale.time}</small>
+            <hr class="my-2">
+            ${itemsHtml}
+            <hr class="my-2">
+            ${sale.status === 'partial_refund' ? `
+                <div class="d-flex justify-content-between text-muted">
+                    <span>Original Total</span>
+                    <span>₱${originalTotal.toFixed(2)}</span>
+                </div>
+                <div class="d-flex justify-content-between text-danger">
+                    <span>Refunded</span>
+                    <span>-₱${refundedAmount.toFixed(2)}</span>
+                </div>
+            ` : ''}
+            <div class="d-flex justify-content-between fw-bold ${sale.status === 'voided' || sale.status === 'refunded' ? 'text-decoration-line-through text-muted' : ''}">
+                <span>${sale.status === 'partial_refund' ? 'ADJUSTED TOTAL' : 'TOTAL'}</span>
+                <span>₱${displayTotal.toFixed(2)}</span>
+            </div>
+            ${sale.adjustment_reason ? '<div class="mt-2 small text-muted"><strong>Reason:</strong> ' + sale.adjustment_reason + '</div>' : ''}
+            <hr class="my-2">
+            <div class="text-center small">
+                <span>Staff: ${sale.staff}</span>
+            </div>
+        `;
+    }
+    
+    // Enable action buttons
+    document.getElementById('printReceiptBtn')?.removeAttribute('disabled');
+    document.getElementById('newSaleFromReceiptBtn')?.removeAttribute('disabled');
+    
+    // Highlight selected row in table
+    document.querySelectorAll('#receiptsList tr.receipt-row').forEach(row => {
+        row.classList.remove('table-primary');
+        if (row.dataset.saleId === String(saleId)) {
+            row.classList.add('table-primary');
+        }
+    });
+}
+
+/**
+ * Open refund/void modal by sale ID (called from table action button)
+ */
+function openRefundVoidModalById(saleId) {
+    const sale = allSales.find(s => String(s.id) === String(saleId));
+    if (!sale) {
+        showModalNotification('Transaction not found', 'error', 'Error');
+        return;
+    }
+    
+    currentSelectedSale = sale;
+    openRefundVoidModal();
+}
+
+function printReceipt() {
+    if (!currentSelectedSale) return;
+    
+    const sale = currentSelectedSale;
+    const originalTotal = parseFloat(sale.total) || 0;
+    
+    // Calculate display total based on status
+    let displayTotal = originalTotal;
+    if (sale.status === 'voided' || sale.status === 'refunded') {
+        displayTotal = 0;
+    } else if (sale.status === 'partial_refund' && sale.adjusted_total !== null && sale.adjusted_total !== undefined) {
+        displayTotal = parseFloat(sale.adjusted_total);
+    }
+    
+    const itemsHtml = sale.items.map(item => {
+        const subtotal = parseFloat(item.subtotal) || (parseFloat(item.price) * (item.quantity || 1)) || 0;
+        return `
+            <tr>
+                <td>${item.name || 'Unknown'}</td>
+                <td class="text-center">${item.quantity || 1}</td>
+                <td class="text-end">₱${subtotal.toFixed(2)}</td>
+            </tr>
+        `;
+    }).join('');
+    
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Receipt #${sale.id}</title>
+            <style>
+                body { font-family: 'Courier New', monospace; font-size: 12px; max-width: 300px; margin: 0 auto; padding: 20px; }
+                .header { text-align: center; margin-bottom: 15px; }
+                .divider { border-top: 1px dashed #000; margin: 10px 0; }
+                table { width: 100%; }
+                .total { font-weight: bold; font-size: 14px; }
+                .voided { text-decoration: line-through; color: #999; }
+                .status { text-align: center; font-weight: bold; margin: 10px 0; }
+                .status.voided { color: red; }
+                .status.refunded { color: orange; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <strong>ETHAN'S CAFE</strong><br>
+                <small>Receipt #${sale.id}</small><br>
+                <small>${sale.date} ${sale.time}</small>
+            </div>
+            ${sale.status === 'voided' ? '<div class="status voided">*** VOIDED ***</div>' : ''}
+            ${sale.status === 'refunded' ? '<div class="status refunded">*** REFUNDED ***</div>' : ''}
+            ${sale.status === 'partial_refund' ? '<div class="status refunded">*** PARTIAL REFUND ***</div>' : ''}
+            <div class="divider"></div>
+            <table>
+                <tbody>${itemsHtml}</tbody>
+            </table>
+            <div class="divider"></div>
+            <table>
+                <tr class="total ${sale.status === 'voided' ? 'voided' : ''}">
+                    <td>TOTAL</td>
+                    <td class="text-end">₱${displayTotal.toFixed(2)}</td>
+                </tr>
+            </table>
+            <div class="divider"></div>
+            <div style="text-align: center;">
+                <small>Staff: ${sale.staff}</small><br>
+                <small>Thank you for visiting!</small>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
 }
 
 function loadRecentReceipts() {
     const container = document.getElementById('recentReceipts');
     if (!container) return;
     container.innerHTML = '<a href="#" class="list-group-item list-group-item-action">No recent receipts</a>';
+}
+
+/**
+ * Open refund/void modal for the selected transaction
+ */
+function openRefundVoidModal() {
+    if (!currentSelectedSale) {
+        showModalNotification('Please select a transaction first', 'warning', 'No Selection');
+        return;
+    }
+    
+    const sale = currentSelectedSale;
+    const total = parseFloat(sale.total) || 0;
+
+    // Check refund time limit
+    const refundTimeLimitHours = parseInt(systemSettings.refund_time_limit_hours) || 24;
+    const saleDateTime = new Date(sale.sale_datetime || sale.date + ' ' + sale.time);
+    const hoursSinceSale = (Date.now() - saleDateTime.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursSinceSale > refundTimeLimitHours && sale.status === 'completed') {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Refund Time Expired',
+            html: `This transaction is older than ${refundTimeLimitHours} hours.<br>Refunds are no longer allowed.<br><br><small class="text-muted">Contact admin to adjust this limit.</small>`
+        });
+        return;
+    }
+
+    // Hide partial refund option if disabled in settings
+    const partialRefundOption = document.querySelector('#txnActionType option[value="partial_refund"]');
+    if (partialRefundOption) {
+        partialRefundOption.style.display = systemSettings.allow_partial_refund === 'false' ? 'none' : '';
+    }
+    
+    // Populate modal fields
+    document.getElementById('editTransactionId').value = sale.id;
+    document.getElementById('txnReference').value = sale.id;
+    document.getElementById('txnOriginalTotal').value = `₱${total.toFixed(2)}`;
+    document.getElementById('txnDateTime').value = `${sale.date} ${sale.time}`;
+    document.getElementById('txnStaff').value = sale.staff;
+    
+    // Populate items list (without checkboxes initially)
+    renderTransactionItems(sale.items, false);
+    
+    // Reset form fields
+    document.getElementById('txnActionType').value = '';
+    document.getElementById('txnAdjustedTotal').value = '';
+    document.getElementById('txnAdjustmentReason').value = '';
+    document.getElementById('adjustedTotalContainer').classList.add('d-none');
+    document.getElementById('selectAllHeader')?.classList.add('d-none');
+    document.getElementById('itemSelectionHint')?.style.setProperty('display', 'none');
+    document.getElementById('refundSummaryAlert')?.classList.add('d-none');
+    
+    // Show current status if exists
+    const statusAlert = document.getElementById('txnCurrentStatusAlert');
+    const statusText = document.getElementById('txnCurrentStatusText');
+    if (sale.status && sale.status !== 'completed') {
+        statusAlert.classList.remove('d-none');
+        let statusMsg = '';
+        const adjTotal = parseFloat(sale.adjusted_total) || 0;
+        if (sale.status === 'voided') {
+            statusMsg = `This transaction was VOIDED. Reason: ${sale.adjustment_reason || 'N/A'}`;
+        } else if (sale.status === 'refunded') {
+            statusMsg = `This transaction was REFUNDED. Reason: ${sale.adjustment_reason || 'N/A'}`;
+        } else if (sale.status === 'partial_refund') {
+            statusMsg = `Partial refund applied. Adjusted total: ₱${adjTotal.toFixed(2)}. Reason: ${sale.adjustment_reason || 'N/A'}`;
+        }
+        statusText.textContent = statusMsg;
+    } else {
+        statusAlert.classList.add('d-none');
+    }
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('transactionEditModal'));
+    modal.show();
+}
+
+/**
+ * Render transaction items in modal table
+ */
+function renderTransactionItems(items, showRefundQty = false) {
+    const itemsBody = document.getElementById('txnItemsList');
+    const refundQtyHeader = document.getElementById('refundQtyHeader');
+    
+    if (showRefundQty) {
+        refundQtyHeader?.classList.remove('d-none');
+    } else {
+        refundQtyHeader?.classList.add('d-none');
+    }
+    
+    itemsBody.innerHTML = items.map((item, index) => {
+        const price = parseFloat(item.price) || 0;
+        const qty = parseInt(item.quantity) || 1;
+        const subtotal = parseFloat(item.subtotal) || (price * qty);
+        
+        return `
+            <tr>
+                <td>${item.name || 'Unknown'}</td>
+                <td class="text-center">${qty}</td>
+                ${showRefundQty ? `
+                <td class="text-center bg-warning-subtle">
+                    <input type="number" class="form-control form-control-sm refund-qty-input text-center" 
+                           data-index="${index}" 
+                           data-price="${price}"
+                           data-max-qty="${qty}"
+                           min="0" max="${qty}" value="0"
+                           style="width: 60px; margin: auto;"
+                           onchange="calculateRefundTotal()" oninput="validateRefundQty(this)">
+                </td>
+                ` : ''}
+                <td class="text-end">₱${price.toFixed(2)}</td>
+                <td class="text-end">₱${subtotal.toFixed(2)}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+/**
+ * Validate refund quantity input
+ */
+function validateRefundQty(input) {
+    const max = parseInt(input.dataset.maxQty) || 0;
+    let val = parseInt(input.value) || 0;
+    
+    if (val < 0) val = 0;
+    if (val > max) val = max;
+    
+    input.value = val;
+    calculateRefundTotal();
+}
+
+/**
+ * Calculate refund total from quantity inputs
+ */
+function calculateRefundTotal() {
+    const qtyInputs = document.querySelectorAll('.refund-qty-input');
+    let total = 0;
+    
+    qtyInputs.forEach(input => {
+        const qty = parseInt(input.value) || 0;
+        const price = parseFloat(input.dataset.price) || 0;
+        total += qty * price;
+    });
+    
+    document.getElementById('calculatedRefundAmount').textContent = `₱${total.toFixed(2)}`;
+    document.getElementById('txnAdjustedTotal').value = total.toFixed(2);
+}
+
+/**
+ * Initialize transaction edit modal events
+ */
+function initializeTransactionEditModal() {
+    // Action type change handler
+    const actionType = document.getElementById('txnActionType');
+    if (actionType) {
+        actionType.addEventListener('change', function() {
+            const adjustedContainer = document.getElementById('adjustedTotalContainer');
+            const refundSummary = document.getElementById('refundSummaryAlert');
+            const itemHint = document.getElementById('itemSelectionHint');
+            
+            if (this.value === 'partial_refund') {
+                // Show refund qty column
+                adjustedContainer?.classList.remove('d-none');
+                refundSummary?.classList.remove('d-none');
+                itemHint?.style.setProperty('display', 'inline');
+                
+                // Re-render items with refund qty inputs
+                if (currentSelectedSale) {
+                    renderTransactionItems(currentSelectedSale.items, true);
+                }
+            } else {
+                adjustedContainer?.classList.add('d-none');
+                refundSummary?.classList.add('d-none');
+                itemHint?.style.setProperty('display', 'none');
+                
+                // Re-render items without refund qty inputs
+                if (currentSelectedSale) {
+                    renderTransactionItems(currentSelectedSale.items, false);
+                }
+            }
+        });
+    }
+    
+    // Save adjustment button
+    const saveBtn = document.getElementById('saveTransactionAdjustment');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveTransactionAdjustment);
+    }
+}
+
+/**
+ * Save transaction adjustment (refund/void)
+ */
+async function saveTransactionAdjustment() {
+    const saleId = document.getElementById('editTransactionId').value;
+    const actionType = document.getElementById('txnActionType').value;
+    const reason = document.getElementById('txnAdjustmentReason').value.trim();
+    const refundAmount = parseFloat(document.getElementById('txnAdjustedTotal').value) || 0;
+    
+    // Validation
+    if (!actionType) {
+        Swal.fire('Error', 'Please select an action type', 'warning');
+        return;
+    }
+    
+    // Check if reason is required based on settings
+    const requireReason = systemSettings.require_reason_for_void !== 'false';
+    if (requireReason && !reason) {
+        Swal.fire('Error', 'Please provide a reason for this adjustment', 'warning');
+        return;
+    }
+    
+    // Get refunded items with quantities for partial refund
+    let refundedItems = [];
+    if (actionType === 'partial_refund') {
+        const qtyInputs = document.querySelectorAll('.refund-qty-input');
+        let hasRefund = false;
+        
+        qtyInputs.forEach(input => {
+            const qty = parseInt(input.value) || 0;
+            if (qty > 0) {
+                hasRefund = true;
+                const idx = parseInt(input.dataset.index);
+                if (currentSelectedSale?.items[idx]) {
+                    refundedItems.push({
+                        name: currentSelectedSale.items[idx].name,
+                        qty: qty,
+                        originalQty: currentSelectedSale.items[idx].quantity
+                    });
+                }
+            }
+        });
+        
+        if (!hasRefund) {
+            Swal.fire('Error', 'Please enter quantity to refund for at least one item', 'warning');
+            return;
+        }
+    }
+    
+    // Build selected items text for display
+    const selectedItems = refundedItems.map(item => `${item.name} x${item.qty}`);
+    
+    // Confirm action
+    let confirmText = '';
+    if (actionType === 'void') {
+        confirmText = 'VOID this entire transaction? The total will be set to ₱0.00';
+    } else if (actionType === 'refund') {
+        confirmText = `Issue a FULL REFUND of ₱${currentSelectedSale?.total?.toFixed(2)}?`;
+    } else {
+        confirmText = `Issue a PARTIAL REFUND of ₱${refundAmount.toFixed(2)} for: ${selectedItems.join(', ')}?`;
+    }
+    
+    // Check if manager approval is required for void
+    if (actionType === 'void' && systemSettings.require_manager_void === 'true') {
+        const managerApproved = await requestManagerApproval('Void Transaction');
+        if (!managerApproved) {
+            return;
+        }
+    }
+    
+    const result = await Swal.fire({
+        title: 'Confirm Action',
+        html: `<p>${confirmText}</p><p class="text-muted small">This action will be logged and notified to admin.</p>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#800000',
+        confirmButtonText: 'Yes, proceed'
+    });
+    
+    if (!result.isConfirmed) return;
+    
+    try {
+        const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+        
+        // Find the sale in allSales
+        const saleIndex = allSales.findIndex(s => String(s.id) === String(saleId));
+        if (saleIndex === -1) {
+            Swal.fire('Error', 'Transaction not found', 'error');
+            return;
+        }
+        
+        const sale = allSales[saleIndex];
+        const originalTotal = parseFloat(sale.total) || 0;
+        
+        // Calculate adjusted total (remaining amount after refund)
+        const newStatus = actionType === 'partial_refund' ? 'partial_refund' : 
+                          actionType === 'void' ? 'voided' : 'refunded';
+        let newAdjustedTotal = 0;
+        if (actionType === 'partial_refund') {
+            // Adjusted total = original - refund amount (what customer keeps)
+            newAdjustedTotal = originalTotal - refundAmount;
+        } else if (actionType === 'void' || actionType === 'refund') {
+            newAdjustedTotal = 0;
+        }
+        
+        // Build refund description with items if partial
+        let refundDetails = reason;
+        if (actionType === 'partial_refund' && selectedItems.length > 0) {
+            refundDetails = `${reason} | Items: ${selectedItems.join(', ')}`;
+        }
+        
+        // Update in database
+        await salesDB.edit({
+            id: parseInt(saleId) || saleId,
+            status: newStatus,
+            adjusted_total: newAdjustedTotal,
+            adjusted_by: user.id,
+            adjusted_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+            adjustment_reason: refundDetails
+        });
+        
+        // Update local record
+        allSales[saleIndex].status = newStatus;
+        allSales[saleIndex].adjusted_total = newAdjustedTotal;
+        allSales[saleIndex].adjustment_reason = refundDetails;
+        
+        // Update localStorage too
+        const localSales = JSON.parse(localStorage.getItem('sales') || '[]');
+        const localIdx = localSales.findIndex(s => String(s.id) === String(saleId));
+        if (localIdx !== -1) {
+            localSales[localIdx].status = newStatus;
+            localSales[localIdx].adjusted_total = newAdjustedTotal;
+            localSales[localIdx].adjusted_by = user.full_name || user.username;
+            localSales[localIdx].adjusted_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            localSales[localIdx].adjustment_reason = refundDetails;
+            localStorage.setItem('sales', JSON.stringify(localSales));
+        }
+        
+        // Create notification for admin
+        const notifDesc = actionType === 'void' ? 
+            `Transaction #${saleId} VOIDED. Original: ₱${originalTotal.toFixed(2)}` :
+            actionType === 'refund' ?
+            `Transaction #${saleId} REFUNDED. Amount: ₱${originalTotal.toFixed(2)}` :
+            `Transaction #${saleId} PARTIAL REFUND of ₱${refundAmount.toFixed(2)}. Remaining: ₱${newAdjustedTotal.toFixed(2)}`;
+        
+        await createNotification(user.id, actionType, 'sales', saleId, notifDesc, reason);
+        
+        // Send email notification if enabled
+        const emailEventType = actionType === 'void' ? 'void_transaction' : 'refund_transaction';
+        await sendEmailNotification(emailEventType, {
+            transaction_id: saleId,
+            original_amount: `₱${originalTotal.toFixed(2)}`,
+            refund_amount: actionType === 'partial_refund' ? `₱${refundAmount.toFixed(2)}` : `₱${originalTotal.toFixed(2)}`,
+            refund_type: actionType,
+            staff_name: user.full_name || user.username,
+            reason: reason
+        });
+        
+        // Log activity
+        logStaffActivity('sales', `${actionType.toUpperCase()}: Transaction #${saleId} - ${reason}`);
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('transactionEditModal'));
+        if (modal) modal.hide();
+        
+        // Refresh display
+        displayReceipts(allSales);
+        selectReceipt(saleId);
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: `Transaction ${actionType === 'void' ? 'voided' : 'adjusted'} successfully`,
+            timer: 2000,
+            showConfirmButton: false
+        });
+        
+    } catch (error) {
+        console.error('Failed to save adjustment:', error);
+        Swal.fire('Error', 'Failed to save adjustment: ' + error.message, 'error');
+    }
 }
 
 // ─── Account ──────────────────────────────────────────────────────────────────
@@ -998,7 +3154,7 @@ function initializeAccountFunctionality() {
 function toggleAccountEdit(forceState) {
     const editBtn = document.getElementById('editAccountBtn');
     const sendBtn = document.getElementById('sendAccountRequestBtn');
-    const inputs  = document.querySelectorAll('#accountInfoForm input, #changePasswordForm input:not(#accUsername)');
+    const inputs  = document.querySelectorAll('#accountInfoForm input, #changePasswordForm input');
 
     const isLocked = forceState !== undefined ? !forceState : editBtn.classList.contains('btn-outline-maroon');
 
@@ -1006,7 +3162,7 @@ function toggleAccountEdit(forceState) {
         editBtn.classList.replace('btn-outline-maroon', 'btn-maroon');
         editBtn.innerHTML = '<i class="fas fa-times me-1"></i> Cancel';
         sendBtn.classList.remove('d-none');
-        inputs.forEach(input => { if (input.id !== 'accUsername') input.disabled = false; });
+        inputs.forEach(input => input.disabled = false);
     } else {
         editBtn.classList.replace('btn-maroon', 'btn-outline-maroon');
         editBtn.innerHTML = '<i class="fas fa-edit me-1"></i> Edit';
@@ -1037,39 +3193,74 @@ function loadAccountData() {
     setVal('accFullName', user.full_name || '');
     setVal('accUsername', user.username || '');
     setVal('accEmail',    user.email    || '');
+    setVal('accPhone',    user.phone    || '');
 }
 
 async function saveAccountInfo() {
     const user     = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
     const fullName = document.getElementById('accFullName')?.value.trim();
+    const username = document.getElementById('accUsername')?.value.trim();
     const email    = document.getElementById('accEmail')?.value.trim();
+    const phone    = document.getElementById('accPhone')?.value.trim();
 
     if (!fullName) {
         showModalNotification('Full Name is required', 'warning', 'Validation');
         return;
     }
 
+    if (!username) {
+        showModalNotification('Username is required', 'warning', 'Validation');
+        return;
+    }
+
+    // Validate username format
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
+        showModalNotification('Username must be 3-30 characters (letters, numbers, underscores only)', 'warning', 'Validation');
+        return;
+    }
+
+    showLoadingModal('Updating account...');
+
     try {
-        const res = await fetch(API_URL, {
+        // Use dedicated profile update endpoint
+        const res = await fetch('php/update_profile.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                table: 'requests_tbl',
-                type: 'account_update',
-                requester_id: user.id,
-                payload: JSON.stringify({ full_name: fullName, email }),
-                status: 'Pending',
-                created_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                user_id: user.id,
+                full_name: fullName,
+                username: username,
+                email: email,
+                phone: phone
             })
         });
         const data = await res.json();
-        if (data.error) throw new Error(data.error);
+        hideLoadingModal();
+        
+        if (data.error) {
+            showModalNotification(data.error, 'danger', 'Error');
+            return;
+        }
 
-        showModalNotification('Update request sent to administrator for approval.', 'success', 'Request Sent');
-        logStaffActivity('Requested Account Update', `New Name: ${fullName}`, 'Pending');
+        // Update localStorage with new info
+        user.full_name = fullName;
+        user.username = username;
+        user.email = email;
+        user.phone = phone;
+        localStorage.setItem('loggedInUser', JSON.stringify(user));
+
+        // Update UI
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        set('profFullName', fullName);
+        const headerUserName = document.querySelector('.navbar .dropdown-toggle');
+        if (headerUserName) headerUserName.innerHTML = `<i class="fas fa-user-circle me-1"></i>${fullName}`;
+
+        showModalNotification('Account updated successfully!', 'success', 'Success');
+        logStaffActivity('Updated Account Info', `Name: ${fullName}, Username: ${username}`, 'Success');
     } catch (err) {
-        console.error('Failed to send request:', err);
-        showModalNotification('Failed to send update request.', 'danger', 'Error');
+        hideLoadingModal();
+        console.error('Failed to update account:', err);
+        showModalNotification('Failed to update account.', 'danger', 'Error');
     }
 }
 
@@ -1092,28 +3283,34 @@ async function handlePasswordUpdate() {
         return;
     }
 
+    showLoadingModal('Changing password...');
+
     try {
-        const res = await fetch(API_URL, {
+        // Use dedicated password change endpoint
+        const res = await fetch('php/change_password.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                table: 'requests_tbl',
-                type: 'password_change',
-                requester_id: user.id,
-                payload: JSON.stringify({ current_password: currentPass, new_password: newPass }),
-                status: 'Pending',
-                created_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                user_id: user.id,
+                current_password: currentPass,
+                new_password: newPass
             })
         });
         const data = await res.json();
-        if (data.error) throw new Error(data.error);
+        hideLoadingModal();
+        
+        if (data.error) {
+            showModalNotification(data.error, 'danger', 'Error');
+            return;
+        }
 
-        showModalNotification('Password change request sent to administrator.', 'success', 'Request Sent');
-        logStaffActivity('Requested Password Change', '', 'Pending');
+        showModalNotification('Password changed successfully!', 'success', 'Success');
+        logStaffActivity('Changed Password', '', 'Success');
         document.getElementById('changePasswordForm')?.reset();
     } catch (err) {
-        console.error('Failed to send request:', err);
-        showModalNotification('Failed to send request.', 'danger', 'Error');
+        hideLoadingModal();
+        console.error('Failed to change password:', err);
+        showModalNotification('Failed to change password.', 'danger', 'Error');
     }
 }
 

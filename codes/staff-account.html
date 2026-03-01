@@ -91,6 +91,9 @@
                 <a href="staff-menu.html" class="sidebar-link">
                     <i class="fas fa-utensils"></i>Menu Sales
                 </a>
+                <a href="staff-held-orders.html" class="sidebar-link">
+                    <i class="fas fa-pause-circle"></i>Held Orders
+                </a>
                 <a href="staff-ingredients.html" class="sidebar-link">
                     <i class="fas fa-boxes"></i>Ingredients
                 </a>
@@ -122,7 +125,7 @@
                                 <i class="fas fa-edit me-1"></i> Edit
                             </button>
                             <button class="btn btn-maroon d-none" id="sendAccountRequestBtn">
-                                <i class="fas fa-paper-plane me-1"></i> Send Request
+                                <i class="fas fa-save me-1"></i> Save Changes
                             </button>
                         </div>
                     </div>
@@ -165,21 +168,28 @@
                                 <form id="accountInfoForm">
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
-                                            <label class="form-label">Full Name</label>
+                                            <label class="form-label">Full Name <span class="text-danger">*</span></label>
                                             <input type="text" class="form-control" id="accFullName"
-                                                placeholder="Loading..." disabled>
+                                                placeholder="Enter your full name" disabled>
                                         </div>
                                         <div class="col-md-6 mb-3">
-                                            <label class="form-label">Username</label>
-                                            <input type="text" class="form-control" id="accUsername" value="..."
-                                                readonly disabled>
-                                            <div class="form-text">Username cannot be changed</div>
+                                            <label class="form-label">Username <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="accUsername" 
+                                                placeholder="Enter username" disabled>
+                                            <div class="form-text text-muted"><i class="fas fa-info-circle me-1"></i>Must be unique</div>
                                         </div>
                                     </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Email Address</label>
-                                        <input type="email" class="form-control" id="accEmail" placeholder="Loading..."
-                                            disabled>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Email Address</label>
+                                            <input type="email" class="form-control" id="accEmail" placeholder="Enter email address"
+                                                disabled>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Phone Number</label>
+                                            <input type="tel" class="form-control" id="accPhone" placeholder="Enter phone number"
+                                                disabled>
+                                        </div>
                                     </div>
                                 </form>
                             </div>

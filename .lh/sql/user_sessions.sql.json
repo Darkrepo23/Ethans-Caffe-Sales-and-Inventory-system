@@ -1,0 +1,18 @@
+{
+    "sourceFile": "sql/user_sessions.sql",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1772347294365,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1772347294365,
+            "name": "Commit-0",
+            "content": "-- User Sessions Table for Database-Based Authentication\r\n-- Run this SQL in Supabase SQL Editor to add session tracking\r\n\r\nCREATE TABLE IF NOT EXISTS user_sessions (\r\n  id SERIAL PRIMARY KEY,\r\n  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,\r\n  session_token VARCHAR(128) NOT NULL UNIQUE,\r\n  ip_address VARCHAR(45),\r\n  user_agent VARCHAR(255),\r\n  created_at TIMESTAMP NOT NULL DEFAULT NOW(),\r\n  expires_at TIMESTAMP NOT NULL,\r\n  last_activity TIMESTAMP DEFAULT NOW(),\r\n  is_active BOOLEAN DEFAULT TRUE\r\n);\r\n\r\n-- Create indexes for performance\r\nCREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);\r\nCREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);\r\nCREATE INDEX IF NOT EXISTS idx_user_sessions_is_active ON user_sessions(is_active);\r\n\r\n-- Clean up expired sessions (run periodically via cron or manually)\r\n-- DELETE FROM user_sessions WHERE expires_at < NOW() OR is_active = FALSE;\r\n"
+        }
+    ]
+}

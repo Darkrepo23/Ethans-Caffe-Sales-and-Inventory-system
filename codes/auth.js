@@ -27,6 +27,120 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
+// ===== Session Management Functions =====
+const SessionManager = {
+    /**
+     * Check if user is authenticated (hits the session API)
+     * @returns {Promise<{authenticated: boolean, user?: object}>}
+     */
+    async checkSession() {
+        try {
+            const response = await fetch('php/session.php?action=check', {
+                method: 'GET',
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Session check failed:', error);
+            return { authenticated: false };
+        }
+    },
+    
+    /**
+     * Get current logged-in user from session
+     * @returns {Promise<object|null>}
+     */
+    async getCurrentUser() {
+        const session = await this.checkSession();
+        return session.authenticated ? session.user : null;
+    },
+    
+    /**
+     * Logout user (destroys session in database)
+     * @param {boolean} logoutAll - If true, logout from all devices
+     * @returns {Promise<boolean>}
+     */
+    async logout(logoutAll = false) {
+        try {
+            const response = await fetch('php/logout.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ logout_all: logoutAll })
+            });
+            
+            const data = await response.json();
+            
+            // Clear any localStorage remnants (for backward compatibility)
+            localStorage.removeItem('loggedInUser');
+            localStorage.removeItem('loggedInRole');
+            localStorage.removeItem('loggedInUserId');
+            
+            return data.success === true;
+        } catch (error) {
+            console.error('Logout failed:', error);
+            return false;
+        }
+    },
+    
+    /**
+     * Refresh session (extend expiry)
+     * @returns {Promise<boolean>}
+     */
+    async refreshSession() {
+        try {
+            const response = await fetch('php/session.php?action=refresh', {
+                method: 'POST',
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            return data.success === true;
+        } catch (error) {
+            console.error('Session refresh failed:', error);
+            return false;
+        }
+    },
+    
+    /**
+     * Require authentication - redirect to login if not authenticated
+     * @param {string} requiredRole - Optional: 'admin' or 'staff'
+     */
+    async requireAuth(requiredRole = null) {
+        const session = await this.checkSession();
+        
+        if (!session.authenticated) {
+            window.location.href = 'index.html';
+            return false;
+        }
+        
+        if (requiredRole) {
+            const userRole = (session.user.role_name || '').toLowerCase();
+            if (requiredRole === 'admin' && userRole !== 'admin') {
+                window.location.href = 'staff-menu.html';
+                return false;
+            }
+        }
+        
+        return session.user;
+    }
+};
+
+// Global function for easy access
+async function getCurrentUser() {
+    return SessionManager.getCurrentUser();
+}
+
+async function logoutUser(logoutAll = false) {
+    const success = await SessionManager.logout(logoutAll);
+    if (success) {
+        window.location.href = 'index.html';
+    }
+    return success;
+}
+
 // Handle login
 async function handleLogin() {
     const usernameInput = document.getElementById('username');
@@ -135,21 +249,14 @@ async function handleLogin() {
             const role = parseInt(data.role_id);
             const roleName = (data.role_name || "").toLowerCase();
 
+            // Session is now managed via HTTP-only cookies set by login.php
+            // localStorage entries kept for backward compatibility during transition
             localStorage.setItem('loggedInRole', role === 1 ? 'admin' : 'staff');
             localStorage.setItem('loggedInUser', JSON.stringify(data));
+            localStorage.setItem('loggedInUserId', data.id);
 
-            // Mark user as active in database
-            updateUserStatus(data.id, 'active').then(() => {
-                if (role === 1 || roleName === "admin") {
-                    window.location.href = "admin-dashboard.html";
-                } else if (role === 2 || roleName === "staff") {
-                    window.location.href = "staff-menu.html";
-                } else {
-                    window.location.href = "staff-menu.html";
-                }
-            }).catch(err => {
-                console.error('Failed to update user status:', err);
-                // Still redirect even if status update fails
+            // Mark user as active in database and redirect
+            updateUserStatus(data.id, 'active').finally(() => {
                 if (role === 1 || roleName === "admin") {
                     window.location.href = "admin-dashboard.html";
                 } else {
@@ -436,3 +543,52 @@ async function updateUserStatus(userId, status) {
 //         alert('Admin user added successfully!');
 //     }
 // });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTO SESSION VALIDATION
+// Automatically validates session on protected pages (admin-*, staff-*)
+// ═══════════════════════════════════════════════════════════════════════════════
+(function() {
+    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    const isProtectedPage = currentPage.startsWith('admin-') || currentPage.startsWith('staff-');
+    
+    if (isProtectedPage) {
+        // Run session validation after DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Quick localStorage check first (for fast UX)
+            const loggedInUser = localStorage.getItem('loggedInUser');
+            if (!loggedInUser) {
+                console.log('🔒 No local session found, redirecting to login');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            // Validate session with server
+            fetch('php/session.php?action=check', {
+                method: 'GET',
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.authenticated || !data.user) {
+                    console.log('🔒 Server session invalid, redirecting to login');
+                    localStorage.removeItem('loggedInUser');
+                    localStorage.removeItem('loggedInRole');
+                    localStorage.removeItem('loggedInUserId');
+                    window.location.href = 'index.html';
+                } else {
+                    console.log('✅ Server session valid for:', data.user.username);
+                    // Update local storage with fresh data
+                    localStorage.setItem('loggedInUser', JSON.stringify(data.user));
+                    localStorage.setItem('loggedInRole', data.user.role_name);
+                    localStorage.setItem('loggedInUserId', data.user.id);
+                }
+            })
+            .catch(error => {
+                console.error('❌ Session check failed:', error);
+                // On network error, allow user to continue with localStorage data
+                // The server will reject any API calls if the session is actually invalid
+            });
+        });
+    }
+})();

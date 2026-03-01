@@ -246,6 +246,11 @@ $_SESSION['user_id'] = $user['id'];
 $_SESSION['role_id'] = $user['role_id'];
 $_SESSION['is_temp'] = $isTempAccount;
 
+// Create database session
+require_once 'session.php';
+$dbSession = createSession($supabase, $user['id']);
+$sessionToken = isset($dbSession['token']) ? $dbSession['token'] : null;
+
 // Log successful login for "My Activity"
 try {
     $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
@@ -265,13 +270,16 @@ try {
 
 ob_end_clean();
 echo json_encode([
-    "success"    => true,
-    "session_id" => session_id(),
-    "id"         => $user['id'],
-    "username"   => $user['username'],
-    "role_id"    => $user['role_id'],
-    "role_name"  => $user['role_name'] ?? 'unknown',
-    "full_name"  => $user['full_name'] ?? '',
-    "is_temp"    => $isTempAccount
+    "success"      => true,
+    "session_id"   => session_id(),
+    "session_token" => $sessionToken,
+    "id"           => $user['id'],
+    "username"     => $user['username'],
+    "role_id"      => $user['role_id'],
+    "role_name"    => $user['role_name'] ?? 'unknown',
+    "full_name"    => $user['full_name'] ?? '',
+    "email"        => $user['email'] ?? '',
+    "phone"        => $user['phone'] ?? '',
+    "is_temp"      => $isTempAccount
 ]);
 ?>

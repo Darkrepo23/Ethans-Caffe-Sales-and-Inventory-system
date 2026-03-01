@@ -364,6 +364,16 @@ body.modal-open {
 
 .swal2-container {
     overflow-y: auto;
+    z-index: 99999 !important;
+}
+
+/* Ensure SweetAlert2 popup is always visible */
+.swal2-popup {
+    z-index: 99999 !important;
+}
+
+.swal2-backdrop-show {
+    z-index: 99998 !important;
 }
 
 @media print {

@@ -1,0 +1,18 @@
+{
+    "sourceFile": "codes/php/config.php",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1772372631231,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1772372631231,
+            "name": "Commit-0",
+            "content": "<?php\r\n/**\r\n * SECURE CONFIGURATION FILE\r\n * ============================================\r\n * IMPORTANT: This file contains sensitive credentials.\r\n * \r\n * For production deployment:\r\n * 1. Move this file OUTSIDE your web root (e.g., C:\\xam\\config\\ethans_config.php)\r\n * 2. Update the require_once paths in other PHP files\r\n * 3. Set restrictive file permissions\r\n * 4. Never commit this file to version control\r\n * \r\n * Add to .gitignore:\r\n *   php/config.php\r\n */\r\n\r\n// Supabase Configuration\r\ndefine('SUPABASE_URL', 'https://kpuyiaadnirvnvzjugqz.supabase.co');\r\ndefine('SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwdXlpYWFkbmlydm52emp1Z3F6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MjU1NzAsImV4cCI6MjA4NzQwMTU3MH0.BdeFCxm3m4s_EgIJ8GVbBMzGIM8sWIy6FZwprA87aUc');\r\n\r\n// Service Role Key - Bypasses RLS for server-side operations\r\ndefine('SUPABASE_SERVICE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwdXlpYWFkbmlydm52emp1Z3F6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTgyNTU3MCwiZXhwIjoyMDg3NDAxNTcwfQ.j9xKF31en8cs3cazuJxkr0p9KVcZo7CFelXIZbeiaPA');\r\n\r\n// Master Unlock Access Code\r\n// Change this to your own secure code\r\ndefine('MASTER_ACCESS_CODE', 'ETHANS-0491-772-CAFE');\r\n\r\n// Frontend Unlock Sequence (used in index.html JavaScript)\r\n// This is validated client-side to show the overlay, actual auth happens server-side\r\ndefine('FRONTEND_UNLOCK_SEQUENCE', 'ETHANS-4726');\r\n\r\n// Database Configuration (for local MySQL if needed)\r\ndefine('DB_HOST', 'localhost');\r\ndefine('DB_NAME', 'ethans_cafe');\r\ndefine('DB_USER', 'root');\r\ndefine('DB_PASS', '');\r\n"
+        }
+    ]
+}
