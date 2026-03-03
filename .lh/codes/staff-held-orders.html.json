@@ -3,11 +3,15 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 0,
+            "activePatchIndex": 1,
             "patches": [
                 {
                     "date": 1772359264564,
                     "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1772564874606,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -98,11 +98,9 @@\n                 </a>\r\n                 <a href=\"staff-held-orders.html\" class=\"sidebar-link active\">\r\n                     <i class=\"fas fa-pause-circle\"></i>Held Orders\r\n                 </a>\r\n-                <a href=\"staff-ingredients.html\" class=\"sidebar-link\">\r\n-                    <i class=\"fas fa-boxes\"></i>Ingredients\r\n-                </a>\r\n+                <!-- Ingredients link removed -->\r\n                 <a href=\"staff-receipts.html\" class=\"sidebar-link\">\r\n                     <i class=\"fas fa-receipt\"></i>Receipts\r\n                 </a>\r\n \r\n"
                 }
             ],
             "date": 1772359264564,

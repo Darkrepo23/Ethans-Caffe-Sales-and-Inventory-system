@@ -135,4 +135,3 @@ export const activityLogsDB = createDB('activity_logs');
 export const requestsTblDB = createDB('requests_tbl');
 export const backupsDB = createDB('backups');
 export const systemSettingsDB = createDB('system_settings');
-export const temporaryAccountLogDB = createDB('temporary_account_log');

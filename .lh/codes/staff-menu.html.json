@@ -3,7 +3,7 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 1,
+            "activePatchIndex": 2,
             "patches": [
                 {
                     "date": 1772359264561,
@@ -12,6 +12,10 @@
                 {
                     "date": 1772372632081,
                     "content": "Index: \n===================================================================\n--- \n+++ \n@@ -171,11 +171,16 @@\n                         <div class=\"p-3 bg-black text-white\">\r\n                             <div class=\"d-flex justify-content-between align-items-center mb-1\">\r\n                                 <h6 class=\"mb-0 fw-bold\"><i class=\"fas fa-shopping-cart me-2\"></i>Cart Details (<span\r\n                                         id=\"cartCount\">0</span>)</h6>\r\n-                                <button class=\"btn btn-sm btn-outline-light\" id=\"clearSaleBtn\">\r\n-                                    <i class=\"fas fa-trash-alt\"></i>\r\n-                                </button>\r\n+                                <div class=\"btn-group btn-group-sm\">\r\n+                                    <button class=\"btn btn-sm btn-outline-light\" id=\"printerSetupBtn\" title=\"Printer Setup\">\r\n+                                        <i class=\"fas fa-print\"></i>\r\n+                                    </button>\r\n+                                    <button class=\"btn btn-sm btn-outline-light\" id=\"clearSaleBtn\" title=\"Clear Cart\">\r\n+                                        <i class=\"fas fa-trash-alt\"></i>\r\n+                                    </button>\r\n+                                </div>\r\n                             </div>\r\n                             <div class=\"d-flex justify-content-between align-items-center\">\r\n                                 <div class=\"small opacity-75\">\r\n                                     <i class=\"fas fa-user-circle me-1\"></i> <span\r\n"
+                },
+                {
+                    "date": 1772564874534,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -101,11 +101,9 @@\n                 </a>\r\n                 <a href=\"staff-held-orders.html\" class=\"sidebar-link\">\r\n                     <i class=\"fas fa-pause-circle\"></i>Held Orders\r\n                 </a>\r\n-                <a href=\"staff-ingredients.html\" class=\"sidebar-link\">\r\n-                    <i class=\"fas fa-boxes\"></i>Ingredients\r\n-                </a>\r\n+                <!-- Ingredients link removed -->\r\n                 <a href=\"staff-receipts.html\" class=\"sidebar-link\">\r\n                     <i class=\"fas fa-receipt\"></i>Receipts\r\n                 </a>\r\n \r\n"
                 }
             ],
             "date": 1772359264561,

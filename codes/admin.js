@@ -143,14 +143,12 @@ const activityLogsDB = createDB('activity_logs');
 const requestsTblDB = createDB('requests_tbl');
 const backupsDB = createDB('backups');
 const systemSettingsDB = createDB('system_settings');
-const temporaryAccountLogDB = createDB('temporary_account_log');
 const notificationsDB = createDB('notifications');
 
 // Notifications API URL
 const NOTIFICATIONS_API = 'php/notifications.php';
 
 // Global variables
-let tempAccountActive = false;
 let currentRequestType = null;
 let currentRequestId = null;
 
@@ -236,64 +234,64 @@ let revenueData = { today: 0, week: 0, month: 0, year: 0 };
 let salesData = { today: 0, week: 0, month: 0, year: 0 };
 
 function loadRevenueStats() {
-    salesDB.show().then(function(sales) {
+    salesDB.show().then(function (sales) {
         if (!sales || !Array.isArray(sales)) return;
-        
+
         // Filter completed sales only
-        const completedSales = sales.filter(function(sale) {
+        const completedSales = sales.filter(function (sale) {
             return (sale.status || '').toLowerCase() === 'completed';
         });
-        
+
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
+
         // Get start of week (Sunday)
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay());
-        
+
         // Get start of month
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        
+
         // Get start of year
         const startOfYear = new Date(now.getFullYear(), 0, 1);
-        
+
         revenueData = { today: 0, week: 0, month: 0, year: 0 };
         salesData = { today: 0, week: 0, month: 0, year: 0 };
-        
-        completedSales.forEach(function(sale) {
+
+        completedSales.forEach(function (sale) {
             const saleDate = new Date(sale.sale_datetime);
             const amount = parseFloat(sale.total_amount) || 0;
-            
+
             // Today
             if (saleDate >= today) {
                 revenueData.today += amount;
                 salesData.today++;
             }
-            
+
             // This Week
             if (saleDate >= startOfWeek) {
                 revenueData.week += amount;
                 salesData.week++;
             }
-            
+
             // This Month
             if (saleDate >= startOfMonth) {
                 revenueData.month += amount;
                 salesData.month++;
             }
-            
+
             // This Year
             if (saleDate >= startOfYear) {
                 revenueData.year += amount;
                 salesData.year++;
             }
         });
-        
+
         // Update both cards
         updateRevenueCard();
         updateSalesCard();
-        
-    }).catch(function(err) {
+
+    }).catch(function (err) {
         console.error('Failed to load revenue stats:', err);
     });
 }
@@ -305,9 +303,9 @@ function formatPeso(amount) {
 function updateRevenueCard() {
     const revenueEl = document.getElementById('totalRevenue');
     const periodLabelEl = document.getElementById('revenuePeriodLabel');
-    
+
     if (!revenueEl) return;
-    
+
     const values = [revenueData.today, revenueData.week, revenueData.month, revenueData.year];
     revenueEl.textContent = formatPeso(values[revenuePeriodIndex]);
     if (periodLabelEl) periodLabelEl.textContent = periods[revenuePeriodIndex];
@@ -316,9 +314,9 @@ function updateRevenueCard() {
 function updateSalesCard() {
     const salesCountEl = document.getElementById('totalSalesRecords');
     const periodLabelEl = document.getElementById('salesPeriodLabel');
-    
+
     if (!salesCountEl) return;
-    
+
     const counts = [salesData.today, salesData.week, salesData.month, salesData.year];
     salesCountEl.textContent = counts[salesPeriodIndex];
     if (periodLabelEl) periodLabelEl.textContent = periods[salesPeriodIndex];
@@ -328,34 +326,34 @@ function initPeriodToggles() {
     // Revenue toggle
     const revPrevBtn = document.getElementById('revenuePrevBtn');
     const revNextBtn = document.getElementById('revenueNextBtn');
-    
+
     if (revPrevBtn) {
-        revPrevBtn.addEventListener('click', function() {
+        revPrevBtn.addEventListener('click', function () {
             revenuePeriodIndex = (revenuePeriodIndex - 1 + periods.length) % periods.length;
             updateRevenueCard();
         });
     }
-    
+
     if (revNextBtn) {
-        revNextBtn.addEventListener('click', function() {
+        revNextBtn.addEventListener('click', function () {
             revenuePeriodIndex = (revenuePeriodIndex + 1) % periods.length;
             updateRevenueCard();
         });
     }
-    
+
     // Sales toggle
     const salesPrevBtn = document.getElementById('salesPrevBtn');
     const salesNextBtn = document.getElementById('salesNextBtn');
-    
+
     if (salesPrevBtn) {
-        salesPrevBtn.addEventListener('click', function() {
+        salesPrevBtn.addEventListener('click', function () {
             salesPeriodIndex = (salesPeriodIndex - 1 + periods.length) % periods.length;
             updateSalesCard();
         });
     }
-    
+
     if (salesNextBtn) {
-        salesNextBtn.addEventListener('click', function() {
+        salesNextBtn.addEventListener('click', function () {
             salesPeriodIndex = (salesPeriodIndex + 1) % periods.length;
             updateSalesCard();
         });
@@ -488,7 +486,6 @@ document.addEventListener('DOMContentLoaded', function () {
     startRequestBadgePolling();
     if (document.getElementById('activityLogTable')) initializeActivityLog();
     if (document.getElementById('fullActivityLogTable')) initializeFullActivityLog();
-    if (document.getElementById('tempStaffTable')) initializeTempAccount();
 
     // Load recent activities on the dashboard
     if (document.getElementById('recentActivities')) loadRecentActivities();
@@ -503,10 +500,10 @@ function initializeCommonAdminFeatures() {
             e.preventDefault();
             e.stopPropagation();
             console.log('🔄 Admin logout initiated - showing confirmation dialog');
-            
+
             showConfirm('Are you sure you want to logout?', async function () {
                 console.log('✅ Admin logout confirmed by user');
-                
+
                 try {
                     // Call server-side logout to destroy session
                     const response = await fetch('php/logout.php', {
@@ -518,7 +515,7 @@ function initializeCommonAdminFeatures() {
                 } catch (err) {
                     console.error('❌ Server logout failed, proceeding with local cleanup:', err);
                 }
-                
+
                 // Clear local storage
                 localStorage.removeItem('loggedInRole');
                 localStorage.removeItem('loggedInUser');
@@ -532,13 +529,13 @@ function initializeCommonAdminFeatures() {
     // Mark all notifications as read
     const markAllReadBtn = document.getElementById('markAllReadBtn');
     if (markAllReadBtn) {
-        markAllReadBtn.addEventListener('click', function(e) {
+        markAllReadBtn.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
             markAllNotificationsRead();
         });
     }
-    
+
     // Load notifications on page load
     if (document.getElementById('notificationBell')) {
         loadNotifications();
@@ -561,12 +558,10 @@ function initializeAdminDashboard() {
     }
 
     // Generate report button
-    const generateReportBtn = document.getElementById('generateReportBtn');
-    if (generateReportBtn) {
-        generateReportBtn.addEventListener('click', function () {
-            window.location.href = 'admin-reports.html';
-        });
-    }
+    generateReportBtn.addEventListener('click', function () {
+        window._reportGeneratedByUser = true; // ✅ flag that user clicked
+        generateReport();
+    });
 
     // Load initial data
     loadAdminDashboardData();
@@ -574,7 +569,7 @@ function initializeAdminDashboard() {
 
 function exportDashboardData() {
     // Simulate data export
-    showModalNotification('Exporting dashboard data...', 'info', 'Exporting Data');
+    // Modal notification removed
 
     setTimeout(() => {
         // Create a blob of the data
@@ -598,7 +593,7 @@ function exportDashboardData() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        showModalNotification('Dashboard data exported successfully', 'success', 'Export Complete');
+        // Modal notification removed
     }, 1000);
 }
 
@@ -645,13 +640,13 @@ let dashboardRefreshInterval;
 
 function loadAdminDashboardData() {
     loadLowStockData().catch(err => console.error('Error loading low stock data:', err));
-    
+
     // Load notifications
     loadNotifications();
-    
+
     // Load expiring/expired ingredients counts
     loadExpiryStats();
-    
+
     // Load active users count
     loadActiveUsersCount();
 
@@ -660,7 +655,7 @@ function loadAdminDashboardData() {
             const restockItems = allIngredients.filter(ing => ing.current_quantity <= ing.low_stock_threshold);
             const restockCount = document.getElementById('ingredientsRestock');
             if (restockCount) restockCount.textContent = restockItems.length;
-            
+
             const alertsCount = document.getElementById('systemAlerts');
             if (alertsCount) alertsCount.textContent = restockItems.length > 0 ? '1' : '0';
         }
@@ -691,25 +686,25 @@ async function loadNotifications() {
     try {
         const response = await fetch(`${NOTIFICATIONS_API}?unread=true&limit=20`);
         const data = await response.json();
-        
+
         if (!data.success) return;
-        
+
         const notifications = data.notifications || [];
         const unreadCount = notifications.length;
-        
+
         // Update badge
         const countBadge = document.getElementById('notificationCount');
         if (countBadge) {
             countBadge.textContent = unreadCount;
             countBadge.classList.toggle('d-none', unreadCount === 0);
         }
-        
+
         // Update dashboard card
         const dashboardCount = document.getElementById('unreadNotificationsCount');
         if (dashboardCount) {
             dashboardCount.textContent = unreadCount;
         }
-        
+
         // Update notification list
         const notificationList = document.getElementById('notificationList');
         if (notificationList) {
@@ -734,14 +729,14 @@ async function loadNotifications() {
                         </div>
                     `;
                 }).join('');
-                
+
                 // Add click handlers to mark as read
                 notificationList.querySelectorAll('.notification-item').forEach(item => {
                     item.addEventListener('click', () => markNotificationRead(item.dataset.id));
                 });
             }
         }
-        
+
     } catch (error) {
         console.error('Failed to load notifications:', error);
     }
@@ -792,7 +787,7 @@ async function markAllNotificationsRead() {
             body: JSON.stringify({ mark_all: true })
         });
         loadNotifications();
-        showModalNotification('All notifications marked as read', 'success', 'Done');
+        // Modal notification removed
     } catch (error) {
         console.error('Failed to mark all as read:', error);
     }
@@ -823,20 +818,20 @@ async function loadExpiryStats() {
     try {
         const ingredients = await ingredientsDB.show();
         if (!ingredients || !Array.isArray(ingredients)) return;
-        
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const sevenDaysFromNow = new Date(today);
         sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-        
+
         let expiredCount = 0;
         let expiringSoonCount = 0;
-        
+
         ingredients.forEach(ing => {
             if (ing.expiry_date) {
                 const expiryDate = new Date(ing.expiry_date);
                 expiryDate.setHours(0, 0, 0, 0);
-                
+
                 if (expiryDate < today) {
                     expiredCount++;
                 } else if (expiryDate <= sevenDaysFromNow) {
@@ -844,14 +839,14 @@ async function loadExpiryStats() {
                 }
             }
         });
-        
+
         // Update dashboard cards
         const expiredEl = document.getElementById('ingredientsExpired');
         if (expiredEl) expiredEl.textContent = expiredCount;
-        
+
         const expiringSoonEl = document.getElementById('ingredientsExpiringSoon');
         if (expiringSoonEl) expiringSoonEl.textContent = expiringSoonCount;
-        
+
     } catch (error) {
         console.error('Failed to load expiry stats:', error);
     }
@@ -863,7 +858,7 @@ async function loadActiveUsersCount() {
     try {
         const response = await fetch(`${NOTIFICATIONS_API}?action=active_users`);
         const data = await response.json();
-        
+
         if (data.success && data.users) {
             const activeCount = document.getElementById('activeUsersCount');
             if (activeCount) activeCount.textContent = data.users.length;
@@ -1001,7 +996,7 @@ function loadMenuControl() {
                 const itemStatus = (item.status || '').trim();
                 const isActive = itemStatus.toLowerCase() === 'active';
                 const imgSrc = fixImagePath(item.image_path);
-                const imageHtml = imgSrc 
+                const imageHtml = imgSrc
                     ? `<img src="${imgSrc}" alt="${item.name}" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">`
                     : '<span class="text-muted"><i class="fas fa-image fa-2x"></i></span>';
                 const row = menuControlTable.insertRow();
@@ -1163,27 +1158,27 @@ function initializeImageUpload() {
     imageInput.parentNode.replaceChild(newImageInput, imageInput);
 
     // File selection preview
-    newImageInput.addEventListener('change', function(e) {
+    newImageInput.addEventListener('change', function (e) {
         const file = e.target.files[0];
         if (file) {
             // Validate file type
             const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
             if (!allowedTypes.includes(file.type)) {
-                showModalNotification('Invalid file type. Allowed: JPEG, PNG, GIF, WebP', 'warning', 'Invalid File');
+                // Modal notification removed
                 e.target.value = '';
                 return;
             }
 
             // Validate file size (5MB)
             if (file.size > 5 * 1024 * 1024) {
-                showModalNotification('File too large. Maximum size is 5MB', 'warning', 'File Too Large');
+                // Modal notification removed
                 e.target.value = '';
                 return;
             }
 
             // Show preview
             const reader = new FileReader();
-            reader.onload = function(event) {
+            reader.onload = function (event) {
                 if (previewImg) previewImg.src = event.target.result;
                 if (previewContainer) previewContainer.style.display = 'block';
             };
@@ -1195,7 +1190,7 @@ function initializeImageUpload() {
     if (removeBtn) {
         const newRemoveBtn = removeBtn.cloneNode(true);
         removeBtn.parentNode.replaceChild(newRemoveBtn, removeBtn);
-        newRemoveBtn.addEventListener('click', function() {
+        newRemoveBtn.addEventListener('click', function () {
             resetImagePreview();
         });
     }
@@ -1246,7 +1241,7 @@ async function uploadMenuItemImage() {
         }
     } catch (error) {
         console.error('Image upload error:', error);
-        showModalNotification('Failed to upload image: ' + error.message, 'error', 'Upload Error');
+        // Modal notification removed
         return null;
     }
 }
@@ -1325,7 +1320,7 @@ async function saveMenuItem() {
 
     // Validation
     if (!name || !categoryId) {
-        showModalNotification('Please fill in all required fields', 'warning', 'Validation Error');
+        // Modal notification removed
         return;
     }
 
@@ -1379,7 +1374,7 @@ async function saveMenuItem() {
             const modal = bootstrap.Modal.getInstance(modalElem);
             if (modal) modal.hide();
 
-            showModalNotification(`Menu item "${name}" updated successfully`, 'success', 'Menu Item Updated');
+            // Modal notification removed
             logAdminActivity('Updated menu item', name, 'Success');
             editingMenuItemId = null;
         } else {
@@ -1402,7 +1397,7 @@ async function saveMenuItem() {
             const modal = bootstrap.Modal.getInstance(modalElem);
             if (modal) modal.hide();
 
-            showModalNotification(`Menu item "${name}" added successfully`, 'success', 'Menu Item Added');
+            // Modal notification removed
             logAdminActivity('Added menu item', name, 'Success');
         }
 
@@ -1411,7 +1406,7 @@ async function saveMenuItem() {
 
     } catch (error) {
         console.error('Error saving menu item:', error);
-        showModalNotification('Failed to save menu item: ' + error.message, 'error', 'Save Error');
+        // Modal notification removed
     } finally {
         // Restore button state
         if (saveBtn) {
@@ -1441,7 +1436,7 @@ function toggleMenuItemStatus(id) {
                     return;
                 }
 
-                showModalNotification(`"${item.name}" has been ${newStatus === 'Inactive' ? 'deactivated' : 'activated'}`, 'success', 'Status Changed');
+                // Modal notification removed
                 logAdminActivity(`${newStatus === 'Inactive' ? 'Deactivated' : 'Activated'} menu item`, item.name, 'Success');
                 loadMenuControl();
 
@@ -1467,7 +1462,7 @@ function deleteMenuItem(id) {
                     return;
                 }
 
-                showModalNotification(`"${item.name}" has been deleted`, 'success', 'Item Deleted');
+                // Modal notification removed
                 logAdminActivity('Deleted menu item', item.name, 'Success');
                 loadMenuControl();
 
@@ -1897,7 +1892,7 @@ function updateRecipeSummary() {
 function saveRecipe() {
     const menuItemId = document.getElementById('recipeMenuItem')?.value;
     if (!menuItemId) {
-        showModalNotification('Please select a menu item.', 'warning', 'Validation Error');
+        // Modal notification removed
         return;
     }
 
@@ -1921,13 +1916,13 @@ function saveRecipe() {
     });
 
     if (ingredientsList.length === 0 || !valid) {
-        showModalNotification('Please add at least one ingredient with a valid quantity.', 'warning', 'Validation Error');
+        // Modal notification removed
         return;
     }
 
     const ids = ingredientsList.map(function (i) { return i.ingredient_id; });
     if (new Set(ids).size !== ids.length) {
-        showModalNotification('Duplicate ingredients found. Please use each ingredient only once.', 'warning', 'Validation Error');
+        // Modal notification removed
         return;
     }
 
@@ -1969,7 +1964,7 @@ function saveRecipe() {
             return doInsert();
 
         }).then(function () {
-            showModalNotification('Recipe updated successfully!', 'success', 'Recipe Updated');
+            // Modal notification removed
             logAdminActivity('Updated recipe', menuItemId, 'Success');
             afterSave();
 
@@ -1987,13 +1982,13 @@ function saveRecipe() {
             });
 
             if (existing.length > 0) {
-                showModalNotification('A recipe for this menu item already exists. Edit the existing recipe instead.', 'warning', 'Duplicate Recipe');
+                // Modal notification removed
                 if (saveBtn) saveBtn.disabled = false;
                 return;
             }
 
             return doInsert().then(function () {
-                showModalNotification('Recipe assigned successfully!', 'success', 'Recipe Assigned');
+                // Modal notification removed
                 logAdminActivity('Assigned new recipe', menuItemId, 'Success');
                 afterSave();
             });
@@ -2017,7 +2012,7 @@ function deleteRecipe(menuItemId) {
         });
 
         if (!rows || rows.length === 0) {
-            showModalNotification('Recipe not found.', 'warning', 'Not Found');
+            // Modal notification removed
             return;
         }
 
@@ -2029,7 +2024,7 @@ function deleteRecipe(menuItemId) {
                 Promise.all(rows.map(function (r) {
                     return recipesDB.delete(r.id);
                 })).then(function () {
-                    showModalNotification(`Recipe for "${menuItemName}" has been deleted.`, 'success', 'Recipe Deleted');
+                    // Modal notification removed
                     logAdminActivity('Deleted recipe', menuItemName, 'Success');
                     loadRecipeControl();
                 }).catch(function (err) {
@@ -2183,7 +2178,7 @@ async function loadIngredientsMasterlist() {
         </td>
     `;
     });
-    
+
     // Load expired and expiring soon tables
     loadExpiryTables(results[0], categories, units);
 }
@@ -2194,7 +2189,7 @@ function loadExpiryTables(allIngredients, categories, units) {
     today.setHours(0, 0, 0, 0);
     const sevenDaysFromNow = new Date(today);
     sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-    
+
     const getCategoryName = function (id) {
         const cat = categories.find(function (c) { return c.id == id; });
         return cat ? cat.name : 'Unknown';
@@ -2204,15 +2199,15 @@ function loadExpiryTables(allIngredients, categories, units) {
         const unit = units.find(function (u) { return u.id == id; });
         return unit ? (unit.short_name || unit.name) : 'Unknown';
     };
-    
+
     const expiredIngredients = [];
     const expiringSoonIngredients = [];
-    
+
     allIngredients.forEach(ing => {
         if (ing.expiry_date) {
             const expiryDate = new Date(ing.expiry_date);
             expiryDate.setHours(0, 0, 0, 0);
-            
+
             if (expiryDate < today) {
                 const daysOverdue = Math.floor((today - expiryDate) / (1000 * 60 * 60 * 24));
                 expiredIngredients.push({ ...ing, daysOverdue, expiryDate });
@@ -2222,20 +2217,20 @@ function loadExpiryTables(allIngredients, categories, units) {
             }
         }
     });
-    
+
     // Update counters
     const expiredCount = document.getElementById('masterExpiredCount');
     if (expiredCount) expiredCount.textContent = expiredIngredients.length;
-    
+
     const expiringSoonCount = document.getElementById('masterExpiringSoonCount');
     if (expiringSoonCount) expiringSoonCount.textContent = expiringSoonIngredients.length;
-    
+
     const expiredBadge = document.getElementById('expiredBadge');
     if (expiredBadge) expiredBadge.textContent = expiredIngredients.length;
-    
+
     const expiringSoonBadge = document.getElementById('expiringSoonBadge');
     if (expiringSoonBadge) expiringSoonBadge.textContent = expiringSoonIngredients.length;
-    
+
     // Populate Expiring Soon Table
     const expiringSoonTable = document.getElementById('expiringSoonTable');
     if (expiringSoonTable) {
@@ -2267,7 +2262,7 @@ function loadExpiryTables(allIngredients, categories, units) {
             }
         }
     }
-    
+
     // Populate Expired Table
     const expiredTable = document.getElementById('expiredIngredientsTable');
     if (expiredTable) {
@@ -2361,7 +2356,7 @@ async function showAddIngredientModal() {
                     if (thresholdUnit) thresholdUnit.textContent = unitSelect.selectedOptions[0]?.dataset.short || '';
                 }
                 document.getElementById('lowStockThreshold').value = ing.low_stock_threshold;
-                
+
                 // Set expiry date if exists
                 const expiryInput = document.getElementById('ingredientExpiryDate');
                 if (expiryInput && ing.expiry_date) {
@@ -2411,7 +2406,7 @@ async function saveIngredient() {
     const expiry_date = document.getElementById('ingredientExpiryDate')?.value || null;
 
     if (!name || !category_id || !unit_id) {
-        showModalNotification('Please fill in all required fields', 'warning', 'Validation Error');
+        // Modal notification removed
         return;
     }
 
@@ -2450,7 +2445,7 @@ async function saveIngredient() {
         if (editingIngredientId) {
             ingredientData.id = editingIngredientId;
             await ingredientsDB.edit(ingredientData);
-            
+
             // Create notification for edit
             await createNotification(
                 userId,
@@ -2459,11 +2454,11 @@ async function saveIngredient() {
                 editingIngredientId,
                 `${userName} updated ingredient: ${name}`
             );
-            
+
             editingIngredientId = null;
         } else {
             const result = await ingredientsDB.add(ingredientData);
-            
+
             // Create notification for add
             await createNotification(
                 userId,
@@ -2546,7 +2541,7 @@ function showSetThresholdsModal() {
                         hasValues = true;
                     }
                 });
-                
+
                 if (!hasValues) {
                     Swal.showValidationMessage('Please enter at least one threshold value');
                     return false;
@@ -2639,12 +2634,12 @@ async function deleteIngredient(id) {
                 const select = Swal.getPopup().querySelector('#deleteReasonSelect');
                 const otherInput = Swal.getPopup().querySelector('#otherReasonInput');
                 let reason = select.value;
-                
+
                 if (!reason) {
                     Swal.showValidationMessage('Please select a reason for deletion');
                     return false;
                 }
-                
+
                 if (reason === 'Other') {
                     reason = otherInput.value.trim();
                     if (!reason) {
@@ -2652,7 +2647,7 @@ async function deleteIngredient(id) {
                         return false;
                     }
                 }
-                
+
                 return { reason };
             }
         });
@@ -3145,163 +3140,162 @@ let staffMap = {};
 
 function initializeReports() {
 
-        // Tab panel event listeners for search/sort
-        // Detailed Transaction Log
-        const searchDetailed = document.getElementById('searchDetailed');
-        const sortDetailed = document.getElementById('sortDetailed');
-        if (searchDetailed) {
-            searchDetailed.addEventListener('input', function () {
-                filterAndSortDetailedTable();
-            });
-        }
-        if (sortDetailed) {
-            sortDetailed.addEventListener('change', function () {
-                filterAndSortDetailedTable();
-            });
-        }
-
-        // Staff Revenue
-        const searchStaff = document.getElementById('searchStaff');
-        const sortStaff = document.getElementById('sortStaff');
-        if (searchStaff) {
-            searchStaff.addEventListener('input', function () {
-                filterAndSortStaffTable();
-            });
-        }
-        if (sortStaff) {
-            sortStaff.addEventListener('change', function () {
-                filterAndSortStaffTable();
-            });
-        }
-
-        // Food Sales
-        const searchFood = document.getElementById('searchFood');
-        const sortFood = document.getElementById('sortFood');
-        if (searchFood) {
-            searchFood.addEventListener('input', function () {
-                filterAndSortFoodTable();
-            });
-        }
-        if (sortFood) {
-            sortFood.addEventListener('change', function () {
-                filterAndSortFoodTable();
-            });
-        }
-
-        // Initial population of tables (after report generation)
-        // These will be called after generateReport() in the future
-        // For now, call with empty data
-        populateStaffRevenueTable([]);
-        populateFoodSalesTable([]);
+    // Tab panel event listeners for search/sort
+    // Detailed Transaction Log
+    const searchDetailed = document.getElementById('searchDetailed');
+    const sortDetailed = document.getElementById('sortDetailed');
+    if (searchDetailed) {
+        searchDetailed.addEventListener('input', function () {
+            filterAndSortDetailedTable();
+        });
     }
-    // --- Tab Panel Table Logic ---
-
-    // Placeholder: will be called with real data after report generation
-    function populateStaffRevenueTable(staffData) {
-        const tbody = document.querySelector('#staffRevenueTable tbody');
-        if (!tbody) return;
-        tbody.innerHTML = '';
-        if (!staffData || staffData.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center">No data</td></tr>';
-            return;
-        }
-        staffData.forEach(row => {
-            tbody.innerHTML += `<tr><td>${row.staff}</td><td>₱${row.revenue.toLocaleString('en-PH', {minimumFractionDigits:2})}</td><td>${row.salesCount}</td></tr>`;
+    if (sortDetailed) {
+        sortDetailed.addEventListener('change', function () {
+            filterAndSortDetailedTable();
         });
     }
 
-    function populateFoodSalesTable(foodData) {
-        const tbody = document.querySelector('#foodSalesTable tbody');
-        if (!tbody) return;
-        tbody.innerHTML = '';
-        if (!foodData || foodData.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center">No data</td></tr>';
-            return;
-        }
-        foodData.forEach(row => {
-            tbody.innerHTML += `<tr><td>${row.food}</td><td>₱${row.revenue.toLocaleString('en-PH', {minimumFractionDigits:2})}</td><td>${row.orderCount}</td></tr>`;
+    // Staff Revenue
+    const searchStaff = document.getElementById('searchStaff');
+    const sortStaff = document.getElementById('sortStaff');
+    if (searchStaff) {
+        searchStaff.addEventListener('input', function () {
+            filterAndSortStaffTable();
+        });
+    }
+    if (sortStaff) {
+        sortStaff.addEventListener('change', function () {
+            filterAndSortStaffTable();
         });
     }
 
-    // Filtering and sorting logic for each tab (to be implemented with real data)
-    function filterAndSortDetailedTable() {
-        // TODO: Implement search and sort for detailed transaction log
-        // Use searchDetailed.value and sortDetailed.value
-        // Call updateReportsDetailTable() with filtered/sorted data
+    // Food Sales
+    const searchFood = document.getElementById('searchFood');
+    const sortFood = document.getElementById('sortFood');
+    if (searchFood) {
+        searchFood.addEventListener('input', function () {
+            filterAndSortFoodTable();
+        });
     }
-
-    function filterAndSortStaffTable() {
-        // TODO: Implement search and sort for staff revenue
-        // Use searchStaff.value and sortStaff.value
-        // Call populateStaffRevenueTable() with filtered/sorted data
-    }
-
-    function filterAndSortFoodTable() {
-        // TODO: Implement search and sort for food sales
-        // Use searchFood.value and sortFood.value
-        // Call populateFoodSalesTable() with filtered/sorted data
-    }
-    // Generate button
-    const generateReportBtn = document.getElementById('generateReportBtn');
-    if (generateReportBtn) {
-        generateReportBtn.addEventListener('click', function () {
-            generateReport();
+    if (sortFood) {
+        sortFood.addEventListener('change', function () {
+            filterAndSortFoodTable();
         });
     }
 
-    // Print button
-    const printReportBtn = document.getElementById('printReportBtn');
-    if (printReportBtn) {
-        printReportBtn.addEventListener('click', function () {
-            printReport();
-        });
+    // Initial population of tables (after report generation)
+    // These will be called after generateReport() in the future
+    // For now, call with empty data
+    populateStaffRevenueTable([]);
+    populateFoodSalesTable([]);
+}
+// --- Tab Panel Table Logic ---
+
+// Placeholder: will be called with real data after report generation
+function populateStaffRevenueTable(staffData) {
+    const tbody = document.querySelector('#staffRevenueTable tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!staffData || staffData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center">No data</td></tr>';
+        return;
     }
+    staffData.forEach(row => {
+        tbody.innerHTML += `<tr><td>${row.staff}</td><td>₱${row.revenue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td><td>${row.salesCount}</td></tr>`;
+    });
+}
 
-    // Excel button
-    const downloadExcelBtn = document.getElementById('downloadExcelBtn');
-    if (downloadExcelBtn) {
-        downloadExcelBtn.addEventListener('click', function () {
-            exportToExcel();
-        });
+function populateFoodSalesTable(foodData) {
+    const tbody = document.querySelector('#foodSalesTable tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!foodData || foodData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center">No data</td></tr>';
+        return;
     }
+    foodData.forEach(row => {
+        tbody.innerHTML += `<tr><td>${row.food}</td><td>₱${row.revenue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td><td>${row.orderCount}</td></tr>`;
+    });
+}
 
-    // Initialize transaction edit modal
-    initializeTransactionEditModal();
+// Filtering and sorting logic for each tab (to be implemented with real data)
+function filterAndSortDetailedTable() {
+    // TODO: Implement search and sort for detailed transaction log
+    // Use searchDetailed.value and sortDetailed.value
+    // Call updateReportsDetailTable() with filtered/sorted data
+}
 
-    // Set default dates (today)
-    const dateFrom = document.getElementById('reportDateFrom');
-    const dateTo = document.getElementById('reportDateTo');
-    if (dateFrom && dateTo) {
-        const today = new Date().toISOString().split('T')[0];
-        // Set dateFrom to 30 days ago by default
-        const lastMonth = new Date();
-        lastMonth.setDate(lastMonth.getDate() - 30);
-        dateFrom.value = lastMonth.toISOString().split('T')[0];
-        dateTo.value = today;
+function filterAndSortStaffTable() {
+    // TODO: Implement search and sort for staff revenue
+    // Use searchStaff.value and sortStaff.value
+    // Call populateStaffRevenueTable() with filtered/sorted data
+}
+
+function filterAndSortFoodTable() {
+    // TODO: Implement search and sort for food sales
+    // Use searchFood.value and sortFood.value
+    // Call populateFoodSalesTable() with filtered/sorted data
+}
+// Generate button
+const generateReportBtn = document.getElementById('generateReportBtn');
+if (generateReportBtn) {
+    generateReportBtn.addEventListener('click', function () {
+        generateReport();
+    });
+}
+
+// Print button
+const printReportBtn = document.getElementById('printReportBtn');
+if (printReportBtn) {
+    printReportBtn.addEventListener('click', function () {
+        printReport();
+    });
+}
+
+// Excel button
+const downloadExcelBtn = document.getElementById('downloadExcelBtn');
+if (downloadExcelBtn) {
+    downloadExcelBtn.addEventListener('click', function () {
+        exportToExcel();
+    });
+}
+
+// Initialize transaction edit modal
+initializeTransactionEditModal();
+
+// Set default dates (today)
+const dateFrom = document.getElementById('reportDateFrom');
+const dateTo = document.getElementById('reportDateTo');
+if (dateFrom && dateTo) {
+    const today = new Date().toISOString().split('T')[0];
+    // Set dateFrom to 30 days ago by default
+    const lastMonth = new Date();
+    lastMonth.setDate(lastMonth.getDate() - 30);
+    dateFrom.value = lastMonth.toISOString().split('T')[0];
+    dateTo.value = today;
+}
+
+// Initial load
+generateReport();
+
+// Real-time update every 30 seconds
+setInterval(() => {
+    if (document.getElementById('reports-content')) {
+        generateReport(true); // silent update
     }
-
-    // Initial load
-    generateReport();
-
-    // Real-time update every 30 seconds
-    setInterval(() => {
-        if (document.getElementById('reports-content')) {
-            generateReport(true); // silent update
-        }
-    }, 30000);
+}, 30000);
 
 
 async function generateReport(silent = false) {
-    if (!silent) {
-        showModalNotification('Generating report data...', 'info', 'Loading');
-    }
+    // if (!silent) {
+    //     showModalNotification('Generating report data...', 'info', 'Loading');
+    // }
 
     try {
         const reportType = document.getElementById('reportType')?.value || 'Daily';
         const dateFrom = document.getElementById('reportDateFrom')?.value;
         const dateTo = document.getElementById('reportDateTo')?.value;
 
-        // Fetch data from database (including menu items for name lookup)
         const [sales, saleItems, users, menuItems] = await Promise.all([
             salesDB.show(),
             saleItemsDB.show(),
@@ -3309,33 +3303,25 @@ async function generateReport(silent = false) {
             menuItemsDB.show()
         ]);
 
-        // Build staff map
         staffMap = {};
         users.forEach(u => {
             staffMap[u.id] = u.full_name || u.username || 'Unknown';
         });
 
-        // Build menu item map for name lookup
         const menuItemMap = {};
         (menuItems || []).forEach(m => {
             menuItemMap[m.id] = m.name || 'Item';
         });
 
-        // Store for later use
         allReportSaleItems = saleItems || [];
 
-        // Process sales data
         let processedSales = (sales || []).map(sale => {
             const saleDate = new Date(sale.sale_datetime || sale.created_at);
             const dateStr = saleDate.toISOString().split('T')[0];
             const timeStr = saleDate.toTimeString().split(' ')[0];
-            
-            // Get items for this sale (use parseInt for type consistency)
             const saleId = parseInt(sale.id);
             const matchedItems = allReportSaleItems.filter(item => parseInt(item.sale_id) === saleId);
-            
             const items = matchedItems.map(item => {
-                // Lookup item name: first try item_name column, then lookup from menu items
                 const itemName = item.item_name || menuItemMap[item.menu_item_id] || 'Unknown Item';
                 return {
                     name: itemName,
@@ -3364,68 +3350,46 @@ async function generateReport(silent = false) {
             };
         });
 
-        // Filter by date range
         if (dateFrom && dateTo) {
             processedSales = processedSales.filter(sale => {
                 return sale.date >= dateFrom && sale.date <= dateTo;
             });
         }
 
-        // Store for detail view
         allReportSales = processedSales;
-
-        // Update Summary Metrics
         updateSummaryMetrics(processedSales, reportType);
-
-        // Update Graph
         updateReportsChart(processedSales, reportType);
-
-        // Update Detailed Table
         updateReportsDetailTable(processedSales);
 
-        // --- Populate Staff Revenue Table (Tab 2) ---
-        // Aggregate revenue and sales count per staff
         const staffRevenueMap = {};
         processedSales.forEach(sale => {
             if (!sale.staff_id) return;
             if (!staffRevenueMap[sale.staff_id]) {
-                staffRevenueMap[sale.staff_id] = {
-                    staff: sale.staff,
-                    revenue: 0,
-                    salesCount: 0
-                };
+                staffRevenueMap[sale.staff_id] = { staff: sale.staff, revenue: 0, salesCount: 0 };
             }
-            // Only count completed/partial_refund sales for revenue
             if (sale.status === 'completed' || sale.status === 'partial_refund') {
                 staffRevenueMap[sale.staff_id].revenue += sale.adjusted_total !== null ? sale.adjusted_total : sale.total;
                 staffRevenueMap[sale.staff_id].salesCount++;
             }
         });
-        // Convert to array
-        const staffRevenueArr = Object.values(staffRevenueMap);
-        populateStaffRevenueTable(staffRevenueArr);
+        populateStaffRevenueTable(Object.values(staffRevenueMap));
 
-        // --- Populate Food Sales Table (Tab 3) ---
-        // Aggregate revenue and order count per food item
         const foodSalesMap = {};
         processedSales.forEach(sale => {
             if (sale.status !== 'completed' && sale.status !== 'partial_refund') return;
             sale.items.forEach(item => {
                 if (!foodSalesMap[item.name]) {
-                    foodSalesMap[item.name] = {
-                        food: item.name,
-                        revenue: 0,
-                        orderCount: 0
-                    };
+                    foodSalesMap[item.name] = { food: item.name, revenue: 0, orderCount: 0 };
                 }
                 foodSalesMap[item.name].revenue += item.subtotal;
                 foodSalesMap[item.name].orderCount += item.quantity;
             });
         });
-        const foodSalesArr = Object.values(foodSalesMap);
-        populateFoodSalesTable(foodSalesArr);
+        populateFoodSalesTable(Object.values(foodSalesMap));
 
-        if (!silent) {
+        // ✅ Only show modal if not silent AND user manually clicked the button
+        if (!silent && window._reportGeneratedByUser === true) {
+            window._reportGeneratedByUser = false;
             Swal.fire({
                 icon: 'success',
                 title: 'Report Generated',
@@ -3433,6 +3397,9 @@ async function generateReport(silent = false) {
                 timer: 1500,
                 showConfirmButton: false
             });
+        }
+
+        if (!silent) {
             logAdminActivity('Generated report', `${reportType} (${dateFrom} to ${dateTo}) - ${processedSales.length} transactions`, 'Success');
         }
 
@@ -3454,7 +3421,7 @@ function updateSummaryMetrics(sales, reportType) {
 
     // Only count completed sales for revenue
     const completedSales = sales.filter(s => s.status === 'completed' || s.status === 'partial_refund');
-    
+
     let totalSales = 0;
     let itemCounts = {};
 
@@ -3462,7 +3429,7 @@ function updateSummaryMetrics(sales, reportType) {
         // Use adjusted_total if available (for partial refunds), else use total
         const saleAmount = sale.adjusted_total !== null ? sale.adjusted_total : sale.total;
         totalSales += saleAmount;
-        
+
         sale.items.forEach(item => {
             itemCounts[item.name] = (itemCounts[item.name] || 0) + item.quantity;
         });
@@ -3524,7 +3491,7 @@ function updateReportsChart(sales, reportType) {
         });
         chartData = sortedDates.map(date => salesByDate[date]);
         label = reportType === 'Monthly' ? 'Monthly Revenue (₱)' : 'Daily Revenue (₱)';
-        
+
     } else if (reportType === 'Staff') {
         // Group by staff
         const salesByStaff = {};
@@ -3533,12 +3500,12 @@ function updateReportsChart(sales, reportType) {
             const amount = sale.adjusted_total !== null ? sale.adjusted_total : sale.total;
             salesByStaff[staff] = (salesByStaff[staff] || 0) + amount;
         });
-        
+
         chartLabels = Object.keys(salesByStaff);
         chartData = Object.values(salesByStaff);
         label = 'Sales by Staff (₱)';
         chartType = 'bar';
-        
+
     } else if (reportType === 'Inventory') {
         // Group by item
         const itemSales = {};
@@ -3547,7 +3514,7 @@ function updateReportsChart(sales, reportType) {
                 itemSales[item.name] = (itemSales[item.name] || 0) + item.quantity;
             });
         });
-        
+
         // Get top 10 items
         const sorted = Object.entries(itemSales).sort((a, b) => b[1] - a[1]).slice(0, 10);
         chartLabels = sorted.map(s => s[0]);
@@ -3598,7 +3565,7 @@ function updateReportsChart(sales, reportType) {
                 },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             return context.dataset.label + ': ₱' + context.raw.toLocaleString();
                         }
                     }
@@ -3628,7 +3595,7 @@ function updateReportsDetailTable(sales) {
     sortedSales.forEach(sale => {
         const row = tableBody.insertRow();
         const itemsList = sale.items.length > 0 ? sale.items.map(i => `${i.name} x${i.quantity}`).join(', ') : '<em class="text-muted">No items</em>';
-        
+
         // Determine status badge
         let statusBadge = '';
         if (sale.status === 'voided') {
@@ -3740,7 +3707,7 @@ function openTransactionEditModal(saleId) {
     document.getElementById('txnOriginalTotal').value = formatPeso(sale.total);
     document.getElementById('txnDateTime').value = `${sale.date} ${sale.time}`;
     document.getElementById('txnStaff').value = sale.staff;
-    
+
     // Populate items list
     const itemsBody = document.getElementById('txnItemsList');
     if (sale.items.length > 0) {
@@ -3755,13 +3722,13 @@ function openTransactionEditModal(saleId) {
     } else {
         itemsBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No item details available</td></tr>';
     }
-    
+
     // Reset form fields
     document.getElementById('txnActionType').value = '';
     document.getElementById('txnAdjustedTotal').value = '';
     document.getElementById('txnAdjustmentReason').value = '';
     document.getElementById('adjustedTotalContainer').style.display = 'none';
-    
+
     // Show current status if exists
     const statusAlert = document.getElementById('txnCurrentStatusAlert');
     const statusText = document.getElementById('txnCurrentStatusText');
@@ -3779,7 +3746,7 @@ function openTransactionEditModal(saleId) {
     } else {
         statusAlert.classList.add('d-none');
     }
-    
+
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('transactionEditModal'));
     modal.show();
@@ -3792,7 +3759,7 @@ function initializeTransactionEditModal() {
     // Action type change handler
     const actionType = document.getElementById('txnActionType');
     if (actionType) {
-        actionType.addEventListener('change', function() {
+        actionType.addEventListener('change', function () {
             const adjustedContainer = document.getElementById('adjustedTotalContainer');
             if (this.value === 'partial_refund') {
                 adjustedContainer.style.display = 'block';
@@ -3801,7 +3768,7 @@ function initializeTransactionEditModal() {
             }
         });
     }
-    
+
     // Save adjustment button
     const saveBtn = document.getElementById('saveTransactionAdjustment');
     if (saveBtn) {
@@ -3817,7 +3784,7 @@ async function saveTransactionAdjustment() {
     const actionType = document.getElementById('txnActionType').value;
     const reason = document.getElementById('txnAdjustmentReason').value.trim();
     const adjustedTotal = parseFloat(document.getElementById('txnAdjustedTotal').value) || 0;
-    
+
     const formatPeso = (amount) => '₱' + (amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     // Validation
@@ -3833,12 +3800,12 @@ async function saveTransactionAdjustment() {
         Swal.fire('Error', 'Please enter a valid adjusted total for partial refund', 'warning');
         return;
     }
-    
+
     // Confirm action
-    const actionText = actionType === 'void' ? 'VOID this transaction' : 
-                       actionType === 'refund' ? 'issue a FULL REFUND' : 
-                       'issue a PARTIAL REFUND';
-    
+    const actionText = actionType === 'void' ? 'VOID this transaction' :
+        actionType === 'refund' ? 'issue a FULL REFUND' :
+            'issue a PARTIAL REFUND';
+
     const result = await Swal.fire({
         title: 'Confirm Action',
         text: `Are you sure you want to ${actionText}? This action will be logged.`,
@@ -3847,27 +3814,27 @@ async function saveTransactionAdjustment() {
         confirmButtonColor: '#800000',
         confirmButtonText: 'Yes, proceed'
     });
-    
+
     if (!result.isConfirmed) return;
-    
+
     try {
         const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
-        
+
         // Find sale from cached report data
         const sale = allReportSales.find(s => s.id === parseInt(saleId) || s.id === saleId);
-        
+
         if (!sale) {
             Swal.fire('Error', 'Transaction not found', 'error');
             return;
         }
-        
+
         const originalTotal = sale.total;
-        const statusValue = actionType === 'partial_refund' ? 'partial_refund' : 
-                            actionType === 'void' ? 'voided' : 'refunded';
-        const adjustedValue = actionType === 'void' ? 0 : 
-                              actionType === 'partial_refund' ? adjustedTotal : 0;
+        const statusValue = actionType === 'partial_refund' ? 'partial_refund' :
+            actionType === 'void' ? 'voided' : 'refunded';
+        const adjustedValue = actionType === 'void' ? 0 :
+            actionType === 'partial_refund' ? adjustedTotal : 0;
         const adjustedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        
+
         // Update in database
         await salesDB.edit({
             id: parseInt(saleId) || saleId,
@@ -3877,34 +3844,34 @@ async function saveTransactionAdjustment() {
             adjusted_at: adjustedAt,
             adjustment_reason: reason
         });
-        
+
         // Update cached data
         sale.status = statusValue;
         sale.adjusted_total = adjustedValue;
         sale.adjusted_by = user.full_name || user.username || 'Admin';
         sale.adjusted_at = adjustedAt;
         sale.adjustment_reason = reason;
-        
+
         // Create notification
         const receiptNo = sale.receipt_no || saleId;
-        const notifDesc = actionType === 'void' ? 
+        const notifDesc = actionType === 'void' ?
             `Transaction #${receiptNo} VOIDED. Original: ${formatPeso(originalTotal)}` :
             actionType === 'refund' ?
-            `Transaction #${receiptNo} REFUNDED. Amount: ${formatPeso(originalTotal)}` :
-            `Transaction #${receiptNo} PARTIAL REFUND. ${formatPeso(originalTotal)} → ${formatPeso(adjustedTotal)}`;
-        
+                `Transaction #${receiptNo} REFUNDED. Amount: ${formatPeso(originalTotal)}` :
+                `Transaction #${receiptNo} PARTIAL REFUND. ${formatPeso(originalTotal)} → ${formatPeso(adjustedTotal)}`;
+
         await createNotification(user.id, actionType, 'sales', saleId, notifDesc, reason);
-        
+
         // Log activity
         logAdminActivity('sales', `${actionType.toUpperCase()}: Transaction #${receiptNo} - ${reason}`);
-        
+
         // Close modal and refresh
         const modal = bootstrap.Modal.getInstance(document.getElementById('transactionEditModal'));
         if (modal) modal.hide();
-        
+
         // Refresh report
         generateReport(true);
-        
+
         Swal.fire({
             icon: 'success',
             title: 'Success',
@@ -3912,7 +3879,7 @@ async function saveTransactionAdjustment() {
             timer: 2000,
             showConfirmButton: false
         });
-        
+
     } catch (error) {
         console.error('Failed to save adjustment:', error);
         Swal.fire('Error', 'Failed to save adjustment: ' + error.message, 'error');
@@ -4102,7 +4069,7 @@ async function loadBackupData() {
             const row = backupsTable.insertRow();
             const createdAt = new Date(backup.created_at).toLocaleString();
             const badgeClass = backup.backup_type === 'Manual' ? 'bg-primary' : 'bg-success';
-            
+
             row.innerHTML = `
                 <td>${createdAt}</td>
                 <td>${backup.filename}</td>
@@ -4131,17 +4098,17 @@ async function loadBackupSettings() {
 
         if (data.success && data.settings) {
             const settings = data.settings;
-            
+
             const scheduleSelect = document.getElementById('autoBackupSchedule');
             if (scheduleSelect) {
                 scheduleSelect.value = settings.schedule || 'Weekly';
             }
-            
+
             const retentionSelect = document.getElementById('backupRetention');
             if (retentionSelect) {
                 retentionSelect.value = settings.retention_count || '10';
             }
-            
+
             const mediaCheckbox = document.getElementById('backupMedia');
             if (mediaCheckbox) {
                 mediaCheckbox.checked = settings.include_media !== false;
@@ -4329,7 +4296,7 @@ async function restoreBackup() {
         if (data.success) {
             showModalNotification(data.message || 'Data restored successfully', 'success', 'Restore Complete');
             logAdminActivity('Restored system from backup', 'System Restore', 'Success');
-            
+
             // Reload page after restore
             setTimeout(() => {
                 window.location.reload();
@@ -4504,7 +4471,7 @@ async function loadRequests() {
             const pendingCount = allRequests.filter(r => r.status === 'Pending').length;
             pageBadge.textContent = `${pendingCount} Pending Request${pendingCount !== 1 ? 's' : ''}`;
         }
-        
+
         // Update tab badge count
         const requestsCountBadge = document.getElementById('requestsCountBadge');
         if (requestsCountBadge) {
@@ -5151,27 +5118,6 @@ function renderActivityPagination(totalPages) {
     });
 }
 
-// Temp Account Functions
-function initializeTempAccount() {
-    const createBtn = document.getElementById('createTempAccountBtn');
-    if (createBtn) {
-        createBtn.addEventListener('click', function () {
-            showModalNotification('Temporary account created', 'success', 'Created');
-        });
-    }
-
-    loadTempAccounts();
-}
-
-function loadTempAccounts() {
-    const tableElem = document.getElementById('tempStaffTable');
-    if (!tableElem) return;
-
-    const tbody = tableElem.getElementsByTagName('tbody')[0];
-    if (!tbody) return;
-
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center">No active temporary accounts</td></tr>';
-}
 
 // ===== Helper Functions =====
 function logAdminActivity(action, details, status) {
@@ -5245,7 +5191,7 @@ async function markUserDeleted(userId, deletedBy = 'Admin') {
             id: userId,
             deleted_at: deleteTime
         });
-        
+
         if (result && !result.error) {
             console.log(`✅ User ${userId} marked as deleted at ${deleteTime}`);
             return { success: true, timestamp: deleteTime };
@@ -5269,7 +5215,7 @@ async function restoreUserRecord(userId) {
             id: userId,
             deleted_at: null
         });
-        
+
         if (result && !result.error) {
             console.log(`✅ User ${userId} restored (deleted_at cleared)`);
             return { success: true };
@@ -5294,7 +5240,7 @@ async function updateUserTimestamp(userId) {
             id: userId,
             updated_at: updateTime
         });
-        
+
         if (result && !result.error) {
             console.log(`✅ User ${userId} updated_at set to ${updateTime}`);
             return { success: true, timestamp: updateTime };
@@ -5340,7 +5286,7 @@ function getUserDeletionInfo(user) {
 function getUserUpdateInfo(user) {
     const updated = user.updated_at ? new Date(user.updated_at).toLocaleString() : 'Never';
     const created = user.created_at ? new Date(user.created_at).toLocaleString() : 'Unknown';
-    
+
     return {
         updatedAt: user.updated_at || null,
         createdAt: user.created_at || null,
@@ -5361,7 +5307,7 @@ async function updateUserLastLogin(userId) {
             id: userId,
             last_login: loginTime
         });
-        
+
         if (result && !result.error) {
             console.log(`✅ User ${userId} last_login updated to ${loginTime}`);
             return { success: true, timestamp: loginTime };
@@ -5390,14 +5336,14 @@ function getUserLastLoginInfo(user) {
             status: 'Never logged in'
         };
     }
-    
+
     const lastLoginDate = new Date(user.last_login);
     const lastLoginDisplay = lastLoginDate.toLocaleString();
     const now = new Date();
     const diffMs = now.getTime() - lastLoginDate.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffHours / 24);
-    
+
     let timeSinceText = '';
     if (diffDays > 0) {
         timeSinceText = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
@@ -5407,7 +5353,7 @@ function getUserLastLoginInfo(user) {
         const diffMins = Math.floor(diffMs / (1000 * 60));
         timeSinceText = `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
     }
-    
+
     return {
         lastLogin: user.last_login,
         lastLoginDisplay: lastLoginDisplay,
@@ -5426,11 +5372,11 @@ function getUserLastLoginInfo(user) {
  */
 function isUserActive(user, daysThreshold = 30) {
     if (!user.last_login) return false;
-    
+
     const lastLoginDate = new Date(user.last_login);
     const now = new Date();
     const diffDays = Math.floor((now.getTime() - lastLoginDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     return diffDays <= daysThreshold;
 }
 
@@ -5441,11 +5387,11 @@ function isUserActive(user, daysThreshold = 30) {
  */
 function getUserLoginStats(users) {
     if (!Array.isArray(users)) return { totalUsers: 0, activeUsers: 0, inactiveUsers: 0, neverLoggedIn: 0 };
-    
+
     let activeUsers = 0;
     let inactiveUsers = 0;
     let neverLoggedIn = 0;
-    
+
     users.forEach(user => {
         if (!user.last_login) {
             neverLoggedIn++;
@@ -5455,7 +5401,7 @@ function getUserLoginStats(users) {
             inactiveUsers++;
         }
     });
-    
+
     return {
         totalUsers: users.length,
         activeUsers: activeUsers,

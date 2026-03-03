@@ -3,11 +3,15 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 0,
+            "activePatchIndex": 1,
             "patches": [
                 {
                     "date": 1772359264555,
                     "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1772564874716,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -126,11 +126,8 @@\n                 </a>\r\n                 <a href=\"admin-activity-log.html\" class=\"sidebar-link\">\r\n                     <i class=\"fas fa-history\"></i>Full Activity Log\r\n                 </a>\r\n-                <a href=\"admin-temp-account.html\" class=\"sidebar-link\">\r\n-                    <i class=\"fas fa-user-clock\"></i>Temp Staff Account\r\n-                </a>\r\n                 <a href=\"admin-active-users.html\" class=\"sidebar-link active\">\r\n                     <i class=\"fas fa-user-check\"></i>Active Users\r\n                 </a>\r\n             </div>\r\n"
                 }
             ],
             "date": 1772359264555,
