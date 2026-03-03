@@ -135,10 +135,8 @@
 
         <!-- Main Content Area -->
         <main class="main-content">
-            <!-- Reports Content -->
             <div id="reports-content" class="page-content">
-                <div
-                    class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2"><i class="fas fa-chart-bar me-2 text-danger"></i>Owner and Reports</h1>
                     <div class="btn-toolbar mb-2 mb-md-0">
                         <div class="btn-group me-2">
@@ -152,99 +150,126 @@
                     </div>
                 </div>
 
-                <!-- Report Controls -->
+                <!-- Tab Panel for Reports -->
                 <div class="card shadow mb-4">
                     <div class="card-body">
-                        <div class="row align-items-end">
-                            <div class="col-md-3 mb-3 mb-md-0">
-                                <label class="form-label small text-muted text-uppercase fw-bold">Report Type</label>
-                                <select class="form-select" id="reportType">
-                                    <option value="Daily">Daily Sales</option>
-                                    <option value="Monthly">Monthly Sales</option>
-                                    <option value="Inventory">Inventory Usage</option>
-                                    <option value="Staff">Staff Performance</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3 mb-3 mb-md-0">
-                                <label class="form-label small text-muted text-uppercase fw-bold">From Date</label>
-                                <input type="date" class="form-control" id="reportDateFrom">
-                            </div>
-                            <div class="col-md-3 mb-3 mb-md-0">
-                                <label class="form-label small text-muted text-uppercase fw-bold">To Date</label>
-                                <input type="date" class="form-control" id="reportDateTo">
-                            </div>
-                            <div class="col-md-3">
-                                <button class="btn btn-danger w-100" id="generateReportBtn">
-                                    <i class="fas fa-sync-alt me-1"></i> Generate
+                        <ul class="nav nav-tabs mb-3" id="reportsTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="tab-detailed" data-bs-toggle="tab" data-bs-target="#tabPanelDetailed" type="button" role="tab" aria-controls="tabPanelDetailed" aria-selected="true">
+                                    <i class="fas fa-list"></i> Detailed Transaction Log
                                 </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Summary Row -->
-                <div class="row mb-4">
-                    <div class="col-lg-8">
-                        <div class="card shadow h-100">
-                            <div class="card-header bg-black text-white">
-                                <h6 class="m-0 font-weight-bold">Sales Overview Graph</h6>
-                            </div>
-                            <div class="card-body">
-                                <canvas id="reportsChart" height="250"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4">
-                        <div class="card shadow h-100">
-                            <div class="card-header bg-black text-white">
-                                <h6 class="m-0 font-weight-bold">Summary Metrics</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="mb-4">
-                                    <p class="small text-muted mb-1">Total Net Sales</p>
-                                    <h3 class="fw-bold" id="totalNetSales">$0.00</h3>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tab-staff" data-bs-toggle="tab" data-bs-target="#tabPanelStaff" type="button" role="tab" aria-controls="tabPanelStaff" aria-selected="false">
+                                    <i class="fas fa-user-tie"></i> Staff Revenue
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tab-food" data-bs-toggle="tab" data-bs-target="#tabPanelFood" type="button" role="tab" aria-controls="tabPanelFood" aria-selected="false">
+                                    <i class="fas fa-hamburger"></i> Food Sales
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content" id="reportsTabContent">
+                            <!-- Tab 1: Detailed Transaction Log -->
+                            <div class="tab-pane fade show active" id="tabPanelDetailed" role="tabpanel" aria-labelledby="tab-detailed">
+                                <div class="mb-3 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <input type="text" class="form-control form-control-sm" id="searchDetailed" placeholder="Search transactions...">
+                                    </div>
+                                    <div>
+                                        <select class="form-select form-select-sm" id="sortDetailed">
+                                            <option value="date_desc">Newest First</option>
+                                            <option value="date_asc">Oldest First</option>
+                                            <option value="amount_desc">Highest Total</option>
+                                            <option value="amount_asc">Lowest Total</option>
+                                        </select>
+                                    </div>
                                 </div>
-                                <div class="mb-4">
-                                    <p class="small text-muted mb-1">Total Transactions</p>
-                                    <h3 class="fw-bold" id="totalReportTransactions">0</h3>
-                                </div>
-                                <div class="mb-4">
-                                    <p class="small text-muted mb-1">Top Selling Item</p>
-                                    <h5 class="fw-bold" id="topSellingItem">-</h5>
-                                </div>
-                                <div>
-                                    <p class="small text-muted mb-1">Average Order Value</p>
-                                    <h5 class="fw-bold" id="avgOrderValue">$0.00</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle table-bordered" id="reportsDetailTable">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Date/Time</th>
+                                                <th>Reference</th>
+                                                <th>Staff</th>
+                                                <th>Items</th>
+                                                <th>Total</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="6" class="text-center">Generate a report to see data</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Detailed Table -->
-                <div class="card shadow">
-                    <div class="card-header bg-black text-white">
-                        <h6 class="m-0 font-weight-bold">Detailed Transaction Log</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle" id="reportsDetailTable">
-                                <thead>
-                                    <tr>
-                                        <th>Date/Time</th>
-                                        <th>Reference</th>
-                                        <th>Staff</th>
-                                        <th>Items</th>
-                                        <th>Total</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td colspan="6" class="text-center">Generate a report to see data</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                            <!-- Tab 2: Staff Revenue -->
+                            <div class="tab-pane fade" id="tabPanelStaff" role="tabpanel" aria-labelledby="tab-staff">
+                                <div class="mb-3 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <input type="text" class="form-control form-control-sm" id="searchStaff" placeholder="Search staff...">
+                                    </div>
+                                    <div>
+                                        <select class="form-select form-select-sm" id="sortStaff">
+                                            <option value="revenue_desc">Highest Revenue</option>
+                                            <option value="revenue_asc">Lowest Revenue</option>
+                                            <option value="sales_desc">Most Sales</option>
+                                            <option value="sales_asc">Least Sales</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle table-bordered" id="staffRevenueTable">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Staff</th>
+                                                <th>Revenue</th>
+                                                <th>Sales Count</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="3" class="text-center">No data</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <!-- Tab 3: Food Sales -->
+                            <div class="tab-pane fade" id="tabPanelFood" role="tabpanel" aria-labelledby="tab-food">
+                                <div class="mb-3 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <input type="text" class="form-control form-control-sm" id="searchFood" placeholder="Search food...">
+                                    </div>
+                                    <div>
+                                        <select class="form-select form-select-sm" id="sortFood">
+                                            <option value="qty_desc">Most Ordered</option>
+                                            <option value="qty_asc">Least Ordered</option>
+                                            <option value="revenue_desc">Highest Revenue</option>
+                                            <option value="revenue_asc">Lowest Revenue</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle table-bordered" id="foodSalesTable">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Food Item</th>
+                                                <th>Revenue</th>
+                                                <th>Order Count</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td colspan="3" class="text-center">No data</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

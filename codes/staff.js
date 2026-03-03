@@ -1213,6 +1213,7 @@ async function deductIngredients(saleItems) {
 
 // Show receipt modal with print option
 function showReceiptModal(receiptData) {
+    // Immediately print the receipt and clear the sale
     const { receiptNo, saleDateTime, customer, orderType, items, subtotal, discountAmount, taxes, total, staff, taxRate } = receiptData;
     const currency = getCurrency();
     const displayTaxRate = taxRate || getTaxRate();
@@ -1236,15 +1237,12 @@ function showReceiptModal(receiptData) {
                 <small>Receipt #${receiptNo}</small><br>
                 <small>${saleDateTime}</small>
             </div>
-            
             <div class="mb-2">
                 <small><strong>Customer:</strong> ${customer}</small><br>
                 <small><strong>Order Type:</strong> ${orderType === 'dine-in' ? 'Dine-in' : 'Walk-in'}</small><br>
                 <small><strong>Staff:</strong> ${staff}</small>
             </div>
-            
             <hr style="border-style: dashed;">
-            
             <table class="w-100" style="font-size: 0.85rem;">
                 <thead>
                     <tr>
@@ -1257,9 +1255,7 @@ function showReceiptModal(receiptData) {
                     ${itemsHtml}
                 </tbody>
             </table>
-            
             <hr style="border-style: dashed;">
-            
             <div style="font-size: 0.85rem;">
                 <div class="d-flex justify-content-between">
                     <span>Subtotal:</span>
@@ -1280,59 +1276,28 @@ function showReceiptModal(receiptData) {
                     <span>${currency}${total.toFixed(2)}</span>
                 </div>
             </div>
-            
             <div class="text-center mt-3" style="border-top: 2px dashed #000; border-bottom: 2px dashed #000; padding: 8px 0; margin: 10px 0;">
                 <strong>✂ - - - CUT HERE - - - ✂</strong>
             </div>
-            
             <div class="text-center" style="font-size: 0.75rem;">
                 <p class="mb-1"><strong>KITCHEN COPY</strong></p>
                 <p class="mb-1">Order #${receiptNo.replace('SALE-', '')}</p>
                 <p class="mb-0">${orderType === 'dine-in' ? '🪑 DINE-IN' : '🚶 WALK-IN'}</p>
                 ${items.map(item => `<p class="mb-0">${item.quantity}x ${item.name}</p>`).join('')}
             </div>
-            
             <div class="text-center mt-3">
                 <small>Thank you for dining with us!</small>
             </div>
         </div>
     `;
 
-    // Check if auto-print is enabled
-    if (systemSettings.auto_print_receipt === 'true') {
-        // Auto print without showing modal
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = receiptHtml;
-        document.body.appendChild(tempDiv);
-        printReceiptFromElement(tempDiv.querySelector('#receiptContent'));
-        document.body.removeChild(tempDiv);
-        
-        Swal.fire({
-            icon: 'success',
-            title: 'Transaction Complete',
-            text: 'Receipt sent to printer automatically.',
-            timer: 2000,
-            showConfirmButton: false
-        });
-        clearCurrentSale();
-        return;
-    }
-
-    Swal.fire({
-        title: 'Transaction Complete',
-        html: receiptHtml,
-        width: '400px',
-        showCancelButton: true,
-        confirmButtonColor: '#800000',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: '<i class="fas fa-print me-2"></i>Print Receipt',
-        cancelButtonText: 'Close'
-    }).then(result => {
-        if (result.isConfirmed) {
-            printReceipt();
-        }
-        clearCurrentSale();
-    });
+    // Print the receipt immediately
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = receiptHtml;
+    document.body.appendChild(tempDiv);
+    printReceiptFromElement(tempDiv.querySelector('#receiptContent'));
+    document.body.removeChild(tempDiv);
+    clearCurrentSale();
 }
 
 // ─── Printer Detection & Print Functions ───────────────────────────────────────
@@ -1467,26 +1432,8 @@ function attemptPrint(receiptContent) {
                 // Open print dialog directly
                 printFrame.contentWindow.focus();
                 printFrame.contentWindow.print();
-                
-                // Log and redirect after print dialog closes
+                // Optionally, log print event
                 logStaffActivity('Print Receipt', 'Receipt printed', 'Success');
-                
-                // Show success and redirect
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Print Sent',
-                    html: `
-                        <p class="mb-2">Print command sent to printer.</p>
-                        <p class="text-muted small">Redirecting to receipts...</p>
-                    `,
-                    timer: 2000,
-                    timerProgressBar: true,
-                    showConfirmButton: false,
-                    confirmButtonColor: '#800000'
-                }).then(() => {
-                    window.location.href = 'staff-receipts.html';
-                });
-                
             } catch (err) {
                 console.error('Print failed:', err);
                 showNoPrinterModal(err.message);

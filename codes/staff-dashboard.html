@@ -96,9 +96,7 @@
                 <a href="#" class="sidebar-link active" data-page="menu">
                     <i class="fas fa-utensils"></i>Menu Sales
                 </a>
-                <a href="#" class="sidebar-link" data-page="ingredients">
-                    <i class="fas fa-boxes"></i>Ingredients
-                </a>
+                <!-- Ingredients link removed -->
                 <a href="#" class="sidebar-link" data-page="receipts">
                     <i class="fas fa-receipt"></i>Receipts
                 </a>
@@ -193,86 +191,7 @@
                 </div>
             </div>
 
-            <!-- Ingredients Content (Hidden by default) -->
-            <div id="ingredients-content" class="page-content d-none">
-                <div
-                    class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2"><i class="fas fa-boxes me-2 text-maroon"></i>Ingredients</h1>
-                    <div class="btn-toolbar mb-2 mb-md-0">
-                        <div class="text-muted small">
-                            <i class="fas fa-info-circle me-1"></i>View & Update Only
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Search and Filter -->
-                <div class="row mb-4">
-                    <div class="col-md-6 mb-3">
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-search"></i></span>
-                            <input type="text" class="form-control" id="ingredientSearch"
-                                placeholder="Search ingredients...">
-                            <button class="btn btn-outline-maroon" id="clearIngredientSearch">Clear</button>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <select class="form-select" id="ingredientCategoryFilter">
-                            <option value="">All Categories</option>
-                            <option value="Meat">Meat</option>
-                            <option value="Vegetables">Vegetables</option>
-                            <option value="Grains">Grains</option>
-                            <option value="Spices">Spices</option>
-                            <option value="Dairy">Dairy</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Ingredients List -->
-                <div class="row">
-                    <div class="col-12">
-                        <div class="card shadow">
-                            <div
-                                class="card-header bg-black text-white d-flex justify-content-between align-items-center">
-                                <h6 class="m-0 font-weight-bold">
-                                    <i class="fas fa-list me-1"></i>Ingredients List
-                                </h6>
-                                <div class="text-warning">
-                                    <i class="fas fa-exclamation-circle me-1"></i>
-                                    <span id="lowStockCount">0</span> items low in stock
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-hover" id="ingredientsListTable">
-                                        <thead>
-                                            <tr>
-                                                <th>Ingredient</th>
-                                                <th>Category</th>
-                                                <th>Current Quantity</th>
-                                                <th>Unit</th>
-                                                <th>Status</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td colspan="6" class="text-center">Loading ingredients...</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="alert alert-info mt-3">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    <strong>Note:</strong> Staff can only increase (stock delivery) or decrease
-                                    (wastage/spoilage) ingredient quantities. Cannot add, edit details, or delete
-                                    ingredients.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <!-- Ingredients content removed -->
 
             <!-- Receipts Content (Hidden by default) -->
             <div id="receipts-content" class="page-content d-none">
@@ -491,99 +410,7 @@
         </main>
     </div>
 
-    <!-- Modals -->
-    <div class="modal fade" id="increaseQuantityModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-green text-white">
-                    <h5 class="modal-title">
-                        <i class="fas fa-plus-circle me-2"></i>Increase Quantity
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="increaseQuantityForm">
-                        <input type="hidden" id="increaseIngredientId">
-                        <div class="mb-3">
-                            <label class="form-label">Ingredient</label>
-                            <input type="text" class="form-control" id="increaseIngredientName" readonly>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="increaseAmount" class="form-label">Amount to Add</label>
-                                <input type="number" class="form-control" id="increaseAmount" min="1" step="0.01"
-                                    required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Unit</label>
-                                <input type="text" class="form-control" id="increaseUnit" readonly>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="increaseReason" class="form-label">Reason (Optional)</label>
-                            <input type="text" class="form-control" id="increaseReason"
-                                placeholder="e.g., Stock delivery">
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-green" id="confirmIncrease">Update Quantity</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="decreaseQuantityModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title">
-                        <i class="fas fa-minus-circle me-2"></i>Decrease Quantity
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="decreaseQuantityForm">
-                        <input type="hidden" id="decreaseIngredientId">
-                        <div class="mb-3">
-                            <label class="form-label">Ingredient</label>
-                            <input type="text" class="form-control" id="decreaseIngredientName" readonly>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="decreaseAmount" class="form-label">Amount to Subtract</label>
-                                <input type="number" class="form-control" id="decreaseAmount" min="0.01" step="0.01"
-                                    required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Unit</label>
-                                <input type="text" class="form-control" id="decreaseUnit" readonly>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="decreaseReason" class="form-label">Reason</label>
-                            <select class="form-select" id="decreaseReason" required>
-                                <option value="">Select reason</option>
-                                <option value="wastage">Wastage</option>
-                                <option value="spoilage">Spoilage</option>
-                                <option value="damaged">Damaged</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="decreaseNotes" class="form-label">Notes (Optional)</label>
-                            <textarea class="form-control" id="decreaseNotes" rows="2"></textarea>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-warning" id="confirmDecrease">Update Quantity</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Ingredient modals removed -->
 
     <!-- Notification Modal -->
     <div class="modal fade" id="notificationModal" tabindex="-1">
@@ -657,20 +484,7 @@
                 filterMenuItems();
             });
 
-            // Search and filter for ingredients
-            document.getElementById('ingredientSearch').addEventListener('input', function () {
-                filterIngredients();
-            });
-
-            document.getElementById('ingredientCategoryFilter').addEventListener('change', function () {
-                filterIngredients();
-            });
-
-            document.getElementById('clearIngredientSearch').addEventListener('click', function () {
-                document.getElementById('ingredientSearch').value = '';
-                document.getElementById('ingredientCategoryFilter').value = '';
-                filterIngredients();
-            });
+            // Ingredients search/filter removed
 
             // Account info form
             document.getElementById('saveAccountInfoBtn').addEventListener('click', function (e) {
