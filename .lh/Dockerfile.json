@@ -1,0 +1,22 @@
+{
+    "sourceFile": "Dockerfile",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 1,
+            "patches": [
+                {
+                    "date": 1772582485345,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1772582977849,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,4 +1,4 @@\n FROM php:8.2-cli\r\n WORKDIR /app\r\n COPY . .\r\n-CMD [\"php\", \"-S\", \"0.0.0.0:10000\", \"-t\", \".\"]\r\n+CMD [\"php\", \"-S\", \"0.0.0.0:10000\", \"-t\", \"codes\"]\r\n"
+                }
+            ],
+            "date": 1772582485345,
+            "name": "Commit-0",
+            "content": "FROM php:8.2-cli\r\nWORKDIR /app\r\nCOPY . .\r\nCMD [\"php\", \"-S\", \"0.0.0.0:10000\", \"-t\", \".\"]\r\n"
+        }
+    ]
+}
