@@ -1,0 +1,18 @@
+{
+    "sourceFile": "codes/php/delete_otp.php",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1772586090125,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1772586090125,
+            "name": "Commit-0",
+            "content": "<?php\r\n// delete_otp.php\r\nrequire_once 'config.php';\r\n$email = $_POST['email'] ?? '';\r\nif ($email) {\r\n    $stmt = $conn->prepare('DELETE FROM password_reset_otps WHERE email = ?');\r\n    $stmt->bind_param('s', $email);\r\n    $stmt->execute();\r\n    $stmt->close();\r\n}\r\necho json_encode(['status' => 'ok']);"
+        }
+    ]
+}

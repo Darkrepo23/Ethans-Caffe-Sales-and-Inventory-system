@@ -1,0 +1,22 @@
+{
+    "sourceFile": "codes/php/store_otp.php",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 1,
+            "patches": [
+                {
+                    "date": 1772586090125,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1772588576487,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,30 +1,40 @@\n <?php\r\n-// store_otp.php\r\n+header('Content-Type: application/json');\r\n require_once 'config.php';\r\n+\r\n $email = $_POST['email'] ?? '';\r\n-$otp = $_POST['otp'] ?? '';\r\n-$response = ['status' => 'error'];\r\n-if ($email && $otp) {\r\n-    // Get expiration from settings (default 10 min)\r\n-    $exp_min = 10;\r\n-    $set = $conn->query(\"SELECT value FROM system_settings WHERE name='otp_expiration_minutes' LIMIT 1\");\r\n-    if ($set && $row = $set->fetch_assoc()) $exp_min = (int)$row['value'];\r\n-    $expires_at = date('Y-m-d H:i:s', strtotime(\"+{$exp_min} minutes\"));\r\n-    // Get name for email\r\n-    $stmt = $conn->prepare('SELECT full_name FROM users WHERE email = ? LIMIT 1');\r\n-    $stmt->bind_param('s', $email);\r\n-    $stmt->execute();\r\n-    $stmt->bind_result($name);\r\n-    $stmt->fetch();\r\n-    $stmt->close();\r\n-    // Remove old OTPs\r\n-    $conn->query(\"DELETE FROM password_reset_otps WHERE email='$email'\");\r\n-    // Insert new OTP\r\n-    $stmt2 = $conn->prepare('INSERT INTO password_reset_otps (email, otp_code, expires_at) VALUES (?, ?, ?)');\r\n-    $stmt2->bind_param('sss', $email, $otp, $expires_at);\r\n-    if ($stmt2->execute()) {\r\n-        $response = ['status' => 'ok', 'name' => $name];\r\n-    }\r\n-    $stmt2->close();\r\n\\ No newline at end of file\n+$otp   = $_POST['otp']   ?? '';\r\n+\r\n+if (!$email || !$otp) {\r\n+    echo json_encode(['status' => 'error', 'message' => 'Missing email or OTP']);\r\n+    exit;\r\n }\r\n-echo json_encode($response);\n+\r\n+// Get user name\r\n+$user = $supabase->select('users', ['email' => 'eq.' . $email]);\r\n+\r\n+if (empty($user) || isset($user['error'])) {\r\n+    echo json_encode(['status' => 'error', 'message' => 'User not found']);\r\n+    exit;\r\n+}\r\n+\r\n+$name = $user[0]['full_name'];\r\n+\r\n+// Delete old OTPs for this email\r\n+$supabase->delete('password_reset_otps', ['email' => 'eq.' . $email]);\r\n+\r\n+// Set expiry (10 minutes from now)\r\n+$expires_at = date('Y-m-d H:i:s', strtotime('+10 minutes'));\r\n+\r\n+// Insert new OTP\r\n+$result = $supabase->insert('password_reset_otps', [\r\n+    'email'      => $email,\r\n+    'otp_code'   => $otp,\r\n+    'expires_at' => $expires_at\r\n+]);\r\n+\r\n+if (!isset($result['error'])) {\r\n+    echo json_encode(['status' => 'ok', 'name' => $name]);\r\n+} else {\r\n+    echo json_encode(['status' => 'error', 'message' => 'Failed to store OTP']);\r\n+}\n\\ No newline at end of file\n"
+                }
+            ],
+            "date": 1772586090125,
+            "name": "Commit-0",
+            "content": "<?php\r\n// store_otp.php\r\nrequire_once 'config.php';\r\n$email = $_POST['email'] ?? '';\r\n$otp = $_POST['otp'] ?? '';\r\n$response = ['status' => 'error'];\r\nif ($email && $otp) {\r\n    // Get expiration from settings (default 10 min)\r\n    $exp_min = 10;\r\n    $set = $conn->query(\"SELECT value FROM system_settings WHERE name='otp_expiration_minutes' LIMIT 1\");\r\n    if ($set && $row = $set->fetch_assoc()) $exp_min = (int)$row['value'];\r\n    $expires_at = date('Y-m-d H:i:s', strtotime(\"+{$exp_min} minutes\"));\r\n    // Get name for email\r\n    $stmt = $conn->prepare('SELECT full_name FROM users WHERE email = ? LIMIT 1');\r\n    $stmt->bind_param('s', $email);\r\n    $stmt->execute();\r\n    $stmt->bind_result($name);\r\n    $stmt->fetch();\r\n    $stmt->close();\r\n    // Remove old OTPs\r\n    $conn->query(\"DELETE FROM password_reset_otps WHERE email='$email'\");\r\n    // Insert new OTP\r\n    $stmt2 = $conn->prepare('INSERT INTO password_reset_otps (email, otp_code, expires_at) VALUES (?, ?, ?)');\r\n    $stmt2->bind_param('sss', $email, $otp, $expires_at);\r\n    if ($stmt2->execute()) {\r\n        $response = ['status' => 'ok', 'name' => $name];\r\n    }\r\n    $stmt2->close();\r\n}\r\necho json_encode($response);"
+        }
+    ]
+}

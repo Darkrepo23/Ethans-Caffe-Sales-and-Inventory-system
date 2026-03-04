@@ -3,11 +3,15 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 0,
+            "activePatchIndex": 1,
             "patches": [
                 {
                     "date": 1771907198335,
                     "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1772589264296,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,21 +1,31 @@\n <?php\r\n-header(\"Content-Type: text/html\");\r\n-require_once 'supabase-api.php';\r\n+header('Content-Type: application/json');\r\n+require_once 'config.php';\r\n \r\n-$newPassword = '123';\r\n-$hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);\r\n+$email       = $_POST['email']       ?? '';\r\n+$newPassword = $_POST['newPassword'] ?? '';\r\n \r\n-$result = $supabase->update('users', \r\n-    ['password_hash' => $hashedPassword],\r\n-    ['username' => 'eq.admin']\r\n+if (!$email || !$newPassword) {\r\n+    echo json_encode(['status' => 'error', 'message' => 'Missing email or password.']);\r\n+    exit;\r\n+}\r\n+\r\n+if (strlen($newPassword) < 6) {\r\n+    echo json_encode(['status' => 'error', 'message' => 'Password must be at least 6 characters.']);\r\n+    exit;\r\n+}\r\n+\r\n+$passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);\r\n+\r\n+$result = $supabase->update('users',\r\n+    ['password_hash' => $passwordHash],\r\n+    ['email'         => 'eq.' . $email]\r\n );\r\n \r\n-if (isset($result[0])) {\r\n-    echo \"✅ Admin password reset to: <strong>123</strong><br>\";\r\n-    echo \"Username: <strong>admin</strong><br>\";\r\n-    echo \"<br><a href='../index.html'>Go to Login</a>\";\r\n+if (!isset($result['error'])) {\r\n+    // Clean up used OTPs\r\n+    $supabase->delete('password_reset_otps', ['email' => 'eq.' . $email]);\r\n+    echo json_encode(['status' => 'ok']);\r\n } else {\r\n-    echo \"❌ Failed to reset password<br>\";\r\n-    print_r($result);\r\n-}\r\n-?>\r\n+    echo json_encode(['status' => 'error', 'message' => 'Failed to update password.']);\r\n+}\n\\ No newline at end of file\n"
                 }
             ],
             "date": 1771907198335,

@@ -1,0 +1,18 @@
+{
+    "sourceFile": "codes/php/verify_otp.php",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1772589253079,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1772589253079,
+            "name": "Commit-0",
+            "content": "<?php\r\nheader('Content-Type: application/json');\r\nrequire_once 'config.php';\r\n\r\n$email = $_POST['email'] ?? '';\r\n$otp   = $_POST['otp']   ?? '';\r\n\r\nif (!$email || !$otp) {\r\n    echo json_encode(['status' => 'error', 'message' => 'Missing email or OTP']);\r\n    exit;\r\n}\r\n\r\n// Find OTP record\r\n$result = $supabase->select('password_reset_otps', [\r\n    'email'    => 'eq.' . $email,\r\n    'otp_code' => 'eq.' . $otp\r\n]);\r\n\r\nif (empty($result) || isset($result['error'])) {\r\n    echo json_encode(['status' => 'error', 'message' => 'Invalid OTP.']);\r\n    exit;\r\n}\r\n\r\n$record = $result[0];\r\n\r\nif ($record['used']) {\r\n    echo json_encode(['status' => 'error', 'message' => 'OTP already used.']);\r\n    exit;\r\n}\r\n\r\nif (strtotime($record['expires_at']) < time()) {\r\n    echo json_encode(['status' => 'error', 'message' => 'OTP expired.']);\r\n    exit;\r\n}\r\n\r\n// Mark OTP as used\r\n$supabase->update('password_reset_otps', \r\n    ['used' => true],\r\n    ['id'   => 'eq.' . $record['id']]\r\n);\r\n\r\necho json_encode(['status' => 'ok']);"
+        }
+    ]
+}

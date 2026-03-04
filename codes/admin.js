@@ -1,3 +1,76 @@
+// QR Code Generation for Quick Login
+function generateUserQR(userId, username) {
+    // Show modal
+    const modalElem = document.getElementById('qrCodeModal');
+    if (!modalElem) return;
+    const qrContainer = document.getElementById('qrCodeContainer');
+    const qrUserInfo = document.getElementById('qrUserInfo');
+    if (!qrContainer || !qrUserInfo) return;
+
+
+    // Clear previous QR
+    qrContainer.innerHTML = '';
+    qrUserInfo.textContent = '';
+    const downloadBtn = document.getElementById('downloadQRBtn');
+    if (downloadBtn) downloadBtn.style.display = 'none';
+
+    // Data to encode (customize as needed, e.g., include a token or just username)
+    const qrData = JSON.stringify({ quick_login: true, userId, username });
+
+
+    // Helper to enable download button after QR is rendered
+    function enableDownloadQR() {
+        const qrImg = qrContainer.querySelector('img') || qrContainer.querySelector('canvas');
+        if (!qrImg) return;
+        if (!downloadBtn) return;
+        downloadBtn.style.display = '';
+        downloadBtn.onclick = function() {
+            let dataUrl = '';
+            let filename = `user-qr-${username}.png`;
+            if (qrImg.tagName === 'IMG') {
+                dataUrl = qrImg.src;
+            } else if (qrImg.tagName === 'CANVAS') {
+                dataUrl = qrImg.toDataURL('image/png');
+            }
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
+    }
+
+    // Generate QR code (requires QRCode.js)
+    function renderQR() {
+        new QRCode(qrContainer, {
+            text: qrData,
+            width: 200,
+            height: 200,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+        });
+        // Wait a moment for QR to render, then enable download
+        setTimeout(enableDownloadQR, 300);
+    }
+
+    if (typeof QRCode === 'undefined') {
+        // Dynamically load QRCode.js from CDN if not present
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        script.onload = renderQR;
+        document.body.appendChild(script);
+    } else {
+        renderQR();
+    }
+
+    qrUserInfo.textContent = `Username: ${username}`;
+
+    // Show modal using Bootstrap
+    const modal = new bootstrap.Modal(modalElem);
+    modal.show();
+}
 // Admin Dashboard JavaScript - Updated with User Management and Multi-page fixes
 const API_URL = "php/app.php";
 
@@ -2795,6 +2868,9 @@ async function loadActiveUsers() {
                     <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${user.id})" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>
+                    <button class="btn btn-sm btn-outline-success" onclick="generateUserQR(${user.id}, '${user.username}')" title="Generate QR for Quick Login">
+                        <i class="fas fa-qrcode"></i>
+                    </button>
                 </div>
             </td>
         `;
@@ -2920,13 +2996,19 @@ async function getRoleNameById(roleId) {
 
 async function saveNewUser() {
     const name = document.getElementById('newFullName')?.value.trim();
+    const email = document.getElementById('newUserEmail')?.value.trim();
     const username = document.getElementById('newUsername')?.value.trim();
     const pass = document.getElementById('newUserPassword')?.value;
     const confirmPass = document.getElementById('confirmUserPassword')?.value;
     const roleName = document.getElementById('newUserRole')?.value;
 
-    if (!name || !username || !pass || !confirmPass || !roleName) {
+    if (!name || !email || !username || !pass || !confirmPass || !roleName) {
         showModalNotification('Please fill in all fields', 'warning', 'Validation Error');
+        return;
+    }
+    // Basic email format validation
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+        showModalNotification('Invalid email format', 'warning', 'Validation Error');
         return;
     }
 
@@ -2953,6 +3035,7 @@ async function saveNewUser() {
         // 3️⃣ Create user object
         const newUser = {
             full_name: name,
+            email: email,
             username: username,
             password_hash: pass, // store hash if needed
             role_id: role_id,
@@ -2994,6 +3077,7 @@ async function editUser(id) {
 
         document.getElementById('editUserId').value = user.id;
         document.getElementById('editFullName').value = user.full_name;
+        document.getElementById('editUserEmail').value = user.email || '';
         document.getElementById('editUsername').value = user.username;
         document.getElementById('editUserStatus').value = user.status;
 
@@ -3018,13 +3102,19 @@ async function editUser(id) {
 async function saveUserChanges() {
     const id = parseInt(document.getElementById('editUserId').value);
     const name = document.getElementById('editFullName').value.trim();
+    const email = document.getElementById('editUserEmail').value.trim();
     const username = document.getElementById('editUsername').value.trim();
     const roleName = document.getElementById('editUserRole').value;
     const status = document.getElementById('editUserStatus').value;
     const newPass = document.getElementById('editUserPassword').value;
 
-    if (!name || !username || !roleName) {
-        showModalNotification('Full name, username, and role are required', 'warning', 'Validation Error');
+    if (!name || !email || !username || !roleName) {
+        showModalNotification('Full name, email, username, and role are required', 'warning', 'Validation Error');
+        return;
+    }
+    // Basic email format validation
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+        showModalNotification('Invalid email format', 'warning', 'Validation Error');
         return;
     }
 
@@ -3044,6 +3134,7 @@ async function saveUserChanges() {
         const updatedUser = {
             ...user,
             full_name: name,
+            email: email,
             username: username,
             role_id: role_id,
             status: status,

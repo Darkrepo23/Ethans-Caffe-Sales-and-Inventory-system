@@ -3,11 +3,19 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 0,
+            "activePatchIndex": 2,
             "patches": [
                 {
                     "date": 1772564874477,
                     "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1772586090201,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -242,8 +242,12 @@\n                             <label class=\"form-label\">Full Name</label>\r\n                             <input type=\"text\" class=\"form-control\" id=\"newFullName\" required>\r\n                         </div>\r\n                         <div class=\"mb-3\">\r\n+                            <label class=\"form-label\">Email</label>\r\n+                            <input type=\"email\" class=\"form-control\" id=\"newUserEmail\" required>\r\n+                        </div>\r\n+                        <div class=\"mb-3\">\r\n                             <label class=\"form-label\">Username</label>\r\n                             <input type=\"text\" class=\"form-control\" id=\"newUsername\" required>\r\n                         </div>\r\n                         <div class=\"mb-3\">\r\n@@ -286,8 +290,12 @@\n                             <label class=\"form-label\">Full Name</label>\r\n                             <input type=\"text\" class=\"form-control\" id=\"editFullName\">\r\n                         </div>\r\n                         <div class=\"mb-3\">\r\n+                            <label class=\"form-label\">Email</label>\r\n+                            <input type=\"email\" class=\"form-control\" id=\"editUserEmail\">\r\n+                        </div>\r\n+                        <div class=\"mb-3\">\r\n                             <label class=\"form-label\">Username</label>\r\n                             <input type=\"text\" class=\"form-control\" id=\"editUsername\" disabled>\r\n                         </div>\r\n                         <div class=\"mb-3\">\r\n"
+                },
+                {
+                    "date": 1772590793446,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,4 +1,22 @@\n+    <!-- QR Code Modal -->\r\n+    <div class=\"modal fade\" id=\"qrCodeModal\" tabindex=\"-1\" aria-labelledby=\"qrCodeModalLabel\" aria-hidden=\"true\">\r\n+        <div class=\"modal-dialog modal-dialog-centered\">\r\n+            <div class=\"modal-content\">\r\n+                <div class=\"modal-header bg-success text-white\">\r\n+                    <h5 class=\"modal-title\" id=\"qrCodeModalLabel\"><i class=\"fas fa-qrcode me-2\"></i>User Quick Login QR</h5>\r\n+                    <button type=\"button\" class=\"btn-close btn-close-white\" data-bs-dismiss=\"modal\" aria-label=\"Close\"></button>\r\n+                </div>\r\n+                <div class=\"modal-body text-center\">\r\n+                    <div id=\"qrCodeContainer\" class=\"mb-3\"></div>\r\n+                    <div id=\"qrUserInfo\" class=\"fw-bold mb-3\"></div>\r\n+                    <button id=\"downloadQRBtn\" class=\"btn btn-outline-success\" style=\"display:none;\">\r\n+                        <i class=\"fas fa-download me-1\"></i>Download QR Image\r\n+                    </button>\r\n+                </div>\r\n+            </div>\r\n+        </div>\r\n+    </div>\r\n <!DOCTYPE html>\r\n <html lang=\"en\">\r\n \r\n <head>\r\n"
                 }
             ],
             "date": 1772564874477,

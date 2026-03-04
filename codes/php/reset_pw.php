@@ -1,21 +1,31 @@
 <?php
-header("Content-Type: text/html");
-require_once 'supabase-api.php';
+header('Content-Type: application/json');
+require_once 'config.php';
 
-$newPassword = '123';
-$hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+$email       = $_POST['email']       ?? '';
+$newPassword = $_POST['newPassword'] ?? '';
 
-$result = $supabase->update('users', 
-    ['password_hash' => $hashedPassword],
-    ['username' => 'eq.admin']
+if (!$email || !$newPassword) {
+    echo json_encode(['status' => 'error', 'message' => 'Missing email or password.']);
+    exit;
+}
+
+if (strlen($newPassword) < 6) {
+    echo json_encode(['status' => 'error', 'message' => 'Password must be at least 6 characters.']);
+    exit;
+}
+
+$passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+
+$result = $supabase->update('users',
+    ['password_hash' => $passwordHash],
+    ['email'         => 'eq.' . $email]
 );
 
-if (isset($result[0])) {
-    echo "✅ Admin password reset to: <strong>123</strong><br>";
-    echo "Username: <strong>admin</strong><br>";
-    echo "<br><a href='../index.html'>Go to Login</a>";
+if (!isset($result['error'])) {
+    // Clean up used OTPs
+    $supabase->delete('password_reset_otps', ['email' => 'eq.' . $email]);
+    echo json_encode(['status' => 'ok']);
 } else {
-    echo "❌ Failed to reset password<br>";
-    print_r($result);
+    echo json_encode(['status' => 'error', 'message' => 'Failed to update password.']);
 }
-?>
