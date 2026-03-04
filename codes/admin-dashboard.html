@@ -55,38 +55,6 @@
             </button>
             <div class="collapse navbar-collapse" id="headerNav">
                 <ul class="navbar-nav ms-auto">
-                    <!-- Notification Bell -->
-                    <li class="nav-item dropdown me-3">
-                        <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown"
-                            id="notificationBell">
-                            <i class="fas fa-bell fa-lg"></i>
-                            <span
-                                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none"
-                                id="notificationCount">
-                                0
-                            </span>
-                        </a>
-                        <div class="dropdown-menu dropdown-menu-end shadow-lg notification-dropdown"
-                            style="width: 350px; max-height: 400px; overflow-y: auto;">
-                            <div
-                                class="dropdown-header d-flex justify-content-between align-items-center bg-danger text-white py-2 px-3">
-                                <span><i class="fas fa-bell me-2"></i>Notifications</span>
-                                <button class="btn btn-sm btn-outline-light" id="markAllReadBtn"
-                                    title="Mark all as read">
-                                    <i class="fas fa-check-double"></i>
-                                </button>
-                            </div>
-                            <div id="notificationList">
-                                <div class="text-center py-4 text-muted">
-                                    <i class="fas fa-spinner fa-spin"></i> Loading...
-                                </div>
-                            </div>
-                            <div class="dropdown-footer text-center py-2 border-top">
-                                <a href="#" class="text-danger small" id="viewAllNotifications">View All
-                                    Notifications</a>
-                            </div>
-                        </div>
-                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-user-shield me-1"></i>Administrator
@@ -176,19 +144,14 @@
                     class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2"><i class="fas fa-tachometer-alt me-2 text-danger"></i>Dashboard Overview</h1>
                     <div class="btn-toolbar mb-2 mb-md-0">
-                        <div class="btn-group me-2">
-
-                            <button class="btn btn-sm btn-outline-danger" id="exportDashboardData">
-                                <i class="fas fa-download"></i> Export
-                            </button>
-                        </div>
                     </div>
                 </div>
 
-                <!-- System Stats Row -->
+                <!-- System Stats Rows -->
                 <div class="row">
+                    <!-- Total Revenue -->
                     <div class="col-xl-3 col-md-6 mb-4">
-                        <div class="card border-left-success shadow h-100 py-2 bg-white text-dark">
+                        <div class="card border-left-success shadow h-100 py-3 bg-white text-dark">
                             <div class="card-body">
                                 <div class="row no-gutters align-items-center">
                                     <div class="col mr-2">
@@ -210,46 +173,9 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Total Sales Records -->
                     <div class="col-xl-3 col-md-6 mb-4">
-                        <div class="card border-left-danger shadow h-100 py-2 bg-white text-dark">
-                            <div class="card-body">
-                                <div class="row no-gutters align-items-center">
-                                    <div class="col mr-2">
-                                        <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: black;">
-                                            Ingredients to Restock
-                                        </div>
-                                        <div class="h5 mb-0 font-weight-bold" id="ingredientsRestock"
-                                            style="color: black;">
-                                            0</div>
-                                    </div>
-                                    <div class="col-auto">
-                                        <i class="fas fa-boxes fa-2x text-danger"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-xl-3 col-md-6 mb-4">
-                        <div class="card border-left-dark shadow h-100 py-2 bg-white text-dark">
-                            <div class="card-body">
-                                <div class="row no-gutters align-items-center">
-                                    <div class="col mr-2">
-                                        <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: black;">
-                                            Active Staff Accounts
-                                        </div>
-                                        <div class="h5 mb-0 font-weight-bold" id="totalStaffAccounts"
-                                            style="color: black;">
-                                            0</div>
-                                    </div>
-                                    <div class="col-auto">
-                                        <i class="fas fa-users fa-2x text-dark"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-xl-3 col-md-6 mb-4">
-                        <div class="card border-left-danger shadow h-100 py-2 bg-white text-dark">
+                        <div class="card border-left-danger shadow h-100 py-3 bg-white text-dark">
                             <div class="card-body">
                                 <div class="row no-gutters align-items-center">
                                     <div class="col mr-2">
@@ -272,8 +198,29 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Ingredients to Restock -->
                     <div class="col-xl-3 col-md-6 mb-4">
-                        <div class="card border-left-dark shadow h-100 py-2 bg-white text-dark">
+                        <div class="card border-left-danger shadow h-100 py-3 bg-white text-dark">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: black;">
+                                            Ingredients to Restock
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold" id="ingredientsRestock"
+                                            style="color: black;">
+                                            0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-boxes fa-2x text-danger"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Pending System Alerts -->
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-dark shadow h-100 py-3 bg-white text-dark">
                             <div class="card-body">
                                 <div class="row no-gutters align-items-center">
                                     <div class="col mr-2">
@@ -292,10 +239,10 @@
                     </div>
                 </div>
 
-                <!-- Second Row - Expiry & Active Users -->
                 <div class="row">
+                    <!-- Expiring Soon -->
                     <div class="col-xl-3 col-md-6 mb-4">
-                        <div class="card border-left-warning shadow h-100 py-2 bg-white text-dark">
+                        <div class="card border-left-warning shadow h-100 py-3 bg-white text-dark">
                             <div class="card-body">
                                 <div class="row no-gutters align-items-center">
                                     <div class="col mr-2">
@@ -315,9 +262,10 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Expired Ingredients -->
                     <div class="col-xl-3 col-md-6 mb-4">
                         <a href="admin-ingredients-masterlist.html" class="text-decoration-none">
-                            <div class="card border-left-danger shadow h-100 py-2 bg-white text-dark"
+                            <div class="card border-left-danger shadow h-100 py-3 bg-white text-dark"
                                 style="cursor: pointer;">
                                 <div class="card-body">
                                     <div class="row no-gutters align-items-center">
@@ -339,9 +287,30 @@
                             </div>
                         </a>
                     </div>
+                    <!-- Active Staff Accounts -->
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-dark shadow h-100 py-3 bg-white text-dark">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: black;">
+                                            Active Staff Accounts
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold" id="totalStaffAccounts"
+                                            style="color: black;">
+                                            0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-users fa-2x text-dark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Active Users Now -->
                     <div class="col-xl-3 col-md-6 mb-4">
                         <a href="admin-active-users.html" class="text-decoration-none">
-                            <div class="card border-left-success shadow h-100 py-2 bg-white text-dark">
+                            <div class="card border-left-success shadow h-100 py-3 bg-white text-dark">
                                 <div class="card-body">
                                     <div class="row no-gutters align-items-center">
                                         <div class="col mr-2">
@@ -356,30 +325,6 @@
                                         </div>
                                         <div class="col-auto">
                                             <i class="fas fa-user-check fa-2x text-success"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </a>
-                    </div>
-                    <div class="col-xl-3 col-md-6 mb-4">
-                        <a href="admin-activity-log.html" class="text-decoration-none">
-                            <div class="card border-left-info shadow h-100 py-2 bg-white text-dark"
-                                style="cursor: pointer;">
-                                <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-uppercase mb-1"
-                                                style="color: #0c5460;">
-                                                Unread Notifications
-                                            </div>
-                                            <div class="h5 mb-0 font-weight-bold" id="unreadNotificationsCount"
-                                                style="color: #0c5460;">
-                                                0
-                                            </div>
-                                        </div>
-                                        <div class="col-auto">
-                                            <i class="fas fa-envelope fa-2x text-info"></i>
                                         </div>
                                     </div>
                                 </div>
