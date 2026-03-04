@@ -369,6 +369,17 @@ async function performAutoLogout() {
  */
 async function requestManagerApproval(actionDescription) {
     return new Promise(async (resolve) => {
+        // Bootstrap 5 traps focus inside open modals, blocking SweetAlert2 inputs.
+        // We must fully hide Bootstrap modals before showing SweetAlert2.
+        const openModalEl = document.querySelector('.modal.show');
+        let bsModal = null;
+        if (openModalEl) {
+            bsModal = bootstrap.Modal.getInstance(openModalEl);
+            if (bsModal) bsModal.hide();
+            // Wait for the modal hide animation to finish
+            await new Promise(r => setTimeout(r, 350));
+        }
+
         const result = await Swal.fire({
             title: 'Manager Approval Required',
             html: `
@@ -383,12 +394,27 @@ async function requestManagerApproval(actionDescription) {
             confirmButtonColor: '#800000',
             confirmButtonText: 'Authorize',
             cancelButtonText: 'Cancel',
+            didOpen: () => {
+                setTimeout(() => {
+                    const pinInput = document.getElementById('managerPinInput');
+                    if (pinInput) pinInput.focus();
+                }, 100);
+            },
             preConfirm: () => {
-                return document.getElementById('managerPinInput').value;
+                const pin = document.getElementById('managerPinInput').value;
+                if (!pin) {
+                    Swal.showValidationMessage('Please enter the manager PIN');
+                    return false;
+                }
+                return pin;
             }
         });
 
         if (!result.isConfirmed || !result.value) {
+            // Re-show the Bootstrap modal if user cancelled
+            if (bsModal && openModalEl) {
+                bsModal.show();
+            }
             resolve(false);
             return;
         }
@@ -881,7 +907,7 @@ function displayMenuItems(items) {
         const onClickHandler = isDisabled ? 'event.preventDefault(); event.stopPropagation();' : `addItemToSale(${item.id})`;
         const disabledClass = isDisabled ? 'menu-item-disabled' : '';
         const unavailableOverlay = isDisabled ? '<div class="menu-item-overlay"><div class="unavailable-badge"><i class="fas fa-ban me-2"></i>Not Setup in Recipe Control</div></div>' : '';
-        
+
         return `
             <div class="col-6 col-md-4 col-lg-3 mb-3">
                 <div class="menu-item-card ${disabledClass}" data-id="${item.id}" onclick="${onClickHandler}" style="${isDisabled ? 'cursor: not-allowed; opacity: 0.6;' : 'cursor: pointer;'}">
