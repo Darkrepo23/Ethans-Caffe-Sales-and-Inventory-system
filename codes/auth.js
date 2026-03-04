@@ -545,6 +545,189 @@ async function updateUserStatus(userId, status) {
 // });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// QR CODE LOGIN
+// ═══════════════════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function () {
+(function initQRLogin() {
+    console.log('[QR] initQRLogin() called');
+    const qrScanBtn   = document.getElementById('qrScanBtn');
+    if (!qrScanBtn) {
+        console.warn('[QR] qrScanBtn not found — skipping QR init');
+        return;
+    }
+    console.log('[QR] qrScanBtn found, attaching listeners');
+
+    const qrScanModal = document.getElementById('qrScanModal');
+    const closeQrModal = document.getElementById('closeQrModal');
+    const qrCancelBtn = document.getElementById('qrCancelBtn');
+    const qrVideo     = document.getElementById('qrVideo');
+    const qrStatus    = document.getElementById('qrStatus');
+    const qrError     = document.getElementById('qrError');
+
+    let stream = null, scanLoop = null, isProcessing = false;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    function openModal() {
+        console.log('[QR] Opening modal');
+        qrScanModal.style.display = 'flex';
+        qrStatus.textContent = 'Requesting camera access...';
+        qrError.style.display = 'none';
+        isProcessing = false;
+        startCamera();
+    }
+
+    function closeModal() {
+        qrScanModal.style.display = 'none';
+        stopCamera();
+    }
+
+    function stopCamera() {
+        if (scanLoop) { cancelAnimationFrame(scanLoop); scanLoop = null; }
+        if (stream)   { stream.getTracks().forEach(t => t.stop()); stream = null; }
+        qrVideo.srcObject = null;
+    }
+
+    async function startCamera() {
+        console.log('[QR] Requesting camera...');
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' }
+            });
+            qrVideo.srcObject = stream;
+            qrVideo.onloadedmetadata = () => {
+                qrVideo.play();
+                console.log('[QR] Camera stream active, starting scan loop');
+                qrStatus.textContent = 'Camera ready — hold QR code steady...';
+                scanFrame();
+            };
+        } catch (err) {
+            console.error('[QR] Camera error:', err.name, err.message);
+            qrStatus.textContent = '';
+            qrError.style.display = 'block';
+            if (err.name === 'NotAllowedError') {
+                qrError.textContent = 'Camera permission denied. Please allow camera access in your browser settings.';
+            } else if (err.name === 'NotFoundError') {
+                qrError.textContent = 'No camera found on this device.';
+            } else {
+                qrError.textContent = 'Could not access camera: ' + err.message;
+            }
+        }
+    }
+
+    function scanFrame() {
+        if (!stream) return;
+        if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
+            canvas.width  = qrVideo.videoWidth;
+            canvas.height = qrVideo.videoHeight;
+            ctx.drawImage(qrVideo, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            if (typeof jsQR === 'undefined') {
+                console.error('[QR] jsQR library not loaded!');
+                return;
+            }
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert'
+            });
+            if (code && !isProcessing) {
+                console.log('[QR] Code detected:', code.data);
+                if (!code.data || code.data.trim() === '') {
+                    console.warn('[QR] Empty QR data, skipping');
+                    scanLoop = requestAnimationFrame(scanFrame);
+                    return;
+                }
+                isProcessing = true;
+                handleQRResult(code.data);
+                return;
+            }
+        }
+        scanLoop = requestAnimationFrame(scanFrame);
+    }
+
+    async function handleQRResult(rawData) {
+        console.log('[QR] Sending to qr_login.php...');
+        qrStatus.textContent = 'QR detected! Verifying...';
+        try {
+            // Parse and validate QR format
+            let parsed;
+            try { parsed = JSON.parse(rawData); }
+            catch { throw new Error('Invalid QR code format.'); }
+
+            console.log('[QR] Parsed QR:', parsed);
+
+            // Expected format: {"quick_login":true,"userId":14,"username":"staff"}
+            if (!parsed.quick_login || !parsed.userId || !parsed.username) {
+                throw new Error('Invalid QR code — not a staff login QR.');
+            }
+
+            // Send to PHP for verification
+            const res = await fetch('php/qr_login.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ qr_data: rawData })
+            });
+
+            const data = await res.json();
+            console.log('[QR] qr_login.php response:', data);
+
+            if (!res.ok || data.error) {
+                throw new Error(data.message || data.error || 'QR login failed.');
+            }
+
+            // Success
+            closeModal();
+            localStorage.setItem('loggedInUser',   JSON.stringify(data.user));
+            localStorage.setItem('loggedInRole',   (data.user.role_name || '').toLowerCase());
+            localStorage.setItem('loggedInUserId', data.user.id);
+
+            // Mark user active
+            if (typeof updateUserStatus === 'function') {
+                await updateUserStatus(data.user.id, 'active').catch(() => {});
+            }
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Welcome, ' + (data.user.full_name || data.user.username) + '!',
+                text: 'Logged in via QR Code.',
+                timer: 1500,
+                showConfirmButton: false,
+                timerProgressBar: true,
+                heightAuto: false
+            }).then(() => {
+                const role = (data.user.role_name || '').toLowerCase();
+                window.location.href = (role === 'admin') ? 'admin-dashboard.html' : 'staff-menu.html';
+            });
+
+        } catch (err) {
+            console.error('[QR] Error:', err.message);
+            qrError.style.display = 'block';
+            qrError.textContent = err.message;
+            qrStatus.textContent = '';
+            // Resume scanning after 2s
+            setTimeout(() => {
+                isProcessing = false;
+                qrError.style.display = 'none';
+                qrStatus.textContent = 'Hold QR code steady...';
+                scanLoop = requestAnimationFrame(scanFrame);
+            }, 2000);
+        }
+    }
+
+    qrScanBtn.addEventListener('click', openModal);
+    closeQrModal.addEventListener('click', closeModal);
+    qrCancelBtn.addEventListener('click', closeModal);
+    qrScanModal.addEventListener('click', e => { if (e.target === qrScanModal) closeModal(); });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && qrScanModal && qrScanModal.style.display === 'flex') closeModal();
+    });
+
+    console.log('[QR] All listeners attached successfully');
+})();
+}); // end DOMContentLoaded
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // AUTO SESSION VALIDATION
 // Automatically validates session on protected pages (admin-*, staff-*)
 // ═══════════════════════════════════════════════════════════════════════════════

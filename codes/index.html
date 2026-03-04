@@ -1065,8 +1065,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 
     <!-- Custom JS - ORIGINAL FILES INTACT -->
-    <script type="module" src="auth.js"></script>
-    <script type="module" src="middle.js"></script>
+    <!-- jsQR must load BEFORE auth.js so QR scanning works -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="auth.js"></script>
+    <script src="middle.js"></script>
     <script src="main.js"></script>
 
     <script>
@@ -1330,133 +1332,6 @@
             100% { top: calc(50% - 95px); }
         }
     </style>
-
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-    <script>
-    (function () {
-        const qrScanBtn    = document.getElementById('qrScanBtn');
-        const qrScanModal  = document.getElementById('qrScanModal');
-        const closeQrModal = document.getElementById('closeQrModal');
-        const qrCancelBtn  = document.getElementById('qrCancelBtn');
-        const qrVideo      = document.getElementById('qrVideo');
-        const qrStatus     = document.getElementById('qrStatus');
-        const qrError      = document.getElementById('qrError');
-
-        let stream = null, scanLoop = null, isProcessing = false;
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-
-        function openModal() {
-            qrScanModal.style.display = 'flex';
-            qrStatus.textContent = 'Requesting camera access...';
-            qrError.style.display = 'none';
-            startCamera();
-        }
-
-        function closeModal() {
-            qrScanModal.style.display = 'none';
-            stopCamera();
-        }
-
-        function stopCamera() {
-            if (scanLoop) { cancelAnimationFrame(scanLoop); scanLoop = null; }
-            if (stream)   { stream.getTracks().forEach(t => t.stop()); stream = null; }
-            qrVideo.srcObject = null;
-        }
-
-        async function startCamera() {
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                qrVideo.srcObject = stream;
-                qrVideo.onloadedmetadata = () => {
-                    qrVideo.play();
-                    qrStatus.textContent = 'Camera ready — hold QR code steady...';
-                    scanFrame();
-                };
-            } catch (err) {
-                qrStatus.textContent = '';
-                qrError.style.display = 'block';
-                if (err.name === 'NotAllowedError') {
-                    qrError.textContent = 'Camera permission denied. Please allow camera access in your browser settings.';
-                } else if (err.name === 'NotFoundError') {
-                    qrError.textContent = 'No camera found on this device.';
-                } else {
-                    qrError.textContent = 'Could not access camera: ' + err.message;
-                }
-            }
-        }
-
-        function scanFrame() {
-            if (!stream) return;
-            if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
-                canvas.width  = qrVideo.videoWidth;
-                canvas.height = qrVideo.videoHeight;
-                ctx.drawImage(qrVideo, 0, 0, canvas.width, canvas.height);
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
-                if (code && !isProcessing) {
-                    isProcessing = true;
-                    handleQRResult(code.data);
-                    return;
-                }
-            }
-            scanLoop = requestAnimationFrame(scanFrame);
-        }
-
-        async function handleQRResult(data) {
-            qrStatus.textContent = 'QR detected! Logging in...';
-            try {
-                let parsed;
-                try { parsed = JSON.parse(data); }
-                catch { throw new Error('Invalid QR code format.'); }
-
-                const { username, password } = parsed;
-                if (!username || !password) throw new Error('QR code missing credentials.');
-
-                const res = await fetch('php/login.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                const result = await res.json();
-                if (result.error || !res.ok) throw new Error(result.message || result.error || 'Login failed.');
-
-                closeModal();
-                localStorage.setItem('loggedInUser',   JSON.stringify(result.user));
-                localStorage.setItem('loggedInRole',   (result.user.role_name || '').toLowerCase());
-                localStorage.setItem('loggedInUserId', result.user.id);
-
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Welcome, ' + (result.user.full_name || username) + '!',
-                    text: 'Logged in via QR Code.',
-                    timer: 1500,
-                    showConfirmButton: false
-                }).then(() => {
-                    const role = (result.user.role_name || '').toLowerCase();
-                    window.location.href = role === 'admin' ? 'admin-dashboard.html' : 'staff-menu.html';
-                });
-
-            } catch (err) {
-                qrError.style.display = 'block';
-                qrError.textContent = err.message;
-                qrStatus.textContent = '';
-                setTimeout(() => {
-                    isProcessing = false;
-                    qrError.style.display = 'none';
-                    qrStatus.textContent = 'Hold QR code steady...';
-                    scanLoop = requestAnimationFrame(scanFrame);
-                }, 2000);
-            }
-        }
-
-        qrScanBtn.addEventListener('click', openModal);
-        closeQrModal.addEventListener('click', closeModal);
-        qrCancelBtn.addEventListener('click', closeModal);
-        qrScanModal.addEventListener('click', e => { if (e.target === qrScanModal) closeModal(); });
-        document.addEventListener('keydown', e => { if (e.key === 'Escape' && qrScanModal.style.display === 'flex') closeModal(); });
-    })();
-    </script>
 
 </body>
 
