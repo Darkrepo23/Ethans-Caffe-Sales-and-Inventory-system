@@ -369,6 +369,17 @@ async function performAutoLogout() {
  */
 async function requestManagerApproval(actionDescription) {
     return new Promise(async (resolve) => {
+        // Bootstrap 5 traps focus inside open modals, blocking SweetAlert2 inputs.
+        // We must fully hide Bootstrap modals before showing SweetAlert2.
+        const openModalEl = document.querySelector('.modal.show');
+        let bsModal = null;
+        if (openModalEl) {
+            bsModal = bootstrap.Modal.getInstance(openModalEl);
+            if (bsModal) bsModal.hide();
+            // Wait for the modal hide animation to finish
+            await new Promise(r => setTimeout(r, 350));
+        }
+
         const result = await Swal.fire({
             title: 'Manager Approval Required',
             html: `
@@ -383,12 +394,27 @@ async function requestManagerApproval(actionDescription) {
             confirmButtonColor: '#800000',
             confirmButtonText: 'Authorize',
             cancelButtonText: 'Cancel',
+            didOpen: () => {
+                setTimeout(() => {
+                    const pinInput = document.getElementById('managerPinInput');
+                    if (pinInput) pinInput.focus();
+                }, 100);
+            },
             preConfirm: () => {
-                return document.getElementById('managerPinInput').value;
+                const pin = document.getElementById('managerPinInput').value;
+                if (!pin) {
+                    Swal.showValidationMessage('Please enter the manager PIN');
+                    return false;
+                }
+                return pin;
             }
         });
 
         if (!result.isConfirmed || !result.value) {
+            // Re-show the Bootstrap modal if user cancelled
+            if (bsModal && openModalEl) {
+                bsModal.show();
+            }
             resolve(false);
             return;
         }
@@ -417,12 +443,20 @@ async function requestManagerApproval(actionDescription) {
                 });
                 resolve(true);
             } else {
+                // Re-show the Bootstrap modal on failed attempt
+                if (bsModal && openModalEl) {
+                    bsModal.show();
+                }
                 Swal.fire('Invalid PIN', data.message || 'The PIN entered is not valid.', 'error');
                 logStaffActivity('Manager Authorization', `${actionDescription} - FAILED`, 'Failed');
                 resolve(false);
             }
         } catch (err) {
             console.error('Manager verification failed:', err);
+            // Re-show the Bootstrap modal on error
+            if (bsModal && openModalEl) {
+                bsModal.show();
+            }
             Swal.fire('Error', 'Failed to verify manager credentials.', 'error');
             resolve(false);
         }
