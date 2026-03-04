@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Held Orders - Staff Dashboard</title>
 
     <!-- Bootstrap 5 CSS -->
@@ -204,8 +204,10 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="input-group">
-                                    <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                                    <input type="text" class="form-control" id="heldOrderSearch" placeholder="Search by reference or customer...">
+                                    <span class="input-group-text bg-white"><i
+                                            class="fas fa-search text-muted"></i></span>
+                                    <input type="text" class="form-control" id="heldOrderSearch"
+                                        placeholder="Search by reference or customer...">
                                     <select class="form-select" id="statusFilter" style="max-width: 150px;">
                                         <option value="all">All Status</option>
                                         <option value="active" selected>Active</option>
@@ -321,7 +323,7 @@
         // Held Orders Page Logic
         let allHeldOrders = [];
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             loadHeldOrders();
 
             // Search and filter listeners
@@ -373,7 +375,7 @@
 
             const filtered = allHeldOrders.filter(order => {
                 const matchesSearch = order.hold_ref.toLowerCase().includes(search) ||
-                                      (order.customer_name || '').toLowerCase().includes(search);
+                    (order.customer_name || '').toLowerCase().includes(search);
                 const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
                 return matchesSearch && matchesStatus;
             });
@@ -400,15 +402,15 @@
 
                 // Parse items
                 let items = [];
-                try { items = JSON.parse(order.items_json || '[]'); } catch(e) {}
+                try { items = JSON.parse(order.items_json || '[]'); } catch (e) { }
                 const totalItems = items.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
                 let statusBadge = '';
-                switch(order.status) {
+                switch (order.status) {
                     case 'active':
                         statusBadge = isExpired ? '<span class="badge bg-danger">Expired</span>' :
-                                      isExpiringSoon ? '<span class="badge bg-warning text-dark">Expiring Soon</span>' :
-                                      '<span class="badge bg-success">Active</span>';
+                            isExpiringSoon ? '<span class="badge bg-warning text-dark">Expiring Soon</span>' :
+                                '<span class="badge bg-success">Active</span>';
                         break;
                     case 'restored':
                         statusBadge = '<span class="badge bg-info">Restored</span>';
@@ -426,8 +428,8 @@
                 return `
                     <tr class="${isExpired ? 'table-danger' : isExpiringSoon ? 'table-warning' : ''}">
                         <td><strong>${order.hold_ref}</strong></td>
-                        <td>${order.customer_name || 'Walk-in Customer'}</td>
-                        <td><span class="badge ${order.order_type === 'dine-in' ? 'bg-primary' : 'bg-secondary'}">${order.order_type === 'dine-in' ? 'Dine-in' : 'Walk-in'}</span></td>
+                        <td>${order.customer_name || 'Takeout Customer'}</td>
+                        <td><span class="badge ${order.order_type === 'dine-in' ? 'bg-primary' : 'bg-secondary'}">${order.order_type === 'dine-in' ? 'Dine-in' : 'Takeout'}</span></td>
                         <td>${totalItems} item(s)</td>
                         <td><strong>P${parseFloat(order.total_amount).toFixed(2)}</strong></td>
                         <td>${createdAt.toLocaleString()}</td>
@@ -461,15 +463,15 @@
             if (!order) return;
 
             let items = [];
-            try { items = JSON.parse(order.items_json || '[]'); } catch(e) {}
+            try { items = JSON.parse(order.items_json || '[]'); } catch (e) { }
 
             const detailsHtml = `
                 <div class="row">
                     <div class="col-md-6">
                         <h6 class="border-bottom pb-2 mb-3">Order Information</h6>
                         <p><strong>Reference:</strong> ${order.hold_ref}</p>
-                        <p><strong>Customer:</strong> ${order.customer_name || 'Walk-in Customer'}</p>
-                        <p><strong>Order Type:</strong> ${order.order_type === 'dine-in' ? 'Dine-in' : 'Walk-in'}</p>
+                        <p><strong>Customer:</strong> ${order.customer_name || 'Takeout Customer'}</p>
+                        <p><strong>Order Type:</strong> ${order.order_type === 'dine-in' ? 'Dine-in' : 'Takeout'}</p>
                         <p><strong>Status:</strong> ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}</p>
                         <p><strong>Created:</strong> ${new Date(order.created_at).toLocaleString()}</p>
                         <p><strong>Expires:</strong> ${new Date(order.expires_at).toLocaleString()}</p>

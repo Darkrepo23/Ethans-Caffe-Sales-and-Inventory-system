@@ -188,8 +188,8 @@ async function generateReport(silent = false) {
                 status: sale.status || 'completed',
                 staff: staffMap[sale.staff_id] || 'Staff',
                 staff_id: sale.staff_id,
-                customer: sale.customer_name || 'Walk-in',
-                order_type: sale.order_type || 'walk-in',
+                customer: sale.customer_name || 'Takeout',
+                order_type: sale.order_type || 'takeout',
                 adjustment_reason: sale.adjustment_reason || '',
                 adjusted_at: sale.adjusted_at
             };

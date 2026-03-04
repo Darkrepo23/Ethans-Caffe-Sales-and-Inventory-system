@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Menu Sales - Staff Dashboard</title>
 
     <!-- Bootstrap 5 CSS -->
@@ -139,7 +139,7 @@
                             </div>
                             <!-- Category Tabs -->
                             <div class="category-tabs-container">
-                                <div class="category-tabs d-flex gap-2 overflow-auto pb-1" id="categoryTabs">
+                                <div class="category-tabs d-flex gap-2 overflow-auto" id="categoryTabs">
                                     <button class="btn btn-category active" data-category="All">All Products</button>
                                     <button class="btn btn-category" data-category="Main Course">Main Course</button>
                                     <button class="btn btn-category" data-category="Appetizer">Appetizer</button>
@@ -171,7 +171,8 @@
                                 <h6 class="mb-0 fw-bold"><i class="fas fa-shopping-cart me-2"></i>Cart Details (<span
                                         id="cartCount">0</span>)</h6>
                                 <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-sm btn-outline-light" id="printerSetupBtn" title="Printer Setup">
+                                    <button class="btn btn-sm btn-outline-light" id="printerSetupBtn"
+                                        title="Printer Setup">
                                         <i class="fas fa-print"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-light" id="clearSaleBtn" title="Clear Cart">
@@ -182,15 +183,19 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="small opacity-75">
                                     <i class="fas fa-user-circle me-1"></i> <span
-                                        class="customer-name-display text-danger fw-bold">Walk-in Customer</span>
+                                        class="customer-name-display text-danger fw-bold">Takeout Customer</span>
                                 </div>
                                 <!-- Order Type Toggle -->
                                 <div class="btn-group btn-group-sm" role="group" id="orderTypeToggle">
-                                    <input type="radio" class="btn-check" name="orderType" id="orderTypeDineIn" value="dine-in" autocomplete="off">
-                                    <label class="btn btn-outline-warning btn-sm py-0 px-2" for="orderTypeDineIn"><i class="fas fa-chair me-1"></i>Dine-in</label>
-                                    
-                                    <input type="radio" class="btn-check" name="orderType" id="orderTypeWalkIn" value="walk-in" autocomplete="off" checked>
-                                    <label class="btn btn-outline-warning btn-sm py-0 px-2" for="orderTypeWalkIn"><i class="fas fa-walking me-1"></i>Walk-in</label>
+                                    <input type="radio" class="btn-check" name="orderType" id="orderTypeDineIn"
+                                        value="dine-in" autocomplete="off">
+                                    <label class="btn btn-outline-warning btn-sm py-0 px-2" for="orderTypeDineIn"><i
+                                            class="fas fa-chair me-1"></i>Dine-in</label>
+
+                                    <input type="radio" class="btn-check" name="orderType" id="orderTypeTakeout"
+                                        value="takeout" autocomplete="off" checked>
+                                    <label class="btn btn-outline-warning btn-sm py-0 px-2" for="orderTypeTakeout"><i
+                                            class="fas fa-box me-1"></i>Takeout</label>
                                 </div>
                             </div>
                         </div>
