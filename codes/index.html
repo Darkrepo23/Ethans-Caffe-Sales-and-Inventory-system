@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Restaurant POS System - Login</title>
     <link rel="icon" type="image/jpg" href="resources/ethans%20logo.jpg">
 
@@ -883,13 +883,15 @@
                                     </div>
 
                                     <div class="d-grid mb-3">
-                                        <button type="button" class="btn btn-outline-secondary btn-lg w-100" id="qrScanBtn">
+                                        <button type="button" class="btn btn-outline-secondary btn-lg w-100"
+                                            id="qrScanBtn">
                                             <i class="fas fa-qrcode me-2"></i>Login with QR Code
                                         </button>
                                     </div>
 
                                     <div class="text-center mb-3">
-                                        <a href="forgot-password.html" class="text-decoration-none"><i class="fas fa-key me-1"></i>Forgot Password?</a>
+                                        <a href="forgot-password.html" class="text-decoration-none"><i
+                                                class="fas fa-key me-1"></i>Forgot Password?</a>
                                     </div>
 
                                     <!-- Cooldown Timer UI -->
@@ -898,16 +900,19 @@
                                             <i class="fas fa-clock fa-lg me-3"></i>
                                             <div class="flex-grow-1">
                                                 <strong>Too many attempts</strong>
-                                                <div class="small">Please wait <span id="cooldownSeconds" class="fw-bold text-danger">0</span> seconds</div>
+                                                <div class="small">Please wait <span id="cooldownSeconds"
+                                                        class="fw-bold text-danger">0</span> seconds</div>
                                             </div>
                                             <div class="ms-3">
-                                                <div class="spinner-border spinner-border-sm text-warning" role="status">
+                                                <div class="spinner-border spinner-border-sm text-warning"
+                                                    role="status">
                                                     <span class="visually-hidden">Waiting...</span>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="progress mt-2" style="height: 4px;">
-                                            <div id="cooldownProgress" class="progress-bar bg-warning" role="progressbar" style="width: 100%"></div>
+                                            <div id="cooldownProgress" class="progress-bar bg-warning"
+                                                role="progressbar" style="width: 100%"></div>
                                         </div>
                                     </div>
 
@@ -1025,9 +1030,10 @@
             </div>
             <!-- Access Code Input -->
             <div class="mb-3" id="accessCodeSection">
-                <label class="form-label text-uppercase small text-muted" style="color:#6b7280 !important;">Access Code</label>
+                <label class="form-label text-uppercase small text-muted" style="color:#6b7280 !important;">Access
+                    Code</label>
                 <div class="input-group">
-                    <input type="password" class="form-control border" id="masterAccessCode" 
+                    <input type="password" class="form-control border" id="masterAccessCode"
                         style="background:#ffffff; color:#111827;" placeholder="Enter access code...">
                     <button class="btn btn-success" type="button" id="verifyAccessCodeBtn">
                         <i class="fas fa-key me-1"></i>Verify
@@ -1044,7 +1050,8 @@
                     <h6 class="mt-2 mb-1" style="color:#16a34a;">Access Verified</h6>
                     <small class="text-muted">Click below to login as Admin</small>
                 </div>
-                <button type="button" class="btn btn-success w-100 py-3" id="autoLoginAdminBtn" style="font-size: 1.1rem;">
+                <button type="button" class="btn btn-success w-100 py-3" id="autoLoginAdminBtn"
+                    style="font-size: 1.1rem;">
                     <i class="fas fa-sign-in-alt me-2"></i>Enter as Admin
                 </button>
             </div>
@@ -1160,29 +1167,29 @@
             document.addEventListener('keydown', function (e) {
                 // Skip if typing in an input field (except for closing the overlay)
                 const isInputField = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
-                
+
                 // Allow Escape to close overlay even in input fields
                 if (e.key === 'Escape' && adminUnlockOverlay && adminUnlockOverlay.style.display === 'flex') {
                     toggleAdminUnlock(false);
                     typedSequence = '';
                     return;
                 }
-                
+
                 if (isInputField) return;
-                
+
                 // Get the typed character
                 const char = e.key.toUpperCase();
-                
+
                 // Only accept alphanumeric and hyphen
                 if (char.length === 1 && /[A-Z0-9-]/.test(char)) {
                     typedSequence += char;
-                    
+
                     // Reset timeout
                     if (sequenceTimeout) clearTimeout(sequenceTimeout);
                     sequenceTimeout = setTimeout(() => {
                         typedSequence = '';
                     }, 3000); // 3 seconds to complete the sequence
-                    
+
                     // Check if sequence matches
                     if (typedSequence === UNLOCK_SEQUENCE) {
                         typedSequence = '';
@@ -1190,7 +1197,7 @@
                         const isVisible = adminUnlockOverlay && adminUnlockOverlay.style.display === 'flex';
                         toggleAdminUnlock(!isVisible);
                     }
-                    
+
                     // Reset if sequence doesn't match the start
                     if (!UNLOCK_SEQUENCE.startsWith(typedSequence)) {
                         typedSequence = char; // Start fresh with current char
@@ -1237,7 +1244,7 @@
                             accessCodeError.style.display = 'none';
                             accessCodeSection.style.display = 'none';
                             credentialsSection.style.display = 'block';
-                            
+
                             // Store user data for auto-login (session already created on server)
                             credentialsSection.dataset.userData = JSON.stringify(data.user);
                         } else {
@@ -1277,24 +1284,24 @@
                         Swal.fire('Error', 'Invalid session data. Please verify again.', 'error');
                         return;
                     }
-                    
+
                     console.log('Master unlock userData:', userData);
-                    
+
                     if (!userData || !userData.id) {
                         Swal.fire('Error', 'Session expired. Please verify again.', 'error');
                         return;
                     }
-                    
+
                     autoLoginAdminBtn.disabled = true;
                     autoLoginAdminBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Logging in...';
-                    
+
                     // Store session data (master_unlock.php already created the server session)
                     localStorage.setItem('loggedInUser', JSON.stringify(userData));
                     // Normalize role to lowercase for auth check
                     const roleName = (userData.role_name || 'admin').toLowerCase();
                     localStorage.setItem('loggedInRole', roleName);
                     localStorage.setItem('loggedInUserId', userData.id);
-                    
+
                     // Redirect to admin dashboard
                     window.location.href = 'admin-dashboard.html';
                 });
@@ -1305,19 +1312,30 @@
     </script>
 
     <!-- QR Scanner Modal -->
-    <div id="qrScanModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:3000; align-items:center; justify-content:center;">
-        <div style="background:#fff; border-radius:20px; padding:28px 24px; width:100%; max-width:420px; box-shadow:0 25px 60px rgba(0,0,0,0.4); text-align:center;">
+    <div id="qrScanModal"
+        style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:3000; align-items:center; justify-content:center;">
+        <div
+            style="background:#fff; border-radius:20px; padding:28px 24px; width:100%; max-width:420px; box-shadow:0 25px 60px rgba(0,0,0,0.4); text-align:center;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                 <h5 style="margin:0; color:#800000;"><i class="fas fa-qrcode me-2"></i>Scan QR Code</h5>
-                <button id="closeQrModal" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#666;">&times;</button>
+                <button id="closeQrModal"
+                    style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#666;">&times;</button>
             </div>
-            <p style="font-size:0.85rem; color:#666; margin-bottom:16px;">Point your camera at the staff QR code to login instantly.</p>
-            <div style="position:relative; width:100%; border-radius:12px; overflow:hidden; background:#000; margin-bottom:16px;">
-                <video id="qrVideo" style="width:100%; height:280px; object-fit:cover; display:block;" autoplay muted playsinline></video>
-                <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;">
-                    <div style="width:200px; height:200px; border:3px solid #800000; border-radius:12px; box-shadow:0 0 0 9999px rgba(0,0,0,0.45);"></div>
+            <p style="font-size:0.85rem; color:#666; margin-bottom:16px;">Point your camera at the staff QR code to
+                login instantly.</p>
+            <div
+                style="position:relative; width:100%; border-radius:12px; overflow:hidden; background:#000; margin-bottom:16px;">
+                <video id="qrVideo" style="width:100%; height:280px; object-fit:cover; display:block;" autoplay muted
+                    playsinline></video>
+                <div
+                    style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;">
+                    <div
+                        style="width:200px; height:200px; border:3px solid #800000; border-radius:12px; box-shadow:0 0 0 9999px rgba(0,0,0,0.45);">
+                    </div>
                 </div>
-                <div id="qrScanLine" style="position:absolute; left:50%; transform:translateX(-50%); width:190px; height:3px; background:linear-gradient(90deg,transparent,#800000,transparent); animation:scanLine 2s linear infinite; top:50%;"></div>
+                <div id="qrScanLine"
+                    style="position:absolute; left:50%; transform:translateX(-50%); width:190px; height:3px; background:linear-gradient(90deg,transparent,#800000,transparent); animation:scanLine 2s linear infinite; top:50%;">
+                </div>
             </div>
             <div id="qrStatus" style="font-size:0.9rem; color:#555; min-height:24px;">Requesting camera access...</div>
             <div id="qrError" style="display:none; color:#dc3545; font-size:0.85rem; margin-top:8px;"></div>
@@ -1327,9 +1345,17 @@
 
     <style>
         @keyframes scanLine {
-            0%   { top: calc(50% - 95px); }
-            50%  { top: calc(50% + 95px); }
-            100% { top: calc(50% - 95px); }
+            0% {
+                top: calc(50% - 95px);
+            }
+
+            50% {
+                top: calc(50% + 95px);
+            }
+
+            100% {
+                top: calc(50% - 95px);
+            }
         }
     </style>
 

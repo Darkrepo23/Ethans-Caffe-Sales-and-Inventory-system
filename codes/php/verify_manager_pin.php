@@ -2,12 +2,12 @@
 /**
  * Verify Manager PIN for sensitive operations
  * Validates PIN against admin or manager accounts
+ * Uses the Supabase REST API (no direct PostgreSQL needed)
  */
 
 header('Content-Type: application/json');
 
-require_once 'config.php';
-require_once 'session.php';
+require_once __DIR__ . '/config.php';
 
 try {
     // Only accept POST requests
@@ -26,57 +26,67 @@ try {
         exit;
     }
     
-    // Connect to database
-    $pdo = new PDO(
-        "pgsql:host=" . SUPABASE_HOST . ";port=" . SUPABASE_PORT . ";dbname=" . SUPABASE_DB,
-        SUPABASE_USER,
-        SUPABASE_PASSWORD
-    );
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // Use the SupabaseAPI class (loaded by config.php -> supabase-api.php)
+    global $supabase;
     
-    // Get admin and manager users
-    $stmt = $pdo->prepare("
-        SELECT u.id, u.full_name, u.password_hash, u.manager_pin, r.name as role_name
-        FROM users u
-        JOIN roles r ON u.role_id = r.id
-        WHERE r.name IN ('Admin', 'Manager', 'admin', 'manager')
-        AND u.status = 'active'
-    ");
-    $stmt->execute();
-    $managers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // 1. Get all roles that are Admin or Manager
+    $roles = $supabase->select('roles');
+    if (!is_array($roles)) {
+        echo json_encode(['success' => false, 'message' => 'Failed to fetch roles']);
+        exit;
+    }
     
-    // Check PIN against each manager
-    foreach ($managers as $manager) {
-        // Check against manager_pin field if it exists
-        if (!empty($manager['manager_pin']) && $pin === $manager['manager_pin']) {
-            echo json_encode([
-                'success' => true, 
-                'manager_name' => $manager['full_name'],
-                'manager_id' => $manager['id']
-            ]);
-            exit;
+    $managerRoleIds = [];
+    foreach ($roles as $role) {
+        $roleName = strtolower($role['name'] ?? '');
+        if ($roleName === 'admin' || $roleName === 'manager' || $roleName === 'owner') {
+            $managerRoleIds[] = $role['id'];
         }
+    }
+    
+    if (empty($managerRoleIds)) {
+        echo json_encode(['success' => false, 'message' => 'No manager roles found']);
+        exit;
+    }
+    
+    // 2. Get active users with those role IDs
+    foreach ($managerRoleIds as $roleId) {
+        $managers = $supabase->select('users', [
+            'role_id' => 'eq.' . $roleId,
+            'status'  => 'eq.active',
+            'select'  => 'id,full_name,password_hash,manager_pin,role_id'
+        ]);
         
-        // Also check against password hash
-        if (!empty($manager['password_hash']) && password_verify($pin, $manager['password_hash'])) {
-            echo json_encode([
-                'success' => true, 
-                'manager_name' => $manager['full_name'],
-                'manager_id' => $manager['id']
-            ]);
-            exit;
+        if (!is_array($managers)) continue;
+        
+        foreach ($managers as $manager) {
+            // Check against manager_pin field
+            if (!empty($manager['manager_pin']) && $pin === $manager['manager_pin']) {
+                echo json_encode([
+                    'success'      => true, 
+                    'manager_name' => $manager['full_name'],
+                    'manager_id'   => $manager['id']
+                ]);
+                exit;
+            }
+            
+            // Also check against password hash (in case they enter their password)
+            if (!empty($manager['password_hash']) && password_verify($pin, $manager['password_hash'])) {
+                echo json_encode([
+                    'success'      => true, 
+                    'manager_name' => $manager['full_name'],
+                    'manager_id'   => $manager['id']
+                ]);
+                exit;
+            }
         }
     }
     
     // No match found
     echo json_encode(['success' => false, 'message' => 'Invalid manager PIN or password']);
     
-} catch (PDOException $e) {
-    error_log('Manager PIN verification error: ' . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Database error']);
 } catch (Exception $e) {
     error_log('Manager PIN verification error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Server error']);
+    echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
 }

@@ -141,14 +141,17 @@
                     <!-- Transactions Table -->
                     <div class="col-lg-7 mb-4">
                         <div class="card shadow">
-                            <div class="card-header bg-black text-white d-flex justify-content-between align-items-center">
+                            <div
+                                class="card-header bg-black text-white d-flex justify-content-between align-items-center">
                                 <h6 class="m-0 font-weight-bold"><i class="fas fa-history me-1"></i>Today's
                                     Transactions</h6>
                                 <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-light" id="deleteSelectedBtn" onclick="deleteSelectedReceipts()" disabled>
+                                    <button class="btn btn-outline-light" id="deleteSelectedBtn"
+                                        onclick="deleteSelectedReceipts()" disabled>
                                         <i class="fas fa-trash-alt me-1"></i>Delete Selected
                                     </button>
-                                    <button class="btn btn-outline-danger" id="deleteAllBtn" onclick="deleteAllReceipts()">
+                                    <button class="btn btn-outline-danger" id="deleteAllBtn"
+                                        onclick="deleteAllReceipts()">
                                         <i class="fas fa-trash me-1"></i>Delete All
                                     </button>
                                 </div>
@@ -158,7 +161,9 @@
                                     <table class="table table-hover table-striped mb-0" id="transactionsTable">
                                         <thead class="table-dark sticky-top">
                                             <tr>
-                                                <th style="width: 40px;"><input type="checkbox" id="selectAllReceipts" onclick="toggleSelectAllReceipts()" class="form-check-input"></th>
+                                                <th style="width: 40px;"><input type="checkbox" id="selectAllReceipts"
+                                                        onclick="toggleSelectAllReceipts()" class="form-check-input">
+                                                </th>
                                                 <th>Ref #</th>
                                                 <th>Time</th>
                                                 <th>Items</th>
@@ -210,7 +215,8 @@
     </div>
 
     <!-- Transaction Refund/Void Modal -->
-    <div class="modal fade" id="transactionEditModal" tabindex="-1" aria-labelledby="transactionEditModalLabel" aria-hidden="true">
+    <div class="modal fade" id="transactionEditModal" tabindex="-1" aria-labelledby="transactionEditModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-warning text-dark">
@@ -221,7 +227,7 @@
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="editTransactionId">
-                    
+
                     <!-- Transaction Info -->
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -233,7 +239,7 @@
                             <input type="text" class="form-control" id="txnOriginalTotal" readonly>
                         </div>
                     </div>
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label small text-muted text-uppercase fw-bold">Date/Time</label>
@@ -244,18 +250,20 @@
                             <input type="text" class="form-control" id="txnStaff" readonly>
                         </div>
                     </div>
-                    
+
                     <hr>
-                    
+
                     <!-- Items List -->
-                    <h6 class="fw-bold mb-3"><i class="fas fa-list me-2"></i>Transaction Items <small class="text-muted" id="itemSelectionHint" style="display: none;">(Adjust qty to refund)</small></h6>
+                    <h6 class="fw-bold mb-3"><i class="fas fa-list me-2"></i>Transaction Items <small class="text-muted"
+                            id="itemSelectionHint" style="display: none;">(Adjust qty to refund)</small></h6>
                     <div class="table-responsive mb-3" style="max-height: 200px; overflow-y: auto;">
                         <table class="table table-sm table-bordered" id="txnItemsTable">
                             <thead class="table-light">
                                 <tr>
                                     <th>Item</th>
                                     <th style="width: 70px;">Qty</th>
-                                    <th style="width: 90px;" id="refundQtyHeader" class="d-none text-center bg-warning-subtle">Refund</th>
+                                    <th style="width: 90px;" id="refundQtyHeader"
+                                        class="d-none text-center bg-warning-subtle">Refund</th>
                                     <th style="width: 90px;">Price</th>
                                     <th style="width: 100px;">Subtotal</th>
                                 </tr>
@@ -264,7 +272,7 @@
                             </tbody>
                         </table>
                     </div>
-                    
+
                     <!-- Refund Summary (for partial) -->
                     <div class="alert alert-warning d-none" id="refundSummaryAlert">
                         <div class="d-flex justify-content-between align-items-center">
@@ -272,9 +280,9 @@
                             <strong id="calculatedRefundAmount">₱0.00</strong>
                         </div>
                     </div>
-                    
+
                     <hr>
-                    
+
                     <!-- Action Type -->
                     <div class="row mb-3">
                         <div class="col-md-12">
@@ -293,12 +301,14 @@
                             <input type="hidden" id="txnAdjustedTotal" value="0">
                         </div>
                     </div>
-                    
+
                     <div class="mb-3">
-                        <label class="form-label small text-muted text-uppercase fw-bold">Reason <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="txnAdjustmentReason" rows="3" placeholder="Enter reason for refund/void..." required></textarea>
+                        <label class="form-label small text-muted text-uppercase fw-bold">Reason <span
+                                class="text-danger">*</span></label>
+                        <textarea class="form-control" id="txnAdjustmentReason" rows="3"
+                            placeholder="Enter reason for refund/void..." required></textarea>
                     </div>
-                    
+
                     <!-- Current Status Display -->
                     <div class="alert alert-info d-none" id="txnCurrentStatusAlert">
                         <i class="fas fa-info-circle me-2"></i>

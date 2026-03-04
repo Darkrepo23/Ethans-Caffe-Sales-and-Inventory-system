@@ -24,7 +24,7 @@ function generateUserQR(userId, username) {
         if (!qrImg) return;
         if (!downloadBtn) return;
         downloadBtn.style.display = '';
-        downloadBtn.onclick = function() {
+        downloadBtn.onclick = function () {
             let dataUrl = '';
             let filename = `user-qr-${username}.png`;
             if (qrImg.tagName === 'IMG') {
@@ -3434,8 +3434,8 @@ async function generateReport(silent = false) {
                 status: sale.status || 'completed',
                 staff: staffMap[sale.staff_id] || 'Staff',
                 staff_id: sale.staff_id,
-                customer: sale.customer_name || 'Walk-in',
-                order_type: sale.order_type || 'walk-in',
+                customer: sale.customer_name || 'Takeout',
+                order_type: sale.order_type || 'takeout',
                 adjustment_reason: sale.adjustment_reason || '',
                 adjusted_at: sale.adjusted_at
             };
@@ -3760,7 +3760,7 @@ function viewSaleDetails(saleId) {
                 <p><strong>Date:</strong> ${sale.date} ${sale.time}</p>
                 <p><strong>Staff:</strong> ${sale.staff}</p>
                 <p><strong>Customer:</strong> ${sale.customer}</p>
-                <p><strong>Order Type:</strong> ${sale.order_type === 'dine-in' ? 'Dine-in' : 'Walk-in'}</p>
+                <p><strong>Order Type:</strong> ${sale.order_type === 'dine-in' ? 'Dine-in' : 'Takeout'}</p>
                 <table class="table table-sm table-bordered mt-3">
                     <thead class="table-light">
                         <tr><th>Item</th><th class="text-center">Qty</th><th class="text-end">Price</th><th class="text-end">Subtotal</th></tr>
