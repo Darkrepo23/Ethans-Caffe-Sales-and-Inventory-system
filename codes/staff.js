@@ -443,12 +443,20 @@ async function requestManagerApproval(actionDescription) {
                 });
                 resolve(true);
             } else {
+                // Re-show the Bootstrap modal on failed attempt
+                if (bsModal && openModalEl) {
+                    bsModal.show();
+                }
                 Swal.fire('Invalid PIN', data.message || 'The PIN entered is not valid.', 'error');
                 logStaffActivity('Manager Authorization', `${actionDescription} - FAILED`, 'Failed');
                 resolve(false);
             }
         } catch (err) {
             console.error('Manager verification failed:', err);
+            // Re-show the Bootstrap modal on error
+            if (bsModal && openModalEl) {
+                bsModal.show();
+            }
             Swal.fire('Error', 'Failed to verify manager credentials.', 'error');
             resolve(false);
         }
