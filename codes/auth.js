@@ -39,7 +39,7 @@ const SessionManager = {
                 method: 'GET',
                 credentials: 'include'
             });
-            
+
             const data = await response.json();
             return data;
         } catch (error) {
@@ -47,7 +47,7 @@ const SessionManager = {
             return { authenticated: false };
         }
     },
-    
+
     /**
      * Get current logged-in user from session
      * @returns {Promise<object|null>}
@@ -56,7 +56,7 @@ const SessionManager = {
         const session = await this.checkSession();
         return session.authenticated ? session.user : null;
     },
-    
+
     /**
      * Logout user (destroys session in database)
      * @param {boolean} logoutAll - If true, logout from all devices
@@ -70,21 +70,21 @@ const SessionManager = {
                 credentials: 'include',
                 body: JSON.stringify({ logout_all: logoutAll })
             });
-            
+
             const data = await response.json();
-            
+
             // Clear any localStorage remnants (for backward compatibility)
             localStorage.removeItem('loggedInUser');
             localStorage.removeItem('loggedInRole');
             localStorage.removeItem('loggedInUserId');
-            
+
             return data.success === true;
         } catch (error) {
             console.error('Logout failed:', error);
             return false;
         }
     },
-    
+
     /**
      * Refresh session (extend expiry)
      * @returns {Promise<boolean>}
@@ -95,7 +95,7 @@ const SessionManager = {
                 method: 'POST',
                 credentials: 'include'
             });
-            
+
             const data = await response.json();
             return data.success === true;
         } catch (error) {
@@ -103,19 +103,19 @@ const SessionManager = {
             return false;
         }
     },
-    
+
     /**
      * Require authentication - redirect to login if not authenticated
      * @param {string} requiredRole - Optional: 'admin' or 'staff'
      */
     async requireAuth(requiredRole = null) {
         const session = await this.checkSession();
-        
+
         if (!session.authenticated) {
             window.location.href = 'index.html';
             return false;
         }
-        
+
         if (requiredRole) {
             const userRole = (session.user.role_name || '').toLowerCase();
             if (requiredRole === 'admin' && userRole !== 'admin') {
@@ -123,7 +123,7 @@ const SessionManager = {
                 return false;
             }
         }
-        
+
         return session.user;
     }
 };
@@ -203,21 +203,21 @@ async function handleLogin() {
                 });
                 return;
             }
-            
+
             // Handle cooldown (rate limiting)
             if (data.cooldown) {
                 let seconds = data.remaining_seconds;
                 showCooldownUI(seconds);
                 return;
             }
-            
+
             // Handle regular login errors with attempts remaining
             if (data.attempts_remaining !== undefined && data.attempts_remaining > 0) {
                 // Show cooldown UI if there's a cooldown
                 if (data.cooldown_seconds && data.cooldown_seconds > 0) {
                     showCooldownUI(data.cooldown_seconds);
                 }
-                
+
                 Swal.fire({
                     icon: 'error',
                     title: 'Login Failed',
@@ -228,7 +228,7 @@ async function handleLogin() {
                 });
                 return;
             }
-            
+
             showLoginError(data.error || data.message || "Login failed");
             return;
         }
@@ -307,35 +307,35 @@ function showCooldownUI(seconds) {
     const cooldownProgress = document.getElementById('cooldownProgress');
     const loginBtn = document.querySelector('#loginForm button[type="submit"]');
     const accountLockedAlert = document.getElementById('accountLockedAlert');
-    
+
     if (!cooldownAlert || !cooldownSeconds || !cooldownProgress) return;
-    
+
     // Hide account locked alert if showing
     if (accountLockedAlert) accountLockedAlert.classList.add('d-none');
-    
+
     const totalSeconds = seconds;
     cooldownAlert.classList.remove('d-none');
     cooldownSeconds.textContent = seconds;
     cooldownProgress.style.width = '100%';
-    
+
     // Disable login button
     if (loginBtn) {
         loginBtn.disabled = true;
         loginBtn.innerHTML = '<i class="fas fa-clock me-2"></i>Please Wait...';
     }
-    
+
     const interval = setInterval(() => {
         seconds--;
         cooldownSeconds.textContent = seconds;
-        
+
         // Update progress bar
         const progressPercent = (seconds / totalSeconds) * 100;
         cooldownProgress.style.width = progressPercent + '%';
-        
+
         if (seconds <= 0) {
             clearInterval(interval);
             cooldownAlert.classList.add('d-none');
-            
+
             // Re-enable login button
             if (loginBtn) {
                 loginBtn.disabled = false;
@@ -350,11 +350,11 @@ function resetLoginUI() {
     const accountLockedAlert = document.getElementById('accountLockedAlert');
     const cooldownAlert = document.getElementById('loginCooldownAlert');
     const loginBtn = document.querySelector('#loginForm button[type="submit"]');
-    
+
     // Hide all alerts
     if (accountLockedAlert) accountLockedAlert.classList.add('d-none');
     if (cooldownAlert) cooldownAlert.classList.add('d-none');
-    
+
     // Re-enable login button with default state
     if (loginBtn) {
         loginBtn.disabled = false;
@@ -367,14 +367,14 @@ function showAccountLockedUI() {
     const accountLockedAlert = document.getElementById('accountLockedAlert');
     const cooldownAlert = document.getElementById('loginCooldownAlert');
     const loginBtn = document.querySelector('#loginForm button[type="submit"]');
-    
+
     // Hide cooldown alert if showing
     if (cooldownAlert) cooldownAlert.classList.add('d-none');
-    
+
     if (accountLockedAlert) {
         accountLockedAlert.classList.remove('d-none');
     }
-    
+
     // Disable login button
     if (loginBtn) {
         loginBtn.disabled = true;
@@ -548,196 +548,196 @@ async function updateUserStatus(userId, status) {
 // QR CODE LOGIN
 // ═══════════════════════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function () {
-(function initQRLogin() {
-    console.log('[QR] initQRLogin() called');
-    const qrScanBtn   = document.getElementById('qrScanBtn');
-    if (!qrScanBtn) {
-        console.warn('[QR] qrScanBtn not found — skipping QR init');
-        return;
-    }
-    console.log('[QR] qrScanBtn found, attaching listeners');
+    (function initQRLogin() {
+        console.log('[QR] initQRLogin() called');
+        const qrScanBtn = document.getElementById('qrScanBtn');
+        if (!qrScanBtn) {
+            console.warn('[QR] qrScanBtn not found — skipping QR init');
+            return;
+        }
+        console.log('[QR] qrScanBtn found, attaching listeners');
 
-    const qrScanModal = document.getElementById('qrScanModal');
-    const closeQrModal = document.getElementById('closeQrModal');
-    const qrCancelBtn = document.getElementById('qrCancelBtn');
-    const qrVideo     = document.getElementById('qrVideo');
-    const qrStatus    = document.getElementById('qrStatus');
-    const qrError     = document.getElementById('qrError');
+        const qrScanModal = document.getElementById('qrScanModal');
+        const closeQrModal = document.getElementById('closeQrModal');
+        const qrCancelBtn = document.getElementById('qrCancelBtn');
+        const qrVideo = document.getElementById('qrVideo');
+        const qrStatus = document.getElementById('qrStatus');
+        const qrError = document.getElementById('qrError');
 
-    let stream = null, scanLoop = null, isProcessing = false;
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        let stream = null, scanLoop = null, isProcessing = false;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-    function openModal() {
-        console.log('[QR] Opening modal');
-        qrScanModal.style.display = 'flex';
-        qrStatus.textContent = 'Requesting camera access...';
-        qrError.style.display = 'none';
-        isProcessing = false;
-        startCamera();
-    }
+        function openModal() {
+            console.log('[QR] Opening modal');
+            qrScanModal.style.display = 'flex';
+            qrStatus.textContent = 'Requesting camera access...';
+            qrError.style.display = 'none';
+            isProcessing = false;
+            startCamera();
+        }
 
-    function closeModal() {
-        qrScanModal.style.display = 'none';
-        stopCamera();
-    }
+        function closeModal() {
+            qrScanModal.style.display = 'none';
+            stopCamera();
+        }
 
-    function stopCamera() {
-        if (scanLoop) { cancelAnimationFrame(scanLoop); scanLoop = null; }
-        if (stream)   { stream.getTracks().forEach(t => t.stop()); stream = null; }
-        qrVideo.srcObject = null;
-    }
+        function stopCamera() {
+            if (scanLoop) { cancelAnimationFrame(scanLoop); scanLoop = null; }
+            if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+            qrVideo.srcObject = null;
+        }
 
-    async function startCamera() {
-        console.log('[QR] Requesting camera...');
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' }
-            });
-            qrVideo.srcObject = stream;
-            qrVideo.onloadedmetadata = () => {
-                qrVideo.play();
-                console.log('[QR] Camera stream active, starting scan loop');
-                qrStatus.textContent = 'Camera ready — hold QR code steady...';
-                scanFrame();
-            };
-        } catch (err) {
-            console.error('[QR] Camera error:', err.name, err.message);
-            qrStatus.textContent = '';
-            qrError.style.display = 'block';
-            if (err.name === 'NotAllowedError') {
-                qrError.textContent = 'Camera permission denied. Please allow camera access in your browser settings.';
-            } else if (err.name === 'NotFoundError') {
-                qrError.textContent = 'No camera found on this device.';
-            } else {
-                qrError.textContent = 'Could not access camera: ' + err.message;
+        async function startCamera() {
+            console.log('[QR] Requesting camera...');
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+                qrVideo.srcObject = stream;
+                qrVideo.onloadedmetadata = () => {
+                    qrVideo.play();
+                    console.log('[QR] Camera stream active, starting scan loop');
+                    qrStatus.textContent = 'Camera ready — hold QR code steady...';
+                    scanFrame();
+                };
+            } catch (err) {
+                console.error('[QR] Camera error:', err.name, err.message);
+                qrStatus.textContent = '';
+                qrError.style.display = 'block';
+                if (err.name === 'NotAllowedError') {
+                    qrError.textContent = 'Camera permission denied. Please allow camera access in your browser settings.';
+                } else if (err.name === 'NotFoundError') {
+                    qrError.textContent = 'No camera found on this device.';
+                } else {
+                    qrError.textContent = 'Could not access camera: ' + err.message;
+                }
             }
         }
-    }
 
-    function scanFrame() {
-        if (!stream) return;
-        if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
-            canvas.width  = qrVideo.videoWidth;
-            canvas.height = qrVideo.videoHeight;
-            ctx.drawImage(qrVideo, 0, 0, canvas.width, canvas.height);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        function scanFrame() {
+            if (!stream) return;
+            if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
+                canvas.width = qrVideo.videoWidth;
+                canvas.height = qrVideo.videoHeight;
+                ctx.drawImage(qrVideo, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            if (typeof jsQR === 'undefined') {
-                console.error('[QR] jsQR library not loaded!');
-                return;
-            }
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: 'dontInvert'
-            });
-            if (code && !isProcessing) {
-                console.log('[QR] Code detected:', code.data);
-                if (!code.data || code.data.trim() === '') {
-                    console.warn('[QR] Empty QR data, skipping');
-                    scanLoop = requestAnimationFrame(scanFrame);
+                if (typeof jsQR === 'undefined') {
+                    console.error('[QR] jsQR library not loaded!');
                     return;
                 }
-                isProcessing = true;
-                handleQRResult(code.data);
-                return;
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: 'dontInvert'
+                });
+                if (code && !isProcessing) {
+                    console.log('[QR] Code detected:', code.data);
+                    if (!code.data || code.data.trim() === '') {
+                        console.warn('[QR] Empty QR data, skipping');
+                        scanLoop = requestAnimationFrame(scanFrame);
+                        return;
+                    }
+                    isProcessing = true;
+                    handleQRResult(code.data);
+                    return;
+                }
+            }
+            scanLoop = requestAnimationFrame(scanFrame);
+        }
+
+        async function handleQRResult(rawData) {
+            console.log('[QR] Sending to qr_login.php...');
+            qrStatus.textContent = 'QR detected! Verifying...';
+            try {
+                // Parse and validate QR format
+                let parsed;
+                try { parsed = JSON.parse(rawData); }
+                catch { throw new Error('Invalid QR code format.'); }
+
+                console.log('[QR] Parsed QR:', parsed);
+
+                // Expected format: {"quick_login":true,"userId":14,"username":"staff"}
+                if (!parsed.quick_login || !parsed.userId || !parsed.username) {
+                    throw new Error('Invalid QR code — not a staff login QR.');
+                }
+
+                // Send to PHP for verification
+                const res = await fetch('php/qr_login.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ qr_data: rawData })
+                });
+
+                const data = await res.json();
+                console.log('[QR] qr_login.php response:', data);
+
+                if (!res.ok || data.error) {
+                    throw new Error(data.message || data.error || 'QR login failed.');
+                }
+
+                // Success
+                closeModal();
+                localStorage.setItem('loggedInUser', JSON.stringify(data.user));
+                localStorage.setItem('loggedInRole', (data.user.role_name || '').toLowerCase());
+                localStorage.setItem('loggedInUserId', data.user.id);
+
+                // Mark user active
+                if (typeof updateUserStatus === 'function') {
+                    await updateUserStatus(data.user.id, 'active').catch(() => { });
+                }
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Welcome, ' + (data.user.full_name || data.user.username) + '!',
+                    text: 'Logged in via QR Code.',
+                    timer: 1500,
+                    showConfirmButton: false,
+                    timerProgressBar: true,
+                    heightAuto: false
+                }).then(() => {
+                    const role = (data.user.role_name || '').toLowerCase();
+                    window.location.href = (role === 'admin') ? 'admin-dashboard.html' : 'staff-menu.html';
+                });
+
+            } catch (err) {
+                console.error('[QR] Error:', err.message);
+                qrError.style.display = 'block';
+                qrError.textContent = err.message;
+                qrStatus.textContent = '';
+                // Resume scanning after 2s
+                setTimeout(() => {
+                    isProcessing = false;
+                    qrError.style.display = 'none';
+                    qrStatus.textContent = 'Hold QR code steady...';
+                    scanLoop = requestAnimationFrame(scanFrame);
+                }, 2000);
             }
         }
-        scanLoop = requestAnimationFrame(scanFrame);
-    }
 
-    async function handleQRResult(rawData) {
-        console.log('[QR] Sending to qr_login.php...');
-        qrStatus.textContent = 'QR detected! Verifying...';
-        try {
-            // Parse and validate QR format
-            let parsed;
-            try { parsed = JSON.parse(rawData); }
-            catch { throw new Error('Invalid QR code format.'); }
+        qrScanBtn.addEventListener('click', openModal);
+        closeQrModal.addEventListener('click', closeModal);
+        qrCancelBtn.addEventListener('click', closeModal);
+        qrScanModal.addEventListener('click', e => { if (e.target === qrScanModal) closeModal(); });
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && qrScanModal && qrScanModal.style.display === 'flex') closeModal();
+        });
 
-            console.log('[QR] Parsed QR:', parsed);
-
-            // Expected format: {"quick_login":true,"userId":14,"username":"staff"}
-            if (!parsed.quick_login || !parsed.userId || !parsed.username) {
-                throw new Error('Invalid QR code — not a staff login QR.');
-            }
-
-            // Send to PHP for verification
-            const res = await fetch('php/qr_login.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ qr_data: rawData })
-            });
-
-            const data = await res.json();
-            console.log('[QR] qr_login.php response:', data);
-
-            if (!res.ok || data.error) {
-                throw new Error(data.message || data.error || 'QR login failed.');
-            }
-
-            // Success
-            closeModal();
-            localStorage.setItem('loggedInUser',   JSON.stringify(data.user));
-            localStorage.setItem('loggedInRole',   (data.user.role_name || '').toLowerCase());
-            localStorage.setItem('loggedInUserId', data.user.id);
-
-            // Mark user active
-            if (typeof updateUserStatus === 'function') {
-                await updateUserStatus(data.user.id, 'active').catch(() => {});
-            }
-
-            Swal.fire({
-                icon: 'success',
-                title: 'Welcome, ' + (data.user.full_name || data.user.username) + '!',
-                text: 'Logged in via QR Code.',
-                timer: 1500,
-                showConfirmButton: false,
-                timerProgressBar: true,
-                heightAuto: false
-            }).then(() => {
-                const role = (data.user.role_name || '').toLowerCase();
-                window.location.href = (role === 'admin') ? 'admin-dashboard.html' : 'staff-menu.html';
-            });
-
-        } catch (err) {
-            console.error('[QR] Error:', err.message);
-            qrError.style.display = 'block';
-            qrError.textContent = err.message;
-            qrStatus.textContent = '';
-            // Resume scanning after 2s
-            setTimeout(() => {
-                isProcessing = false;
-                qrError.style.display = 'none';
-                qrStatus.textContent = 'Hold QR code steady...';
-                scanLoop = requestAnimationFrame(scanFrame);
-            }, 2000);
-        }
-    }
-
-    qrScanBtn.addEventListener('click', openModal);
-    closeQrModal.addEventListener('click', closeModal);
-    qrCancelBtn.addEventListener('click', closeModal);
-    qrScanModal.addEventListener('click', e => { if (e.target === qrScanModal) closeModal(); });
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Escape' && qrScanModal && qrScanModal.style.display === 'flex') closeModal();
-    });
-
-    console.log('[QR] All listeners attached successfully');
-})();
+        console.log('[QR] All listeners attached successfully');
+    })();
 }); // end DOMContentLoaded
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // AUTO SESSION VALIDATION
 // Automatically validates session on protected pages (admin-*, staff-*)
 // ═══════════════════════════════════════════════════════════════════════════════
-(function() {
+(function () {
     const currentPage = window.location.pathname.split('/').pop() || 'index.html';
     const isProtectedPage = currentPage.startsWith('admin-') || currentPage.startsWith('staff-');
-    
+
     if (isProtectedPage) {
         // Run session validation after DOM is ready
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Quick localStorage check first (for fast UX)
             const loggedInUser = localStorage.getItem('loggedInUser');
             if (!loggedInUser) {
@@ -745,33 +745,33 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.location.href = 'index.html';
                 return;
             }
-            
+
             // Validate session with server
             fetch('php/session.php?action=check', {
                 method: 'GET',
                 credentials: 'include'
             })
-            .then(response => response.json())
-            .then(data => {
-                if (!data.authenticated || !data.user) {
-                    console.log('🔒 Server session invalid, redirecting to login');
-                    localStorage.removeItem('loggedInUser');
-                    localStorage.removeItem('loggedInRole');
-                    localStorage.removeItem('loggedInUserId');
-                    window.location.href = 'index.html';
-                } else {
-                    console.log('✅ Server session valid for:', data.user.username);
-                    // Update local storage with fresh data
-                    localStorage.setItem('loggedInUser', JSON.stringify(data.user));
-                    localStorage.setItem('loggedInRole', data.user.role_name);
-                    localStorage.setItem('loggedInUserId', data.user.id);
-                }
-            })
-            .catch(error => {
-                console.error('❌ Session check failed:', error);
-                // On network error, allow user to continue with localStorage data
-                // The server will reject any API calls if the session is actually invalid
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.authenticated || !data.user) {
+                        console.log('🔒 Server session invalid, redirecting to login');
+                        localStorage.removeItem('loggedInUser');
+                        localStorage.removeItem('loggedInRole');
+                        localStorage.removeItem('loggedInUserId');
+                        window.location.href = 'index.html';
+                    } else {
+                        console.log('✅ Server session valid for:', data.user.username);
+                        // Update local storage with fresh data
+                        localStorage.setItem('loggedInUser', JSON.stringify(data.user));
+                        localStorage.setItem('loggedInRole', data.user.role_name);
+                        localStorage.setItem('loggedInUserId', data.user.id);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Session check failed:', error);
+                    // On network error, allow user to continue with localStorage data
+                    // The server will reject any API calls if the session is actually invalid
+                });
         });
     }
 })();

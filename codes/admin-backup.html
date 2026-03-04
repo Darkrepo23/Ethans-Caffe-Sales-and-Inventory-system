@@ -174,17 +174,28 @@
                                     <div class="mb-4">
                                         <label class="form-label fw-bold d-flex align-items-center">
                                             Backup Format
-                                            <i class="fas fa-question-circle ms-2 text-muted" data-bs-toggle="tooltip" data-bs-placement="right" title="Choose the format for your backup file"></i>
+                                            <i class="fas fa-question-circle ms-2 text-muted" data-bs-toggle="tooltip"
+                                                data-bs-placement="right"
+                                                title="Choose the format for your backup file"></i>
                                         </label>
                                         <select class="form-select" id="backupFormat">
-                                            <option value="json" data-bs-toggle="tooltip" title="Fast & lightweight. Exports data as JSON strings and paths only.">JSON (Recommended - Fastest)</option>
+                                            <option value="json" data-bs-toggle="tooltip"
+                                                title="Fast & lightweight. Exports data as JSON strings and paths only.">
+                                                JSON (Recommended - Fastest)</option>
                                             <option value="sql">SQL (Database dump - paths only, no images)</option>
-                                            <option value="zip">ZIP (Complete - includes JSON, SQL & image files)</option>
+                                            <option value="zip">ZIP (Complete - includes JSON, SQL & image files)
+                                            </option>
                                         </select>
                                         <div class="mt-2 small" id="formatDescription">
-                                            <div id="formatJson" class="text-success"><i class="fas fa-bolt me-1"></i>Fast export. Data saved as JSON with file paths as strings.</div>
-                                            <div id="formatSql" class="text-primary d-none"><i class="fas fa-database me-1"></i>Full database INSERT statements. Images stored as paths only.</div>
-                                            <div id="formatZip" class="text-warning d-none"><i class="fas fa-file-archive me-1"></i>Complete backup with JSON + SQL + actual image files. Larger size.</div>
+                                            <div id="formatJson" class="text-success"><i
+                                                    class="fas fa-bolt me-1"></i>Fast export. Data saved as JSON with
+                                                file paths as strings.</div>
+                                            <div id="formatSql" class="text-primary d-none"><i
+                                                    class="fas fa-database me-1"></i>Full database INSERT statements.
+                                                Images stored as paths only.</div>
+                                            <div id="formatZip" class="text-warning d-none"><i
+                                                    class="fas fa-file-archive me-1"></i>Complete backup with JSON + SQL
+                                                + actual image files. Larger size.</div>
                                         </div>
                                     </div>
                                     <div class="mb-4">
@@ -208,7 +219,8 @@
                                     <p class="small text-muted mb-3">Restore your system to a previous state using a
                                         valid backup file (.json, .sql, or .zip).</p>
                                     <div class="input-group">
-                                        <input type="file" class="form-control" id="restoreFile" accept=".json,.sql,.zip">
+                                        <input type="file" class="form-control" id="restoreFile"
+                                            accept=".json,.sql,.zip">
                                         <button class="btn btn-danger" id="runRestoreBtn">Restore</button>
                                     </div>
                                     <div class="alert alert-danger mt-3 mb-0 py-2 small">
@@ -269,7 +281,7 @@
 
     <script>
         // Initialize backup page
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Initialize Bootstrap tooltips
             const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -284,14 +296,14 @@
             const mediaCheckbox = document.getElementById('backupMedia');
 
             if (formatSelect) {
-                formatSelect.addEventListener('change', function() {
+                formatSelect.addEventListener('change', function () {
                     // Hide all descriptions
                     formatJson.classList.add('d-none');
                     formatSql.classList.add('d-none');
                     formatZip.classList.add('d-none');
 
                     // Show selected format description
-                    switch(this.value) {
+                    switch (this.value) {
                         case 'json':
                             formatJson.classList.remove('d-none');
                             mediaCheckbox.disabled = true;

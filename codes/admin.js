@@ -24,7 +24,7 @@ function generateUserQR(userId, username) {
         if (!qrImg) return;
         if (!downloadBtn) return;
         downloadBtn.style.display = '';
-        downloadBtn.onclick = function() {
+        downloadBtn.onclick = function () {
             let dataUrl = '';
             let filename = `user-qr-${username}.png`;
             if (qrImg.tagName === 'IMG') {
@@ -224,6 +224,7 @@ const NOTIFICATIONS_API = 'php/notifications.php';
 // Global variables
 let currentRequestType = null;
 let currentRequestId = null;
+let dashboardSalesChart = null; // Sales chart on the admin dashboard
 
 
 function loadDashboardStats() {
@@ -560,8 +561,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (document.getElementById('activityLogTable')) initializeActivityLog();
     if (document.getElementById('fullActivityLogTable')) initializeFullActivityLog();
 
-    // Load recent activities on the dashboard
-    if (document.getElementById('recentActivities')) loadRecentActivities();
+    // Load recent activities on the dashboard - Removed per user request
+    // if (document.getElementById('recentActivities')) loadRecentActivities();
 });
 
 // Common features for all admin pages
@@ -620,24 +621,172 @@ function initializeCommonAdminFeatures() {
 
 // Admin Dashboard Functions
 function initializeAdminDashboard() {
-    // Export dashboard data button
-    const exportDashboardBtn = document.getElementById('exportDashboardData');
-    if (exportDashboardBtn) {
-        exportDashboardBtn.addEventListener('click', function () {
-            showConfirm('Are you sure you want to Export Dashboard Data?', function () {
-                exportDashboardData();
-            });
+    // Generate report button
+    const generateReportBtn = document.getElementById('generateReportBtn');
+    if (generateReportBtn) {
+        generateReportBtn.addEventListener('click', function () {
+            window._reportGeneratedByUser = true; // ✅ flag that user clicked
+            generateReport();
         });
     }
 
-    // Generate report button
-    generateReportBtn.addEventListener('click', function () {
-        window._reportGeneratedByUser = true; // ✅ flag that user clicked
-        generateReport();
-    });
+    // Initialize Sales Chart
+    const salesFilter = document.getElementById('salesGraphFilter');
+    if (salesFilter) {
+        salesFilter.addEventListener('change', function () {
+            loadDashboardSalesChart(this.value);
+        });
+        loadDashboardSalesChart(salesFilter.value);
+    }
 
     // Load initial data
     loadAdminDashboardData();
+}
+
+async function loadDashboardSalesChart(filter = 'monthly') {
+    try {
+        const sales = await salesDB.show();
+        updateDashboardSalesChart(sales || [], filter);
+    } catch (err) {
+        console.error('Failed to load dashboard sales chart:', err);
+    }
+}
+
+function updateDashboardSalesChart(sales, filter) {
+    const ctx = document.getElementById('dashboardSalesChart');
+    if (!ctx) return;
+
+    if (dashboardSalesChart) {
+        dashboardSalesChart.destroy();
+    }
+
+    const completedSales = sales.filter(s => (s.status || '').toLowerCase() === 'completed' || (s.status || '').toLowerCase() === 'partial_refund');
+
+    let labels = [];
+    let data = [];
+    let label = 'Sales (₱)';
+
+    const now = new Date();
+
+    if (filter === 'daily') {
+        const last7Days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(now.getDate() - i);
+            last7Days.push(d.toISOString().split('T')[0]);
+        }
+        labels = last7Days.map(d => new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }));
+        const salesByDate = {};
+        completedSales.forEach(s => {
+            const dateStr = s.sale_datetime ? s.sale_datetime.split(' ')[0] : (s.created_at ? s.created_at.split('T')[0] : '');
+            if (dateStr && last7Days.includes(dateStr)) {
+                const amount = s.adjusted_total !== null && s.adjusted_total !== undefined ? parseFloat(s.adjusted_total) : parseFloat(s.total_amount || 0);
+                salesByDate[dateStr] = (salesByDate[dateStr] || 0) + amount;
+            }
+        });
+        data = last7Days.map(d => salesByDate[d] || 0);
+        label = 'Daily Sales (Last 7 Days)';
+    } else if (filter === 'weekly') {
+        const weeks = [];
+        for (let i = 3; i >= 0; i--) {
+            const start = new Date();
+            start.setDate(now.getDate() - (i * 7 + now.getDay()));
+            start.setHours(0, 0, 0, 0);
+            weeks.push(start.toISOString().split('T')[0]);
+        }
+        labels = weeks.map((w, i) => i === 3 ? 'This Week' : `Week of ${new Date(w).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}`);
+        const salesByWeek = [0, 0, 0, 0];
+        completedSales.forEach(s => {
+            const d = new Date(s.sale_datetime || s.created_at);
+            for (let i = 0; i < 4; i++) {
+                const weekStart = new Date(weeks[i]);
+                const nextWeekStart = new Date(weekStart);
+                nextWeekStart.setDate(weekStart.getDate() + 7);
+                if (d >= weekStart && d < nextWeekStart) {
+                    const amount = s.adjusted_total !== null && s.adjusted_total !== undefined ? parseFloat(s.adjusted_total) : parseFloat(s.total_amount || 0);
+                    salesByWeek[i] += amount;
+                }
+            }
+        });
+        data = salesByWeek;
+        label = 'Weekly Sales (Last 4 Weeks)';
+    } else if (filter === 'monthly') {
+        const last6Months = [];
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            last6Months.push(d.toISOString().substring(0, 7));
+        }
+        labels = last6Months.map(m => {
+            const [y, mm] = m.split('-');
+            return new Date(y, mm - 1).toLocaleDateString('en-PH', { month: 'short' });
+        });
+        const salesByMonth = {};
+        completedSales.forEach(s => {
+            const m = (s.sale_datetime || s.created_at || '').substring(0, 7);
+            if (m && last6Months.includes(m)) {
+                const amount = s.adjusted_total !== null && s.adjusted_total !== undefined ? parseFloat(s.adjusted_total) : parseFloat(s.total_amount || 0);
+                salesByMonth[m] = (salesByMonth[m] || 0) + amount;
+            }
+        });
+        data = last6Months.map(m => salesByMonth[m] || 0);
+        label = 'Monthly Sales (Last 6 Months)';
+    } else if (filter === 'yearly') {
+        const last5Years = [];
+        for (let i = 4; i >= 0; i--) {
+            last5Years.push((now.getFullYear() - i).toString());
+        }
+        labels = last5Years;
+        const salesByYear = {};
+        completedSales.forEach(s => {
+            const y = (s.sale_datetime || s.created_at || '').substring(0, 4);
+            if (y && last5Years.includes(y)) {
+                const amount = s.adjusted_total !== null && s.adjusted_total !== undefined ? parseFloat(s.adjusted_total) : parseFloat(s.total_amount || 0);
+                salesByYear[y] = (salesByYear[y] || 0) + amount;
+            }
+        });
+        data = last5Years.map(y => salesByYear[y] || 0);
+        label = 'Yearly Sales (Last 5 Years)';
+    }
+
+    dashboardSalesChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: data,
+                backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                borderColor: 'rgba(220, 53, 69, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function (value) {
+                            return '₱' + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            return 'Sales: ₱' + context.raw.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 function exportDashboardData() {
@@ -744,6 +893,12 @@ function loadAdminDashboardData() {
 
     // Load revenue statistics (includes sales records)
     loadRevenueStats();
+
+    // Reload Sales Chart
+    const salesFilter = document.getElementById('salesGraphFilter');
+    if (salesFilter) {
+        loadDashboardSalesChart(salesFilter.value);
+    }
 
     // Set up auto-refresh if not already set (every 30 seconds)
     if (!dashboardRefreshInterval) {

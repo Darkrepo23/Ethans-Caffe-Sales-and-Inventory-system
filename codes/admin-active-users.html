@@ -137,7 +137,8 @@
         <main class="main-content">
             <!-- Active Users Content -->
             <div id="active-users-content" class="page-content">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <div
+                    class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2"><i class="fas fa-user-check me-2 text-danger"></i>Active Users</h1>
                     <div class="btn-toolbar mb-2 mb-md-0">
                         <button class="btn btn-sm btn-outline-danger" id="refreshActiveUsers">
@@ -153,7 +154,8 @@
                             <div class="card-body">
                                 <div class="row no-gutters align-items-center">
                                     <div class="col mr-2">
-                                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Currently Active</div>
+                                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Currently
+                                            Active</div>
                                         <div class="h5 mb-0 font-weight-bold" id="activeCount">0</div>
                                     </div>
                                     <div class="col-auto">
@@ -168,7 +170,8 @@
                             <div class="card-body">
                                 <div class="row no-gutters align-items-center">
                                     <div class="col mr-2">
-                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Admin Sessions</div>
+                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Admin
+                                            Sessions</div>
                                         <div class="h5 mb-0 font-weight-bold" id="adminCount">0</div>
                                     </div>
                                     <div class="col-auto">
@@ -183,7 +186,8 @@
                             <div class="card-body">
                                 <div class="row no-gutters align-items-center">
                                     <div class="col mr-2">
-                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Staff Sessions</div>
+                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Staff
+                                            Sessions</div>
                                         <div class="h5 mb-0 font-weight-bold" id="staffCount">0</div>
                                     </div>
                                     <div class="col-auto">
@@ -255,7 +259,8 @@
                     <p class="text-muted small">This will immediately terminate their session.</p>
                     <div class="mb-3">
                         <label class="form-label">Reason (optional)</label>
-                        <input type="text" class="form-control" id="forceLogoutReason" placeholder="e.g., Security concern">
+                        <input type="text" class="form-control" id="forceLogoutReason"
+                            placeholder="e.g., Security concern">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -280,15 +285,15 @@
         const NOTIFICATIONS_API = 'php/notifications.php';
         let currentSessionToLogout = null;
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             loadActiveUsers();
-            
+
             // Refresh button
             document.getElementById('refreshActiveUsers')?.addEventListener('click', loadActiveUsers);
-            
+
             // Confirm force logout
             document.getElementById('confirmForceLogout')?.addEventListener('click', performForceLogout);
-            
+
             // Auto-refresh every 30 seconds
             setInterval(loadActiveUsers, 30000);
         });
@@ -308,7 +313,7 @@
                 }
 
                 const users = data.users;
-                
+
                 // Update counts
                 document.getElementById('activeCount').textContent = users.length;
                 document.getElementById('adminCount').textContent = users.filter(u => u.role?.toLowerCase() === 'admin' || u.role?.toLowerCase() === 'owner').length;
@@ -324,7 +329,7 @@
                     const loginTime = user.login_time ? new Date(user.login_time).toLocaleString() : 'Unknown';
                     const lastActivity = user.last_activity ? new Date(user.last_activity).toLocaleString() : 'Unknown';
                     const isRecent = user.last_activity && (Date.now() - new Date(user.last_activity).getTime()) < 300000; // 5 minutes
-                    
+
                     return `
                         <tr class="animate__animated animate__fadeIn">
                             <td>
@@ -457,6 +462,7 @@
             justify-content: center;
             font-weight: bold;
         }
+
         .activity-icon {
             width: 36px;
             height: 36px;
