@@ -94,6 +94,42 @@
     border: 2px solid var(--maroon);
 }
 
+.menu-item-card.menu-item-disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.menu-item-card.menu-item-disabled:hover {
+    transform: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.menu-item-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.unavailable-badge {
+    background: rgba(220, 53, 69, 0.9);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.85rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
 .menu-item-img-container {
     height: 140px;
     overflow: hidden;

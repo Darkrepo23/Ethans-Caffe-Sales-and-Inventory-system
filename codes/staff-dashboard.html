@@ -581,43 +581,25 @@
                 });
 
                 // Populate best selling table
-                const bestSellingData = [
-                    { item: 'Beef Steak', quantity: 12 },
-                    { item: 'Chicken Curry', quantity: 10 },
-                    { item: 'Vegetable Salad', quantity: 8 },
-                    { item: 'Garlic Bread', quantity: 6 },
-                    { item: 'French Fries', quantity: 5 }
-                ];
+                const bestSellingData = [];
 
                 const bestSellingTable = document.getElementById('bestSellingTable').getElementsByTagName('tbody')[0];
-                bestSellingTable.innerHTML = '';
+                bestSellingTable.innerHTML = ''; 
 
-                bestSellingData.forEach(item => {
-                    const row = bestSellingTable.insertRow();
-                    row.innerHTML = `
-                        <td>${item.item}</td>
-                        <td><span class="badge bg-maroon">${item.quantity}</span></td>
-                    `;
-                });
+                if (bestSellingData.length === 0) {
+                    bestSellingTable.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-2">No sales data available</td></tr>';
+                }
             }, 500);
         }
 
         function loadAccountInfo() {
-            // Simulate loading account info
-            setTimeout(() => {
-                // In real app, this would come from server
-                const accountInfo = {
-                    fullName: 'John Doe',
-                    username: 'johndoe',
-                    role: 'Staff',
-                    status: 'Active'
-                };
-
-                document.getElementById('staffFullName').value = accountInfo.fullName;
-                document.getElementById('staffUsername').value = accountInfo.username;
-                document.getElementById('currentRole').value = accountInfo.role;
-                document.getElementById('accountStatus').value = accountInfo.status;
-            }, 300);
+            // Account info is loaded from localStorage/session or database
+            const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+            
+            document.getElementById('staffFullName').value = loggedInUser.full_name || loggedInUser.fullName || '';
+            document.getElementById('staffUsername').value = loggedInUser.username || '';
+            document.getElementById('currentRole').value = loggedInUser.role_name || loggedInUser.role || '';
+            document.getElementById('accountStatus').value = loggedInUser.status || 'Active';
         }
 
         function saveAccountInfo() {

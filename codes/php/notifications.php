@@ -14,6 +14,18 @@ require_once 'supabase-api.php';
 $method = $_SERVER['REQUEST_METHOD'];
 $data = json_decode(file_get_contents("php://input"), true) ?: [];
 
+// Handle special endpoints first (before normal CRUD)
+if (isset($_GET['action'])) {
+    switch ($_GET['action']) {
+        case 'unread_count':
+            echo json_encode(['count' => getUnreadCount()]);
+            exit;
+        case 'active_users':
+            echo json_encode(['success' => true, 'users' => getActiveUsers()]);
+            exit;
+    }
+}
+
 switch ($method) {
     case 'GET':
         getNotifications();
@@ -227,14 +239,3 @@ function getActiveUsers() {
     return $result;
 }
 
-// Handle special endpoints
-if (isset($_GET['action'])) {
-    switch ($_GET['action']) {
-        case 'unread_count':
-            echo json_encode(['count' => getUnreadCount()]);
-            exit;
-        case 'active_users':
-            echo json_encode(['success' => true, 'users' => getActiveUsers()]);
-            exit;
-    }
-}

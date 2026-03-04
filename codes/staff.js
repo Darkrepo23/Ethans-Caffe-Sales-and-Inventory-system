@@ -819,9 +819,10 @@ async function loadMenuItems() {
     showLoadingModal('Loading menu items...');
 
     try {
-        const [menuItems, categories] = await Promise.all([
+        const [menuItems, categories, recipes] = await Promise.all([
             menuItemsDB.show(),
-            menuCategoriesDB.show()
+            menuCategoriesDB.show(),
+            recipesDB.show()
         ]);
 
         // Create category lookup map
@@ -829,6 +830,9 @@ async function loadMenuItems() {
         categories.forEach(cat => {
             categoryMap[cat.id] = cat.name;
         });
+
+        // Create a set of menu item IDs that have recipes
+        const menuItemsWithRecipes = new Set(recipes.map(r => r.menu_item_id));
 
         // Transform DB items to include category_name and filter only active items
         allMenuItems = menuItems
@@ -839,6 +843,8 @@ async function loadMenuItems() {
                 if (imgPath.startsWith('/')) {
                     imgPath = imgPath.substring(1); // Remove leading slash
                 }
+                // Check if this item has recipes - if not, it's unavailable
+                const hasRecipes = menuItemsWithRecipes.has(item.id);
                 return {
                     id: item.id,
                     name: item.name,
@@ -847,7 +853,7 @@ async function loadMenuItems() {
                     price: parseFloat(item.price_reference) || 0,
                     image: imgPath || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop',
                     description: item.description || '',
-                    available: true
+                    available: hasRecipes
                 };
             });
 
@@ -871,15 +877,21 @@ function displayMenuItems(items) {
 
     menuGrid.innerHTML = items.map(item => {
         const imgSrc = item.image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop';
+        const isDisabled = !item.available;
+        const onClickHandler = isDisabled ? 'event.preventDefault(); event.stopPropagation();' : `addItemToSale(${item.id})`;
+        const disabledClass = isDisabled ? 'menu-item-disabled' : '';
+        const unavailableOverlay = isDisabled ? '<div class="menu-item-overlay"><div class="unavailable-badge"><i class="fas fa-ban me-2"></i>Not Setup in Recipe Control</div></div>' : '';
+        
         return `
             <div class="col-6 col-md-4 col-lg-3 mb-3">
-                <div class="menu-item-card" data-id="${item.id}" onclick="addItemToSale(${item.id})">
+                <div class="menu-item-card ${disabledClass}" data-id="${item.id}" onclick="${onClickHandler}" style="${isDisabled ? 'cursor: not-allowed; opacity: 0.6;' : 'cursor: pointer;'}">
                     <div class="menu-item-img-container">
                         <img src="${imgSrc}" alt="${item.name}" class="menu-item-img">
                         <div class="price-tag">${getCurrency()}${parseFloat(item.price).toFixed(2)}</div>
+                        ${unavailableOverlay}
                     </div>
                     <div class="p-2 text-center">
-                        <div class="fw-bold mb-0 text-truncate" style="font-size:0.85rem">${item.name}</div>
+                        <div class="fw-bold mb-0 text-truncate" style="font-size:0.85rem${isDisabled ? '; color: #999;' : ''}">${item.name}</div>
                     </div>
                 </div>
             </div>`;
@@ -904,6 +916,18 @@ function filterMenuItems() {
 function addItemToSale(itemId) {
     const product = allMenuItems.find(item => item.id == itemId);
     if (!product) return;
+
+    // Prevent adding items that are not available (don't have recipes)
+    if (!product.available) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Item Not Available',
+            text: `${product.name} has not been set up in Recipe Control yet. Please configure the recipe in the Admin Panel first.`,
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#800000'
+        });
+        return;
+    }
 
     const existing = currentSaleItems.find(item => item.id == itemId);
     if (existing) {

@@ -882,11 +882,7 @@
                                         </button>
                                     </div>
 
-                                    <div class="d-grid mb-3">
-                                        <button type="button" class="btn btn-outline-secondary btn-lg w-100" id="qrScanBtn">
-                                            <i class="fas fa-qrcode me-2"></i>Login with QR Code
-                                        </button>
-                                    </div>
+
 
                                     <div class="text-center mb-3">
                                         <a href="forgot-password.html" class="text-decoration-none"><i class="fas fa-key me-1"></i>Forgot Password?</a>
@@ -1065,8 +1061,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 
     <!-- Custom JS - ORIGINAL FILES INTACT -->
-    <!-- jsQR must load BEFORE auth.js so QR scanning works -->
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <script src="auth.js"></script>
     <script src="middle.js"></script>
     <script src="main.js"></script>
@@ -1303,35 +1297,6 @@
 
 
     </script>
-
-    <!-- QR Scanner Modal -->
-    <div id="qrScanModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:3000; align-items:center; justify-content:center;">
-        <div style="background:#fff; border-radius:20px; padding:28px 24px; width:100%; max-width:420px; box-shadow:0 25px 60px rgba(0,0,0,0.4); text-align:center;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <h5 style="margin:0; color:#800000;"><i class="fas fa-qrcode me-2"></i>Scan QR Code</h5>
-                <button id="closeQrModal" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#666;">&times;</button>
-            </div>
-            <p style="font-size:0.85rem; color:#666; margin-bottom:16px;">Point your camera at the staff QR code to login instantly.</p>
-            <div style="position:relative; width:100%; border-radius:12px; overflow:hidden; background:#000; margin-bottom:16px;">
-                <video id="qrVideo" style="width:100%; height:280px; object-fit:cover; display:block;" autoplay muted playsinline></video>
-                <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;">
-                    <div style="width:200px; height:200px; border:3px solid #800000; border-radius:12px; box-shadow:0 0 0 9999px rgba(0,0,0,0.45);"></div>
-                </div>
-                <div id="qrScanLine" style="position:absolute; left:50%; transform:translateX(-50%); width:190px; height:3px; background:linear-gradient(90deg,transparent,#800000,transparent); animation:scanLine 2s linear infinite; top:50%;"></div>
-            </div>
-            <div id="qrStatus" style="font-size:0.9rem; color:#555; min-height:24px;">Requesting camera access...</div>
-            <div id="qrError" style="display:none; color:#dc3545; font-size:0.85rem; margin-top:8px;"></div>
-            <button id="qrCancelBtn" class="btn btn-outline-secondary mt-3 w-100">Cancel</button>
-        </div>
-    </div>
-
-    <style>
-        @keyframes scanLine {
-            0%   { top: calc(50% - 95px); }
-            50%  { top: calc(50% + 95px); }
-            100% { top: calc(50% - 95px); }
-        }
-    </style>
 
 </body>
 

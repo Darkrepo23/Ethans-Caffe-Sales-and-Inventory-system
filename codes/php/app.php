@@ -179,17 +179,25 @@ switch($method) {
 			exit;
 		}
 		try {
+			log_php_error("DELETE Request: Table=$table, IDField=$idField, Value=" . $data[$idField]);
 			$filter_params = [$idField => 'eq.' . $data[$idField]];
+			log_php_error("Filter params: " . json_encode($filter_params));
+			
 			$result = $supabase->delete($table, $filter_params);
+			
+			log_php_error("Supabase Delete Result: " . json_encode($result));
+			
 			ob_end_clean();
 			if (isset($result['error'])) {
+				log_php_error("DELETE Error - Supabase returned error: " . $result['error']);
 				http_response_code(400);
 				echo json_encode($result);
 			} else {
+				log_php_error("DELETE Success - Returning success message");
 				echo json_encode(["message" => "Deleted successfully"]);
 			}
 		} catch (Exception $e) {
-			log_php_error('DELETE error: ' . $e->getMessage());
+			log_php_error('DELETE exception: ' . $e->getMessage());
 			ob_end_clean();
 			http_response_code(500);
 			echo json_encode(["error" => $e->getMessage()]);

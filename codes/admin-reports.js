@@ -238,7 +238,9 @@ async function generateReport(silent = false) {
             });
         }
         if (!silent) {
-            logAdminActivity('Generated report', `${reportType} (${dateFrom} to ${dateTo}) - ${processedSales.length} transactions`, 'Success');
+            const displayFrom = dateFrom || new Date().toISOString().split('T')[0];
+            const displayTo = dateTo || new Date().toISOString().split('T')[0];
+            logAdminActivity('Generated report', `${reportType} (${displayFrom} to ${displayTo}) - ${processedSales.length} transactions`, 'Success');
         }
     } catch (err) {
         console.error('Failed to generate report:', err);

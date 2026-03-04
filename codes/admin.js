@@ -1,76 +1,3 @@
-// QR Code Generation for Quick Login
-function generateUserQR(userId, username) {
-    // Show modal
-    const modalElem = document.getElementById('qrCodeModal');
-    if (!modalElem) return;
-    const qrContainer = document.getElementById('qrCodeContainer');
-    const qrUserInfo = document.getElementById('qrUserInfo');
-    if (!qrContainer || !qrUserInfo) return;
-
-
-    // Clear previous QR
-    qrContainer.innerHTML = '';
-    qrUserInfo.textContent = '';
-    const downloadBtn = document.getElementById('downloadQRBtn');
-    if (downloadBtn) downloadBtn.style.display = 'none';
-
-    // Data to encode (customize as needed, e.g., include a token or just username)
-    const qrData = JSON.stringify({ quick_login: true, userId, username });
-
-
-    // Helper to enable download button after QR is rendered
-    function enableDownloadQR() {
-        const qrImg = qrContainer.querySelector('img') || qrContainer.querySelector('canvas');
-        if (!qrImg) return;
-        if (!downloadBtn) return;
-        downloadBtn.style.display = '';
-        downloadBtn.onclick = function() {
-            let dataUrl = '';
-            let filename = `user-qr-${username}.png`;
-            if (qrImg.tagName === 'IMG') {
-                dataUrl = qrImg.src;
-            } else if (qrImg.tagName === 'CANVAS') {
-                dataUrl = qrImg.toDataURL('image/png');
-            }
-            const a = document.createElement('a');
-            a.href = dataUrl;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        };
-    }
-
-    // Generate QR code (requires QRCode.js)
-    function renderQR() {
-        new QRCode(qrContainer, {
-            text: qrData,
-            width: 200,
-            height: 200,
-            colorDark: '#000000',
-            colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.H
-        });
-        // Wait a moment for QR to render, then enable download
-        setTimeout(enableDownloadQR, 300);
-    }
-
-    if (typeof QRCode === 'undefined') {
-        // Dynamically load QRCode.js from CDN if not present
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-        script.onload = renderQR;
-        document.body.appendChild(script);
-    } else {
-        renderQR();
-    }
-
-    qrUserInfo.textContent = `Username: ${username}`;
-
-    // Show modal using Bootstrap
-    const modal = new bootstrap.Modal(modalElem);
-    modal.show();
-}
 // Admin Dashboard JavaScript - Updated with User Management and Multi-page fixes
 const API_URL = "php/app.php";
 
@@ -84,7 +11,6 @@ function fixImagePath(path) {
 function createDB(table) {
     return {
         add: async (data) => {
-            console.log(`[usersDB.add] Sending:`, { ...data, table });
             try {
                 const res = await fetch(API_URL, {
                     method: "POST",
@@ -95,15 +21,13 @@ function createDB(table) {
                     },
                     body: JSON.stringify({ ...data, table })
                 });
-                console.log(`[usersDB.add] Response status:`, res.status);
                 const text = await res.text();
                 try {
                     const json = JSON.parse(text);
-                    console.log(`[usersDB.add] Response JSON:`, json);
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     return json;
                 } catch (parseErr) {
-                    console.error(`[usersDB.add] Response not JSON:`, text);
+                    console.error(`[${table}DB.add] Response not JSON:`, text);
                     throw parseErr;
                 }
             } catch (err) {
@@ -112,7 +36,6 @@ function createDB(table) {
             }
         },
         show: async (filters = {}) => {
-            console.log(`[${table}DB.show] Filters:`, filters);
             try {
                 const params = new URLSearchParams({ ...filters, table }).toString();
                 const res = await fetch(`${API_URL}?${params}`, {
@@ -121,11 +44,9 @@ function createDB(table) {
                         "X-Requested-With": "XMLHttpRequest"
                     }
                 });
-                console.log(`[${table}DB.show] Response status:`, res.status);
                 const text = await res.text();
                 try {
                     const json = JSON.parse(text);
-                    console.log(`[${table}DB.show] Response JSON:`, json);
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     return json;
                 } catch (parseErr) {
@@ -138,7 +59,6 @@ function createDB(table) {
             }
         },
         edit: async (data) => {
-            console.log(`[${table}DB.edit] Data:`, data);
             try {
                 if (!data.id && !data.key) throw new Error("Missing id/key for update");
                 const res = await fetch(API_URL, {
@@ -150,27 +70,20 @@ function createDB(table) {
                     },
                     body: JSON.stringify({ ...data, table })
                 });
-                console.log(`[${table}DB.edit] Response status:`, res.status);
-                const text = await res.text();
-                try {
-                    const json = JSON.parse(text);
-                    console.log(`[${table}DB.edit] Response JSON:`, json);
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    return json;
-                } catch (parseErr) {
-                    console.error(`[${table}DB.edit] Response not JSON:`, text);
-                    throw parseErr;
-                }
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const json = await res.json();
+                return json;
             } catch (err) {
                 console.error(`Edit failed [${table}]:`, err);
                 return { error: err.message };
             }
         },
         delete: async (idOrKey) => {
-            console.log(`[${table}DB.delete] Key:`, idOrKey);
             try {
                 const keyName = typeof idOrKey === 'object' ? Object.keys(idOrKey)[0] : (table === 'system_settings' ? 'key' : 'id');
                 const keyValue = typeof idOrKey === 'object' ? Object.values(idOrKey)[0] : idOrKey;
+                const requestBody = { [keyName]: keyValue, table };
+
                 const res = await fetch(API_URL, {
                     method: "DELETE",
                     headers: {
@@ -178,21 +91,16 @@ function createDB(table) {
                         "Accept": "application/json",
                         "X-Requested-With": "XMLHttpRequest"
                     },
-                    body: JSON.stringify({ [keyName]: keyValue, table })
+                    body: JSON.stringify(requestBody)
                 });
-                console.log(`[${table}DB.delete] Response status:`, res.status);
-                const text = await res.text();
-                try {
-                    const json = JSON.parse(text);
-                    console.log(`[${table}DB.delete] Response JSON:`, json);
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    return json;
-                } catch (parseErr) {
-                    console.error(`[${table}DB.delete] Response not JSON:`, text);
-                    throw parseErr;
+
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
                 }
+                const json = await res.json();
+                return json;
             } catch (err) {
-                console.error(`Delete failed [${table}]:`, err);
+                console.error(`Delete failed [${table}]:`, err.message);
                 return { error: err.message };
             }
         }
@@ -439,31 +347,21 @@ initPeriodToggles();
 
 
 async function loadUnits() {
-    console.log("🔄 loadUnits() called");
-
     const unitSelect = document.getElementById("ingredientUnit");
 
     if (!unitSelect) {
-        console.error("❌ ingredientUnit element NOT FOUND");
-        return;
+        return; // Element not on this page
     }
-
-    console.log("✔ ingredientUnit element FOUND");
 
     unitSelect.innerHTML = `<option value="">Select Unit</option>`;
 
     try {
-        console.log("📡 Fetching units from unitsDB.show()...");
         const units = await unitsDB.show();
-        console.log("📥 Units received:", units);
 
         if (!units || units.length === 0) {
-            console.warn("⚠ No units found");
             unitSelect.innerHTML = `<option value="">No units found</option>`;
             return;
         }
-
-        console.log(`✔ ${units.length} units found. Rendering...`);
 
         units.forEach(unit => {
             const opt = document.createElement("option");
@@ -472,16 +370,13 @@ async function loadUnits() {
             unitSelect.appendChild(opt);
         });
 
-        console.log("🎉 Units successfully loaded!");
-
     } catch (error) {
-        console.error("🔥 ERROR loading units:", error);
+        console.error("ERROR loading units:", error);
     }
 }
 
 // Run on page load
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("🌐 DOMContentLoaded fired");
     loadUnits();
 });
 
@@ -491,17 +386,14 @@ async function loadIngredientCategories() {
     const categorySelect = document.getElementById("ingredientCategory");
 
     if (!categorySelect) {
-        console.error("❌ ingredientCategory element not found");
-        return;
+        return; // Element not on this page
     }
 
     // Reset select
     categorySelect.innerHTML = `<option value="">Select Category</option>`;
 
     try {
-        console.log("📡 Fetching categories from ingredientCategoriesDB...");
         const categories = await ingredientCategoriesDB.show();
-        console.log("📥 Categories received:", categories);
 
         if (!Array.isArray(categories) || categories.length === 0) {
             categorySelect.innerHTML = `<option value="">No categories found</option>`;
@@ -514,10 +406,8 @@ async function loadIngredientCategories() {
             opt.textContent = cat.name; // Display name
             categorySelect.appendChild(opt);
         });
-
-        console.log("🎉 Ingredient categories loaded successfully!");
     } catch (error) {
-        console.error("🔥 ERROR loading ingredient categories:", error);
+        console.error("ERROR loading ingredient categories:", error);
         categorySelect.innerHTML = `<option value="">Error loading categories</option>`;
     }
 }
@@ -943,32 +833,14 @@ async function loadActiveUsersCount() {
 
 // Menu Control Functions
 
-// Get menu items from localStorage or seed with defaults
+// Get menu items from database
 function getMenuItems() {
-    let items = [];
-    try {
-        const stored = localStorage.getItem('adminMenuItems');
-        if (stored) items = JSON.parse(stored);
-    } catch (e) { items = []; }
-
-    if (!items || items.length === 0) {
-        items = [
-            { id: 1, name: 'Beef Steak', category: 'Main Course', price: 24.99, status: 'Active', recipes: 4 },
-            { id: 2, name: 'Chicken Curry', category: 'Main Course', price: 18.99, status: 'Active', recipes: 3 },
-            { id: 3, name: 'Vegetable Salad', category: 'Appetizer', price: 9.99, status: 'Active', recipes: 3 },
-            { id: 4, name: 'Garlic Bread', category: 'Appetizer', price: 7.99, status: 'Active', recipes: 3 },
-            { id: 5, name: 'French Fries', category: 'Side Dish', price: 5.99, status: 'Active', recipes: 1 },
-            { id: 6, name: 'Grilled Salmon', category: 'Main Course', price: 22.99, status: 'Inactive', recipes: 2 },
-            { id: 7, name: 'Pasta Carbonara', category: 'Main Course', price: 16.99, status: 'Active', recipes: 3 },
-            { id: 8, name: 'Chocolate Cake', category: 'Dessert', price: 8.99, status: 'Active', recipes: 3 }
-        ];
-        localStorage.setItem('adminMenuItems', JSON.stringify(items));
-    }
-    return items;
+    // Data is now loaded directly from the database via menuItemsDB.show()
+    return [];
 }
 
 function saveMenuItemsToStorage(items) {
-    localStorage.setItem('adminMenuItems', JSON.stringify(items));
+    // Data is now saved directly to database, localStorage no longer used
 }
 
 // Variable to track if we are editing
@@ -1328,54 +1200,42 @@ function addIngredientToRecipeForm() {
         container.innerHTML = '';
     }
 
-    // Get available ingredients from localStorage or default list
-    let ingredients = [];
-    try {
-        const stored = localStorage.getItem('ingredients');
-        if (stored) {
-            ingredients = JSON.parse(stored).map(i => ({ id: i.id, name: i.name }));
-        }
-    } catch (e) { }
-    if (ingredients.length === 0) {
-        ingredients = [
-            { id: 1, name: 'Beef' }, { id: 2, name: 'Chicken' }, { id: 3, name: 'Rice' },
-            { id: 4, name: 'Tomatoes' }, { id: 5, name: 'Onions' }, { id: 6, name: 'Garlic' },
-            { id: 7, name: 'Salt' }, { id: 8, name: 'Flour' }, { id: 9, name: 'Cheese' },
-            { id: 10, name: 'Butter' }, { id: 11, name: 'Potatoes' }, { id: 12, name: 'Lettuce' }
-        ];
-    }
-
-    // Create ingredient row
-    const row = document.createElement('div');
-    row.className = 'row g-3 mb-3 align-items-center';
-    row.innerHTML = `
-        <div class="col-md-6">
-            <select class="form-select ingredient-select">
-                <option value="">Select Ingredient</option>
-                ${ingredients.map(ing => `<option value="${ing.id}">${ing.name}</option>`).join('')}
-            </select>
-        </div>
-        <div class="col-md-4">
-            <div class="input-group">
-                <input type="number" class="form-control ingredient-quantity" placeholder="Quantity" min="0.01" step="0.01">
-                <span class="input-group-text">kg</span>
+    // Fetch ingredients from database
+    ingredientsDB.show().then(ingredients => {
+        // Create ingredient row with database ingredients
+        const row = document.createElement('div');
+        row.className = 'row g-3 mb-3 align-items-center';
+        row.innerHTML = `
+            <div class="col-md-6">
+                <select class="form-select ingredient-select">
+                    <option value="">Select Ingredient</option>
+                    ${ingredients.map(ing => `<option value="${ing.id}">${ing.name}</option>`).join('')}
+                </select>
             </div>
-        </div>
-        <div class="col-md-2">
-            <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-ingredient">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `;
+            <div class="col-md-4">
+                <div class="input-group">
+                    <input type="number" class="form-control ingredient-quantity" placeholder="Quantity" min="0.01" step="0.01">
+                    <span class="input-group-text">kg</span>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-ingredient">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
 
-    container.appendChild(row);
+        container.appendChild(row);
 
-    // Add remove event listener
-    row.querySelector('.remove-ingredient').addEventListener('click', function () {
-        row.remove();
-        if (container.querySelectorAll('.row').length === 0) {
-            container.innerHTML = '<p class="text-muted text-center py-2">No ingredients assigned yet</p>';
-        }
+        // Add remove event listener
+        row.querySelector('.remove-ingredient').addEventListener('click', function () {
+            row.remove();
+            if (container.querySelectorAll('.row').length === 0) {
+                container.innerHTML = '<p class="text-muted text-center py-2">No ingredients assigned yet</p>';
+            }
+        });
+    }).catch(err => {
+        console.error('Failed to load ingredients:', err);
     });
 }
 
@@ -1566,71 +1426,6 @@ function getAvailableIngredients(callback) {
     });
 }
 
-function saveIngredientsToStorage(ingredients) {
-    localStorage.setItem('ingredients', JSON.stringify(ingredients));
-}
-
-// Get recipes from localStorage or seed with defaults
-function getRecipes() {
-    let recipes = [];
-    try {
-        const stored = localStorage.getItem('adminRecipes');
-        if (stored) recipes = JSON.parse(stored);
-    } catch (e) { recipes = []; }
-
-    if (!recipes || recipes.length === 0) {
-        recipes = [
-            {
-                id: 1, menuItem: 'Beef Steak',
-                ingredients: [
-                    { name: 'Beef', qty: 0.30, unit: 'kg', cost: 3.60 },
-                    { name: 'Potatoes', qty: 0.15, unit: 'kg', cost: 0.38 },
-                    { name: 'Tomatoes', qty: 0.10, unit: 'kg', cost: 0.30 },
-                    { name: 'Onions', qty: 0.10, unit: 'kg', cost: 0.20 }
-                ]
-            },
-            {
-                id: 2, menuItem: 'Chicken Curry',
-                ingredients: [
-                    { name: 'Chicken', qty: 0.25, unit: 'kg', cost: 2.00 },
-                    { name: 'Rice', qty: 0.15, unit: 'kg', cost: 0.38 },
-                    { name: 'Garlic', qty: 0.02, unit: 'kg', cost: 0.10 },
-                    { name: 'Onions', qty: 0.10, unit: 'kg', cost: 0.20 }
-                ]
-            },
-            {
-                id: 3, menuItem: 'Vegetable Salad',
-                ingredients: [
-                    { name: 'Tomatoes', qty: 0.10, unit: 'kg', cost: 0.30 },
-                    { name: 'Lettuce', qty: 0.13, unit: 'kg', cost: 0.46 },
-                    { name: 'Cucumber', qty: 0.10, unit: 'kg', cost: 0.28 }
-                ]
-            },
-            {
-                id: 4, menuItem: 'Garlic Bread',
-                ingredients: [
-                    { name: 'Flour', qty: 0.08, unit: 'kg', cost: 0.12 },
-                    { name: 'Butter', qty: 0.05, unit: 'kg', cost: 0.35 },
-                    { name: 'Garlic', qty: 0.03, unit: 'kg', cost: 0.15 }
-                ]
-            },
-            {
-                id: 5, menuItem: 'Pasta Carbonara',
-                ingredients: [
-                    { name: 'Pasta', qty: 0.15, unit: 'kg', cost: 0.45 },
-                    { name: 'Cheese', qty: 0.08, unit: 'kg', cost: 0.80 },
-                    { name: 'Bacon', qty: 0.10, unit: 'kg', cost: 1.10 }
-                ]
-            }
-        ];
-        localStorage.setItem('adminRecipes', JSON.stringify(recipes));
-    }
-    return recipes;
-}
-
-function saveRecipesToStorage(recipes) {
-    localStorage.setItem('adminRecipes', JSON.stringify(recipes));
-}
 
 let editingRecipeId = null;
 
@@ -2868,9 +2663,6 @@ async function loadActiveUsers() {
                     <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${user.id})" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>
-                    <button class="btn btn-sm btn-outline-success" onclick="generateUserQR(${user.id}, '${user.username}')" title="Generate QR for Quick Login">
-                        <i class="fas fa-qrcode"></i>
-                    </button>
                 </div>
             </td>
         `;
@@ -3075,17 +2867,30 @@ async function editUser(id) {
         if (!users || users.length === 0) return;
         const user = users[0];
 
-        document.getElementById('editUserId').value = user.id;
-        document.getElementById('editFullName').value = user.full_name;
-        document.getElementById('editUserEmail').value = user.email || '';
-        document.getElementById('editUsername').value = user.username;
-        document.getElementById('editUserStatus').value = user.status;
+        const editUserId = document.getElementById('editUserId');
+        const editFullName = document.getElementById('editFullName');
+        const editUserEmail = document.getElementById('editUserEmail');
+        const editUsername = document.getElementById('editUsername');
+        const editUserStatus = document.getElementById('editUserStatus');
+        const editUserRole = document.getElementById('editUserRole');
+        const editUserPassword = document.getElementById('editUserPassword');
+
+        if (!editUserId || !editFullName || !editUsername) {
+            console.warn('Edit user modal elements not found on this page');
+            return;
+        }
+
+        editUserId.value = user.id;
+        editFullName.value = user.full_name;
+        if (editUserEmail) editUserEmail.value = user.email || '';
+        editUsername.value = user.username;
+        if (editUserStatus) editUserStatus.value = user.status;
 
         // Fetch role name from role_id
         const roleName = await getRoleNameById(user.role_id);
-        document.getElementById('editUserRole').value = roleName;
+        if (editUserRole) editUserRole.value = roleName;
 
-        document.getElementById('editUserPassword').value = ''; // clear password
+        if (editUserPassword) editUserPassword.value = ''; // clear password
 
         const modalElem = document.getElementById('editUserModal');
         if (!modalElem) return;
@@ -3366,8 +3171,10 @@ if (dateFrom && dateTo) {
     dateTo.value = today;
 }
 
-// Initial load
-generateReport();
+// Initial load - only on reports page
+if (document.getElementById('reports-content')) {
+    generateReport();
+}
 
 // Real-time update every 30 seconds
 setInterval(() => {
@@ -3490,8 +3297,10 @@ async function generateReport(silent = false) {
             });
         }
 
-        if (!silent) {
-            logAdminActivity('Generated report', `${reportType} (${dateFrom} to ${dateTo}) - ${processedSales.length} transactions`, 'Success');
+        if (!silent && document.getElementById('reports-content')) {
+            const displayFrom = dateFrom || new Date().toISOString().split('T')[0];
+            const displayTo = dateTo || new Date().toISOString().split('T')[0];
+            logAdminActivity('Generated report', `${reportType} (${displayFrom} to ${displayTo}) - ${processedSales.length} transactions`, 'Success');
         }
 
     } catch (err) {

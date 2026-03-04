@@ -532,15 +532,22 @@
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="spinner-border text-danger" role="status"></div><p class="mt-2 text-muted">Loading categories...</p></td></tr>';
 
             try {
-                const response = await fetch(`${CATEGORY_API}?action=list&type=menu`);
-                const data = await response.json();
+                // Fetch directly from database
+                const [categories, menuItems] = await Promise.all([
+                    menuCategoriesDB.show(),
+                    menuItemsDB.show()
+                ]);
 
-                if (data.success) {
-                    menuCategories = data.categories || [];
-                    renderMenuCategories();
-                } else {
-                    throw new Error(data.error || 'Failed to load');
-                }
+                // Count items per category
+                menuCategories = categories.map(cat => {
+                    const itemCount = menuItems.filter(item => item.category_id === cat.id).length;
+                    return {
+                        ...cat,
+                        item_count: itemCount
+                    };
+                });
+
+                renderMenuCategories();
             } catch (error) {
                 console.error('Error loading menu categories:', error);
                 tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger"><i class="fas fa-exclamation-circle me-2"></i>Failed to load categories</td></tr>`;
@@ -580,15 +587,36 @@
                     <td class="text-muted">${escapeHtml(cat.description || '-')}</td>
                     <td><span class="badge bg-secondary">${cat.item_count || 0}</span></td>
                     <td>
-                        <button class="btn btn-action btn-outline-primary me-1" onclick="editMenuCategory(${cat.id})" title="Edit">
+                        <button class="btn btn-action btn-outline-primary me-1" data-action="edit" data-id="${cat.id}" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn btn-action btn-outline-danger" onclick="deleteCategory(${cat.id}, 'menu', '${escapeHtml(cat.name)}')" title="Delete">
+                        <button class="btn btn-action btn-outline-danger" data-action="delete" data-id="${cat.id}" data-type="menu" data-name="${escapeHtml(cat.name)}" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>
                 </tr>
             `).join('');
+
+            // Add event listeners for buttons
+            tbody.querySelectorAll('[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id);
+                    const type = btn.dataset.type;
+                    const name = btn.dataset.name;
+                    deleteCategory(id, type, name);
+                });
+            });
+
+            tbody.querySelectorAll('[data-action="edit"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id);
+                    editMenuCategory(id);
+                });
+            });
         }
 
         function openMenuCategoryModal(category = null) {
@@ -621,26 +649,17 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
 
             try {
-                const response = await fetch(`${CATEGORY_API}?action=${id ? 'update' : 'create'}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: id || null,
-                        type: 'menu',
-                        name,
-                        description
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showModalNotification(id ? 'Category updated!' : 'Category created!', 'success');
-                    menuCategoryModal.hide();
-                    loadMenuCategories();
+                if (id) {
+                    // Update existing category
+                    await menuCategoriesDB.edit({ id, name, description });
                 } else {
-                    throw new Error(data.error || 'Failed to save');
+                    // Add new category
+                    await menuCategoriesDB.add({ name, description });
                 }
+
+                showModalNotification(id ? 'Category updated!' : 'Category created!', 'success');
+                menuCategoryModal.hide();
+                loadMenuCategories();
             } catch (error) {
                 console.error('Error saving menu category:', error);
                 showModalNotification('Failed to save category', 'error');
@@ -657,15 +676,22 @@
             tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="spinner-border text-danger" role="status"></div><p class="mt-2 text-muted">Loading categories...</p></td></tr>';
 
             try {
-                const response = await fetch(`${CATEGORY_API}?action=list&type=ingredient`);
-                const data = await response.json();
+                // Fetch directly from database
+                const [categories, ingredients] = await Promise.all([
+                    ingredientCategoriesDB.show(),
+                    ingredientsDB.show()
+                ]);
 
-                if (data.success) {
-                    ingredientCategories = data.categories || [];
-                    renderIngredientCategories();
-                } else {
-                    throw new Error(data.error || 'Failed to load');
-                }
+                // Count items per category
+                ingredientCategories = categories.map(cat => {
+                    const itemCount = ingredients.filter(ing => ing.category_id === cat.id).length;
+                    return {
+                        ...cat,
+                        item_count: itemCount
+                    };
+                });
+
+                renderIngredientCategories();
             } catch (error) {
                 console.error('Error loading ingredient categories:', error);
                 tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-danger"><i class="fas fa-exclamation-circle me-2"></i>Failed to load categories</td></tr>`;
@@ -703,15 +729,36 @@
                     <td><strong>${escapeHtml(cat.name)}</strong></td>
                     <td><span class="badge bg-secondary">${cat.item_count || 0}</span></td>
                     <td>
-                        <button class="btn btn-action btn-outline-primary me-1" onclick="editIngredientCategory(${cat.id})" title="Edit">
+                        <button class="btn btn-action btn-outline-primary me-1" data-action="edit" data-id="${cat.id}" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn btn-action btn-outline-danger" onclick="deleteCategory(${cat.id}, 'ingredient', '${escapeHtml(cat.name)}')" title="Delete">
+                        <button class="btn btn-action btn-outline-danger" data-action="delete" data-id="${cat.id}" data-type="ingredient" data-name="${escapeHtml(cat.name)}" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>
                 </tr>
             `).join('');
+
+            // Add event listeners for buttons
+            tbody.querySelectorAll('[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id);
+                    const type = btn.dataset.type;
+                    const name = btn.dataset.name;
+                    deleteCategory(id, type, name);
+                });
+            });
+
+            tbody.querySelectorAll('[data-action="edit"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id);
+                    editIngredientCategory(id);
+                });
+            });
         }
 
         function openIngredientCategoryModal(category = null) {
@@ -742,25 +789,17 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
 
             try {
-                const response = await fetch(`${CATEGORY_API}?action=${id ? 'update' : 'create'}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: id || null,
-                        type: 'ingredient',
-                        name
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showModalNotification(id ? 'Category updated!' : 'Category created!', 'success');
-                    ingredientCategoryModal.hide();
-                    loadIngredientCategories();
+                if (id) {
+                    // Update existing category
+                    await ingredientCategoriesDB.edit({ id, name });
                 } else {
-                    throw new Error(data.error || 'Failed to save');
+                    // Add new category
+                    await ingredientCategoriesDB.add({ name });
                 }
+
+                showModalNotification(id ? 'Category updated!' : 'Category created!', 'success');
+                ingredientCategoryModal.hide();
+                loadIngredientCategories();
             } catch (error) {
                 console.error('Error saving ingredient category:', error);
                 showModalNotification('Failed to save category', 'error');
@@ -773,43 +812,77 @@
         // =============== DELETE FUNCTIONALITY ===============
 
         function deleteCategory(id, type, name) {
-            document.getElementById('deleteCategoryId').value = id;
-            document.getElementById('deleteCategoryType').value = type;
-            document.getElementById('deleteCategoryName').textContent = name;
-            deleteCategoryModal.show();
+            try {
+                document.getElementById('deleteCategoryId').value = id;
+                document.getElementById('deleteCategoryType').value = type;
+                document.getElementById('deleteCategoryName').textContent = name;
+                deleteCategoryModal.show();
+            } catch (error) {
+                console.error('Error in deleteCategory:', error);
+                alert('Error opening delete modal: ' + error.message);
+            }
         }
 
         async function confirmDelete() {
             const id = document.getElementById('deleteCategoryId').value;
             const type = document.getElementById('deleteCategoryType').value;
 
+            console.log('=== DELETE STARTED ===');
+            console.log('ID:', id, 'Type:', type);
+
             const btn = document.getElementById('confirmDeleteBtn');
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Deleting...';
 
             try {
-                const response = await fetch(`${CATEGORY_API}?action=delete`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id, type })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showModalNotification('Category deleted!', 'success');
-                    deleteCategoryModal.hide();
-                    if (type === 'menu') {
-                        loadMenuCategories();
-                    } else {
-                        loadIngredientCategories();
+                // Check for dependent records first
+                console.log('Checking for dependent records...');
+                if (type === 'ingredient') {
+                    const ingredients = await ingredientsDB.show({ category_id: id });
+                    if (ingredients && ingredients.length > 0) {
+                        throw new Error(`Cannot delete category - ${ingredients.length} ingredient(s) still using this category. Please reassign or delete these ingredients first.`);
                     }
-                } else {
-                    throw new Error(data.error || 'Failed to delete');
+                } else if (type === 'menu') {
+                    const menuItems = await menuItemsDB.show({ category_id: id });
+                    if (menuItems && menuItems.length > 0) {
+                        throw new Error(`Cannot delete category - ${menuItems.length} menu item(s) still using this category. Please reassign or delete these items first.`);
+                    }
                 }
+                
+                console.log('No dependent records found. Proceeding with delete...');
+                console.log('Calling DB delete for:', type, 'with ID:', id);
+                
+                let result;
+                if (type === 'ingredient') {
+                    console.log('Deleting ingredient category...');
+                    result = await ingredientCategoriesDB.delete(id);
+                } else {
+                    console.log('Deleting menu category...');
+                    result = await menuCategoriesDB.delete(id);
+                }
+
+                console.log('Delete result:', result);
+
+                if (result && result.error) {
+                    console.error('Delete returned error:', result.error);
+                    throw new Error(result.error);
+                }
+
+                console.log('Delete successful, closing modal and reloading data...');
+                showModalNotification('Category deleted!', 'success');
+                deleteCategoryModal.hide();
+                
+                if (type === 'menu') {
+                    console.log('Reloading menu categories...');
+                    await loadMenuCategories();
+                } else {
+                    console.log('Reloading ingredient categories...');
+                    await loadIngredientCategories();
+                }
+                console.log('=== DELETE COMPLETED ===');
             } catch (error) {
-                console.error('Error deleting category:', error);
-                showModalNotification('Failed to delete category', 'error');
+                console.error('=== DELETE ERROR ===', error);
+                showModalNotification('Failed to delete category: ' + error.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-trash me-1"></i>Delete';
