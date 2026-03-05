@@ -186,7 +186,7 @@ function getActiveUsers() {
     
     $sessions = $supabase->select('user_sessions', [
         'is_active' => 'eq.true',
-        'select' => 'id,user_id,ip_address,user_agent,created_at,last_activity'
+        'select' => 'id,user_id,ip_address,user_agent,created_at,last_activity,expires_at'
     ]);
     
     if (isset($sessions['error']) || !is_array($sessions)) {

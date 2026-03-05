@@ -2441,6 +2441,17 @@ async function saveIngredient() {
         return;
     }
 
+    if (expiry_date) {
+        const selectedExpiry = new Date(expiry_date);
+        selectedExpiry.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (selectedExpiry < today) {
+            showModalNotification('Expiration date cannot be in the past.', 'warning', 'Invalid Date');
+            return;
+        }
+    }
+
     try {
         // Check for duplicate
         const allIngredients = await ingredientsDB.show();
@@ -2748,7 +2759,7 @@ async function getUsers() {
     }
 }
 
-function initializeUserManagement() {
+async function initializeUserManagement() {
     // Add User Button
     const addUserBtn = document.getElementById('addUserBtn');
     if (addUserBtn) {
@@ -2774,7 +2785,30 @@ function initializeUserManagement() {
     }
 
     // Load initial data
+    await loadRolesToDropdowns();
     loadUserManagement();
+}
+
+async function loadRolesToDropdowns() {
+    try {
+        const roles = await rolesDB.show();
+        const newRoleSelect = document.getElementById('newUserRole');
+        const editRoleSelect = document.getElementById('editUserRole');
+
+        let optionsHtml = '';
+        if (roles && roles.length > 0) {
+            optionsHtml = roles.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+        }
+
+        if (newRoleSelect) {
+            newRoleSelect.innerHTML = optionsHtml;
+        }
+        if (editRoleSelect) {
+            editRoleSelect.innerHTML = optionsHtml;
+        }
+    } catch (err) {
+        console.error('Failed to load roles into dropdowns:', err);
+    }
 }
 
 async function loadUserManagement() {
@@ -2981,9 +3015,15 @@ async function saveNewUser() {
         }
 
         // 2️⃣ Check if username already exists in DB
-        const existingUsers = await usersDB.show({ username });
-        if (existingUsers.length > 0) {
+        const existingUsersByUsername = await usersDB.show({ username });
+        if (existingUsersByUsername.length > 0) {
             showModalNotification('Username already exists', 'warning', 'Duplicate Entry');
+            return;
+        }
+
+        const existingUsersByEmail = await usersDB.show({ email });
+        if (existingUsersByEmail.length > 0) {
+            showModalNotification('Email already exists', 'warning', 'Duplicate Entry');
             return;
         }
 
@@ -3097,6 +3137,20 @@ async function saveUserChanges() {
         const users = await usersDB.show({ id });
         if (!users || users.length === 0) return;
         const user = users[0];
+
+        // Ensure username and email don't overlap with another user
+        const allUsers = await usersDB.show();
+        const duplicateUsername = allUsers.find(u => u.username === username && u.id !== id);
+        if (duplicateUsername) {
+            showModalNotification('Username already exists', 'warning', 'Duplicate Entry');
+            return;
+        }
+
+        const duplicateEmail = allUsers.find(u => u.email === email && u.id !== id);
+        if (duplicateEmail) {
+            showModalNotification('Email already exists', 'warning', 'Duplicate Entry');
+            return;
+        }
 
         // Update fields
         const updatedUser = {

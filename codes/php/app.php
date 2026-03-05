@@ -73,7 +73,8 @@ $TABLES = [
 	'account_lockout' => ['id', 'user_id', 'lockout_at'],
 	'login_attempts' => ['id', 'username', 'attempt_count', 'last_attempt_at'],
 	'notifications' => ['id', 'user_id', 'action_type', 'target_table', 'target_id', 'description', 'reason', 'is_read', 'created_at'],
-	'held_orders' => ['id', 'hold_ref', 'customer_name', 'order_type', 'items_json', 'subtotal', 'discount_amount', 'discount_percent', 'coupon_code', 'coupon_value', 'taxes', 'total_amount', 'staff_id', 'notes', 'created_at', 'expires_at', 'status', 'restored_at', 'restored_by']
+	'held_orders' => ['id', 'hold_ref', 'customer_name', 'order_type', 'items_json', 'subtotal', 'discount_amount', 'discount_percent', 'coupon_code', 'coupon_value', 'taxes', 'total_amount', 'staff_id', 'notes', 'created_at', 'expires_at', 'status', 'restored_at', 'restored_by'],
+	'user_sessions' => ['id', 'user_id', 'session_token', 'ip_address', 'user_agent', 'last_activity', 'expires_at', 'is_active', 'created_at']
 ];
 
 // Get table name from query string or body

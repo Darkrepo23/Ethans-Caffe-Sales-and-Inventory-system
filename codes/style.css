@@ -380,6 +380,8 @@ body.modal-open {
     .card {
         border: 1px solid #000 !important;
         box-shadow: none !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
     }
 
     .table {
@@ -389,6 +391,11 @@ body.modal-open {
     .table th,
     .table td {
         border: 1px solid #000;
+    }
+
+    tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
     }
 }
 
